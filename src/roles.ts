@@ -23,6 +23,7 @@ import type {
   Verdict,
 } from "./types.js";
 import { resolvePiModel } from "./executor.js";
+import { renderCheck } from "./preview.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
 import { addSessionCost } from "./session-cost.js";
@@ -42,7 +43,7 @@ const ROLE_INTRO: Record<Capability, string> = {
     "This is often a MULTI-FILE project: FIRST inspect what already exists (use ls, then read the relevant files) and BUILD ON it — " +
     "reuse and extend existing files, follow the file structure the design spec defines, and make sure files reference each other with correct paths " +
     "(imports/requires, <script src> and <link href>, relative paths). Create only the files this task needs; never delete or clobber files unrelated to your task.",
-  test: "You are the TESTER. Inspect the files in the working directory against the task, then call submit_verdict with pass/fail and any bugs. Check that multi-file wiring is correct (referenced files exist, paths/imports resolve). Do not fix anything yourself.",
+  test: "You are the TESTER. For a web app, FIRST call check_app to actually run it in a headless browser — confirm it renders, shows the expected content, and has no JavaScript/console errors. Then inspect the files against the task and check multi-file wiring (referenced files exist, paths/imports resolve). Then call submit_verdict with pass/fail and any bugs. A blank render or a JS error is a high-severity bug. Do not fix anything yourself.",
   ops: "You are OPS. Perform the operational task (build, config, deploy prep) using your tools. Report what you did as text.",
 };
 
@@ -74,6 +75,40 @@ const VerdictSchema = Type.Object({
   ),
 });
 type VerdictRaw = Static<typeof VerdictSchema>;
+
+// ---- tester "run the app" tool: headless render + error capture ----
+
+function buildCheckTool(workspace: string) {
+  return defineTool({
+    name: "check_app",
+    label: "Run the app",
+    description:
+      "Render a built web page in a headless browser and report its title, the visible text, " +
+      "and any JavaScript/console errors or failed asset requests. Use this on web apps to confirm " +
+      "the app actually RUNS and renders before you judge it — do not rely on reading the code alone.",
+    parameters: Type.Object(
+      { file: Type.Optional(Type.String({ description: "HTML entry file to load; default index.html" })) },
+      { additionalProperties: true },
+    ),
+    execute: async (_id, params: { file?: string }) => {
+      try {
+        const r = await renderCheck(workspace, params.file || "index.html");
+        const text = [
+          `rendered: ${r.ok ? "OK (no JS errors)" : "with errors"}`,
+          `title: ${r.title || "(none)"}`,
+          `errors: ${r.errors.length ? "\n  - " + r.errors.join("\n  - ") : "none"}`,
+          `visible text:\n${r.text || "(empty page — nothing rendered)"}`,
+        ].join("\n");
+        return { content: [{ type: "text", text }], details: {} };
+      } catch (e) {
+        return {
+          content: [{ type: "text", text: `check_app could not run (${e instanceof Error ? e.message : e}). If this isn't a web app with an HTML page, inspect the files directly instead.` }],
+          details: {},
+        };
+      }
+    },
+  });
+}
 
 function buildVerdictTool() {
   let captured: Verdict | undefined;
@@ -193,6 +228,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
 
     const isTest = task.capability === "test";
     const verdictTool = isTest ? buildVerdictTool() : undefined;
+    const checkTool = isTest ? buildCheckTool(opts.workspace) : undefined;
 
     const { session } = await createAgentSession({
       model,
@@ -201,7 +237,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
       modelRegistry: registry,
       thinkingLevel: opts.thinkingLevel ?? "medium",
       ...(isTest
-        ? { customTools: [verdictTool!.tool], tools: ["read", "bash", "ls", "grep", "find", "submit_verdict"] }
+        ? { customTools: [verdictTool!.tool, checkTool!], tools: ["read", "bash", "ls", "grep", "find", "check_app", "submit_verdict"] }
         : { tools: ["read", "write", "edit", "bash", "ls", "grep", "find"] }),
     });
 
