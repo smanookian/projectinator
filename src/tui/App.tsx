@@ -38,10 +38,11 @@ import {
   type PlanResult,
   type ProjectInfo,
 } from "./engine.js";
+import { deploy, DEPLOY_META, type DeployTarget } from "./deploy.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying"
   | "idea" | "change" | "planning" | "plan" | "board" | "building" | "done" | "error";
 
 export default function App(): React.ReactElement {
@@ -71,6 +72,13 @@ export default function App(): React.ReactElement {
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [epicFilter, setEpicFilter] = useState<string | null>(null);
   const [flash, setFlash] = useState<string>("");
+  const [deployState, setDeployState] = useState<{
+    target: DeployTarget;
+    status: "running" | "done" | "error";
+    url?: string;
+    error?: string;
+    log: string[];
+  } | null>(null);
 
   // Reload the projects list and re-point `selected` at the given dir (after a mutation).
   const reselect = (dir: string | null) => {
@@ -104,6 +112,7 @@ export default function App(): React.ReactElement {
       case "addAsset": return setPhase(assetReturn);
       case "plan": return setPhase("idea");
       case "exportMenu": return setPhase("projectActions");
+      case "deployMenu": return setPhase("projectActions");
       case "filterEpic": return setPhase("projectActions");
       case "projectActions": return setPhase("projects");
       case "projects": return setPhase("home");
@@ -361,6 +370,7 @@ export default function App(): React.ReactElement {
     const items = [
       { label: "📋 Edit board", value: "editBoard" },
       { label: "📤 Export (Markdown, CSV, Jira, Trello)", value: "export" },
+      { label: "🚀 Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
       { label: `🔀 View: ${viewMode === "board" ? "Board → List" : "List → Board"}`, value: "view" },
       ...(epics.length > 1 ? [{ label: `🔎 Filter: ${epicFilter ?? "All epics"}`, value: "filter" }] : []),
       { label: "🌐 Open in browser", value: "open" },
@@ -393,6 +403,7 @@ export default function App(): React.ReactElement {
               if (i.value !== "export") setFlash("");
               if (i.value === "editBoard") setPhase("editBoard");
               else if (i.value === "export") { setFlash(""); setPhase("exportMenu"); }
+              else if (i.value === "deploy") { setFlash(""); setPhase("deployMenu"); }
               else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
               else if (i.value === "filter") setPhase("filterEpic");
               else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
@@ -508,6 +519,81 @@ export default function App(): React.ReactElement {
           />
         </Box>
         <Text color={C.dim}>{"\n"}Esc to go back.</Text>
+      </Box>
+    );
+  }
+
+  if (phase === "deployMenu" && selected) {
+    const dir = selected.dir;
+    const name = selected.idea || dir.split("/").pop() || "app";
+    const start = (target: DeployTarget) => {
+      setDeployState({ target, status: "running", log: [] });
+      setPhase("deploying");
+      deploy(target, dir, name, (line) =>
+        setDeployState((prev) => (prev ? { ...prev, log: [...prev.log.slice(-60), line] } : prev)),
+      )
+        .then((res) => setDeployState((prev) => (prev ? { ...prev, status: "done", url: res.url } : prev)))
+        .catch((e) => setDeployState((prev) => (prev ? { ...prev, status: "error", error: e instanceof Error ? e.message : String(e) } : prev)));
+    };
+    const targets: DeployTarget[] = ["cloudflare", "vercel", "netlify"];
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Deploy</Text>
+        <Text color={C.dim}>Publishes the built site publicly. Each target needs its CLI installed and signed in.</Text>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              ...targets.map((t) => ({ label: `🚀 ${DEPLOY_META[t].label}   (${DEPLOY_META[t].cli})`, value: t })),
+              { label: "🔙 Back", value: "back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "back") return setPhase("projectActions");
+              start(i.value as DeployTarget);
+            }}
+          />
+        </Box>
+        <Box marginTop={1} flexDirection="column">
+          <Text color={C.dim}>Sign-in per target (one-time):</Text>
+          {targets.map((t) => (
+            <Text key={t} color={C.dim}>  {DEPLOY_META[t].label}: {DEPLOY_META[t].auth}</Text>
+          ))}
+        </Box>
+        <Text color={C.dim}>{"\n"}Esc to go back.</Text>
+      </Box>
+    );
+  }
+
+  if (phase === "deploying" && deployState) {
+    const ds = deployState;
+    const meta = DEPLOY_META[ds.target];
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Deploy → {meta.label}</Text>
+        {ds.status === "running" ? <Box marginTop={1}><Spinner label="Deploying… (first run can take a minute)" /></Box> : null}
+        {ds.log.length ? (
+          <Box marginTop={1} flexDirection="column">
+            {ds.log.slice(-8).map((l, idx) => (
+              <Text key={idx} color={C.dim} wrap="truncate-end">{l}</Text>
+            ))}
+          </Box>
+        ) : null}
+        {ds.status === "done" ? (
+          <Box marginTop={1}>
+            {ds.url
+              ? <StatusMessage variant="success">Live at {ds.url}</StatusMessage>
+              : <StatusMessage variant="success">Deployed. (No URL parsed — check the log above.)</StatusMessage>}
+          </Box>
+        ) : null}
+        {ds.status === "error" ? (
+          <Box marginTop={1}><StatusMessage variant="error">{ds.error}</StatusMessage></Box>
+        ) : null}
+        {ds.status !== "running" ? (
+          <Box marginTop={1}>
+            <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => { setDeployState(null); setPhase("projectActions"); }} />
+          </Box>
+        ) : null}
       </Box>
     );
   }
