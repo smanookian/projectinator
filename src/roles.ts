@@ -174,6 +174,30 @@ export interface PiExecutorOptions {
   authStorage?: AuthStorage;
   thinkingLevel?: "off" | "low" | "medium" | "high";
   onEvent?: Parameters<AgentSession["subscribe"]>[0];
+  /** Called when a task falls back from its routed provider to another one. */
+  onFallback?: (info: { taskId: string; from: Provider; to: Provider; model: string }) => void;
+}
+
+// Env vars that hold each provider's key (mirrors run-build's check).
+const ENV_KEYS: Record<Provider, string[]> = {
+  anthropic: ["ANTHROPIC_API_KEY"],
+  openai: ["OPENAI_API_KEY"],
+  google: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
+};
+
+function providersWithKeys(): Provider[] {
+  return (Object.keys(ENV_KEYS) as Provider[]).filter((p) => ENV_KEYS[p].some((k) => process.env[k]));
+}
+
+/** The routed model first, then the same-strength model on every OTHER provider
+ *  that has a key — so a 0-token / errored provider falls back automatically. */
+function fallbackChain(primary: Provider, primaryModel: string, cap: Capability): { provider: Provider; model: string }[] {
+  const chain: { provider: Provider; model: string }[] = [{ provider: primary, model: primaryModel }];
+  for (const p of providersWithKeys()) {
+    if (p === primary) continue;
+    chain.push({ provider: p, model: PROVIDER_MODELS[p][CAP_STRENGTH[cap]] });
+  }
+  return chain;
 }
 
 /** Extract the last assistant text from a session, tolerant of content shape. */
@@ -219,12 +243,21 @@ function listFiles(dir: string): string[] {
   return out.sort();
 }
 
-/** Build a real RoleExecutor backed by Pi. Each call spends money. */
+/** Build a real RoleExecutor backed by Pi. Each call spends money. Falls back to
+ *  another key-holding provider when the routed one errors or returns 0 tokens. */
 export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
-  return async ({ task, decision, contextText }) => {
-    const authStorage = opts.authStorage ?? AuthStorage.create();
+  const authStorage = opts.authStorage ?? AuthStorage.create();
+
+  // One attempt on a specific provider/model. Returns the result + total tokens
+  // (0 tokens = the provider call didn't really happen → treat as a failure).
+  const runOnce = async (
+    task: Task,
+    contextText: string,
+    provider: Provider,
+    modelId: string,
+  ): Promise<{ result: RoleResult; tokensTotal: number }> => {
     const registry = ModelRegistry.create(authStorage);
-    const model = resolvePiModel(registry, decision.provider, decision.model.id);
+    const model = resolvePiModel(registry, provider, modelId);
 
     const isTest = task.capability === "test";
     const verdictTool = isTest ? buildVerdictTool() : undefined;
@@ -264,20 +297,41 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
 
       const stats = session.getSessionStats();
       addSessionCost(stats.cost);
-      // Feed the real usage back so estimates for this bucket sharpen over time.
-      const inputTotal = stats.tokens.input + stats.tokens.cacheRead;
-      recordActual(task.capability, task.difficulty, inputTotal, stats.tokens.output, inputTotal > 0 ? stats.tokens.cacheRead / inputTotal : 0);
+      // Feed real usage back to sharpen estimates — but only for a real run.
+      if (stats.tokens.total > 0) {
+        const inputTotal = stats.tokens.input + stats.tokens.cacheRead;
+        recordActual(task.capability, task.difficulty, inputTotal, stats.tokens.output, inputTotal > 0 ? stats.tokens.cacheRead / inputTotal : 0);
+      }
       const result: RoleResult = {
         finalText: lastAssistantText(session),
         files: listFiles(opts.workspace),
         cost: round2(stats.cost),
         verdict,
       };
-      return result;
+      return { result, tokensTotal: stats.tokens.total };
     } finally {
       unsub?.();
       session.dispose();
     }
+  };
+
+  return async ({ task, decision, contextText }) => {
+    const chain = fallbackChain(decision.provider, decision.model.id, task.capability);
+    let lastErr: unknown;
+    for (let i = 0; i < chain.length; i++) {
+      const cand = chain[i]!;
+      try {
+        const att = await runOnce(task, contextText, cand.provider, cand.model);
+        if (att.tokensTotal > 0) {
+          if (i > 0) opts.onFallback?.({ taskId: task.id, from: decision.provider, to: cand.provider, model: cand.model });
+          return att.result;
+        }
+        lastErr = new Error(`${cand.provider}/${cand.model} returned 0 tokens (key likely can't access this model)`);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("all providers failed");
   };
 }
 

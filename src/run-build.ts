@@ -147,7 +147,12 @@ initRepo(workspace);
 const titleById = new Map(tasks.map((t) => [t.id, t.title]));
 
 const onEvent = (_e: AgentSessionEvent) => {};
-const executor = makePiExecutor({ workspace, backend: "api", onEvent });
+const executor = makePiExecutor({
+  workspace,
+  backend: "api",
+  onEvent,
+  onFallback: (info) => console.log(`    ↪ ${info.taskId}: ${info.from} failed — fell back to ${info.to}/${info.model}`),
+});
 
 const onProgress = (e: OrchestratorEvent) => {
   if (e.type === "task_start") console.log(`  ▶ ${e.task.id} [${e.task.capability}] -> ${e.provider}/${e.modelId} (round ${e.round})`);

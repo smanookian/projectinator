@@ -29,7 +29,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [ ] Task comments / notes
 
 ### Robustness
-- [ ] Provider fallback — 0-token/error → auto-retry on another provider
+- [x] Provider fallback — routed provider errors / returns 0 tokens → auto-retry the same-strength model on another key-holding provider (executor-level, both build paths). CLI prints the fallback
 - [ ] Per-project budget cap + alerts
 
 ### Sharing
