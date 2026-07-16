@@ -10,7 +10,7 @@
 // relative paths all resolve the way they will in production.
 
 import { createServer, type Server } from "node:http";
-import { readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 
 const TYPES: Record<string, string> = {
@@ -27,12 +27,41 @@ export interface StaticServer {
   close: () => Promise<void>;
 }
 
-/** Serve `dir` on a random loopback port. Path traversal is blocked. */
-export function startStaticServer(dir: string): Promise<StaticServer> {
+// Injected into served HTML when liveReload is on: polls /__mtime and reloads
+// when any file in the directory changes (so the page refreshes as a build runs).
+const RELOAD_SNIPPET = `<script>(function(){let last=null;setInterval(async function(){try{var r=await fetch('/__mtime');var t=await r.text();if(last!==null&&t!==last){location.reload();}last=t;}catch(e){}},1000);})();</script>`;
+
+/** Newest mtime (ms) across all files in dir — a cheap change signal. */
+function maxMtime(dir: string): number {
+  let max = 0;
+  const walk = (d: string) => {
+    let entries: string[];
+    try { entries = readdirSync(d); } catch { return; }
+    for (const name of entries) {
+      if (name.startsWith(".")) continue;
+      const full = join(d, name);
+      let st;
+      try { st = statSync(full); } catch { continue; }
+      if (st.isDirectory()) walk(full);
+      else if (st.mtimeMs > max) max = st.mtimeMs;
+    }
+  };
+  walk(dir);
+  return max;
+}
+
+/** Serve `dir` on a random loopback port. Path traversal is blocked.
+ *  opts.liveReload injects a poller that reloads the page when files change. */
+export function startStaticServer(dir: string, opts: { liveReload?: boolean } = {}): Promise<StaticServer> {
   return new Promise((resolve, reject) => {
     const server: Server = createServer((req, res) => {
       try {
         const reqPath = decodeURIComponent((req.url ?? "/").split("?")[0] ?? "/");
+        if (opts.liveReload && reqPath === "/__mtime") {
+          res.writeHead(200, { "Content-Type": "text/plain" });
+          res.end(String(maxMtime(dir)));
+          return;
+        }
         // Resolve within dir; reject anything that escapes it.
         const rel = normalize(reqPath).replace(/^(\.\.[/\\])+/, "");
         let filePath = join(dir, rel);
@@ -40,9 +69,16 @@ export function startStaticServer(dir: string): Promise<StaticServer> {
         let st;
         try { st = statSync(filePath); } catch { res.writeHead(404).end("not found"); return; }
         if (st.isDirectory()) filePath = join(filePath, "index.html");
-        const body = readFileSync(filePath);
-        res.writeHead(200, { "Content-Type": TYPES[extname(filePath).toLowerCase()] ?? "application/octet-stream" });
-        res.end(body);
+        const type = TYPES[extname(filePath).toLowerCase()] ?? "application/octet-stream";
+        if (opts.liveReload && type === "text/html") {
+          let html = readFileSync(filePath, "utf8");
+          html = html.includes("</body>") ? html.replace("</body>", `${RELOAD_SNIPPET}</body>`) : html + RELOAD_SNIPPET;
+          res.writeHead(200, { "Content-Type": type });
+          res.end(html);
+          return;
+        }
+        res.writeHead(200, { "Content-Type": type });
+        res.end(readFileSync(filePath));
       } catch {
         res.writeHead(500).end("error");
       }

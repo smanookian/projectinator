@@ -39,10 +39,11 @@ import {
   type ProjectInfo,
 } from "./engine.js";
 import { deploy, DEPLOY_META, type DeployTarget } from "./deploy.js";
+import { startStaticServer, type StaticServer } from "../preview.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview"
   | "idea" | "change" | "planning" | "plan" | "board" | "building" | "done" | "error";
 
 export default function App(): React.ReactElement {
@@ -79,6 +80,7 @@ export default function App(): React.ReactElement {
     error?: string;
     log: string[];
   } | null>(null);
+  const [preview, setPreview] = useState<{ server: StaticServer; error?: string } | { error: string } | null>(null);
 
   // Reload the projects list and re-point `selected` at the given dir (after a mutation).
   const reselect = (dir: string | null) => {
@@ -113,6 +115,11 @@ export default function App(): React.ReactElement {
       case "plan": return setPhase("idea");
       case "exportMenu": return setPhase("projectActions");
       case "deployMenu": return setPhase("projectActions");
+      case "preview": {
+        if (preview && "server" in preview) void preview.server.close();
+        setPreview(null);
+        return setPhase("projectActions");
+      }
       case "filterEpic": return setPhase("projectActions");
       case "projectActions": return setPhase("projects");
       case "projects": return setPhase("home");
@@ -374,6 +381,7 @@ export default function App(): React.ReactElement {
       { label: `🔀 View: ${viewMode === "board" ? "Board → List" : "List → Board"}`, value: "view" },
       ...(epics.length > 1 ? [{ label: `🔎 Filter: ${epicFilter ?? "All epics"}`, value: "filter" }] : []),
       { label: "🌐 Open in browser", value: "open" },
+      { label: "👁 Live preview (local server, auto-reload)", value: "preview" },
       ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
       { label: "📝 Make changes", value: "change" },
       { label: "📎 Add a file / image", value: "asset" },
@@ -407,6 +415,18 @@ export default function App(): React.ReactElement {
               else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
               else if (i.value === "filter") setPhase("filterEpic");
               else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
+              else if (i.value === "preview") {
+                const dir = selected.dir;
+                setPreview(null);
+                setPhase("preview");
+                startStaticServer(dir, { liveReload: true })
+                  .then((server) => {
+                    setPreview({ server });
+                    const main = mainFileOf(dir).split("/").pop() || "index.html";
+                    openInBrowser(`${server.url}/${main}`);
+                  })
+                  .catch((e) => setPreview({ error: e instanceof Error ? e.message : String(e) }));
+              }
               else if (i.value === "back") setPhase("projects");
               else if (i.value === "rename") {
                 setRenameDraft(selected.idea);
@@ -594,6 +614,37 @@ export default function App(): React.ReactElement {
             <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => { setDeployState(null); setPhase("projectActions"); }} />
           </Box>
         ) : null}
+      </Box>
+    );
+  }
+
+  if (phase === "preview") {
+    const stop = () => {
+      if (preview && "server" in preview) void preview.server.close();
+      setPreview(null);
+      setPhase("projectActions");
+    };
+    const url = preview && "server" in preview ? preview.server.url : null;
+    const err = preview && "error" in preview ? preview.error : null;
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Live preview</Text>
+        <Box marginTop={1} flexDirection="column">
+          {err ? <StatusMessage variant="error">{err}</StatusMessage> : null}
+          {!err && !url ? <Spinner label="Starting local server…" /> : null}
+          {url ? (
+            <>
+              <StatusMessage variant="success">Serving at {url}</StatusMessage>
+              <Text color={C.dim}>Opened in your browser. It auto-reloads when the files change</Text>
+              <Text color={C.dim}>(e.g. after a resume/change build). ES modules + fetch work here,</Text>
+              <Text color={C.dim}>unlike opening the file directly.</Text>
+            </>
+          ) : null}
+        </Box>
+        <Box marginTop={1}>
+          <SelectInput items={[{ label: "⏹ Stop preview & go back", value: "stop" }]} onSelect={stop} />
+        </Box>
       </Box>
     );
   }
