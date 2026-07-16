@@ -10,10 +10,10 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [x] Export → Markdown, CSV, Jira CSV, Trello CSV
 - [x] Deploy → Cloudflare Pages / Vercel / Netlify (user picks target)
 
-## In progress (top 3)
-- [ ] **Real test execution** — tester RUNS the app headless (Playwright), clicks through, catches runtime bugs (not just reads code)
-- [ ] **Live preview** — local server serves the build + auto-reloads as tasks finish
-- [ ] **Model bake-off / case study** — run one task across Opus/GPT/Gemini, compare cost + quality, feed the routing registry (the original founding goal)
+## Top 3 (done)
+- [x] **Real test execution** — tester RUNS the app headless (Playwright check_app), catches runtime JS errors, not just reads code
+- [x] **Live preview** — local server serves the build + auto-reloads on change (👁 Live preview)
+- [x] **Model bake-off / case study** — `npm run bakeoff` runs one task across models, judges quality, compares cost/latency (the founding goal). Next: TUI integration + save-winner-to-registry, cross-provider once keys work, code bake-off with test scoring
 
 ## Backlog (brainstorm 2026-07-16)
 
