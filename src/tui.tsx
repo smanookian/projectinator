@@ -7,6 +7,7 @@ import { uiTheme } from "./tui/theme.js";
 import { applyKeysToEnv } from "./tui/config.js";
 import { listProjects } from "./tui/engine.js";
 import { sessionCost } from "./session-cost.js";
+import { closeWebSessions } from "./web/session.js";
 
 // Load any keys saved via Settings into the environment so Pi picks them up.
 applyKeysToEnv();
@@ -35,7 +36,8 @@ function goodbye(): void {
   process.stdout.write(`${DIM}See you next time.${RESET}\n\n`);
 }
 
-app.waitUntilExit().then(() => {
+app.waitUntilExit().then(async () => {
+  await closeWebSessions(); // shut down any background web-session browsers
   goodbye();
   process.exit(0); // exit cleanly so nothing keeps the process (and Ctrl+C) alive
 });

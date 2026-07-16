@@ -6,6 +6,8 @@ import { Box, Text } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
 import type { Capability, Provider, Tier } from "../types.js";
 import { C, Panel, Menu as SelectInput, TextField as TextInput, Password } from "./components.js";
+import { WebAccounts } from "./WebAccounts.js";
+import { connectedProviders } from "../web/session.js";
 import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
 import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, ENV_VAR } from "./config.js";
 import { validateKey } from "./validate.js";
@@ -37,7 +39,11 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
               { label: "🧠 Model assignments", value: "models" },
               { label: "🔩 Preferences (budget, speed)", value: "prefs" },
               { label: `🔔 Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
-              { label: "🌐 Web login (coming soon)", value: "weblogin" },
+              // Web-login (browser automation / OAuth) is parked — vendors closed
+              // third-party subscription auth in 2026. Hidden unless PROJECTINATOR_WEB=1.
+              ...(process.env.PROJECTINATOR_WEB === "1"
+                ? [{ label: `🌐 Connect accounts (experimental)${connectedProviders().length ? `  (${connectedProviders().length})` : ""}`, value: "weblogin" }]
+                : []),
               { label: "🔙 Back", value: "back" },
             ]}
             onSelect={(i) => {
@@ -258,21 +264,9 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     return <PrefsEditor initial={prefs} onDone={(p) => { setPrefs(p); setNotice("Preferences saved."); setSub("menu"); }} onCancel={() => setSub("menu")} />;
   }
 
-  // ---------- web login ----------
+  // ---------- connect accounts (web subscriptions) ----------
   if (sub === "weblogin") {
-    return (
-      <Box flexDirection="column">
-        <Text bold>Web login</Text>
-        <Box marginTop={1} flexDirection="column">
-          <Text color={C.dim}>Not built yet. Planned: sign in to your ChatGPT / Claude / Gemini web</Text>
-          <Text color={C.dim}>subscription and route cheap/bulk tasks through it (~free, but fragile).</Text>
-          <Text color={C.dim}>For now, use API keys.</Text>
-        </Box>
-        <Box marginTop={1}>
-          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setSub("menu")} />
-        </Box>
-      </Box>
-    );
+    return <WebAccounts onExit={() => setSub("menu")} />;
   }
 
   return <Text>…</Text>;

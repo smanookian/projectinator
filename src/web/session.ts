@@ -7,7 +7,7 @@
 // Selectors live in PROVIDERS below — when a site changes, edit them there.
 
 import { chromium, type BrowserContext, type Page } from "playwright";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -36,16 +36,16 @@ const PROVIDERS: Record<WebProvider, ProviderConfig> = {
   chatgpt: {
     label: "ChatGPT (chatgpt.com)",
     newChatUrl: "https://chatgpt.com/",
-    inputSelector: '#prompt-textarea',
+    inputSelector: '#prompt-textarea, div[contenteditable="true"], textarea',
     assistantSelector: '[data-message-author-role="assistant"]',
-    stopSelector: 'button[data-testid="stop-button"]',
+    stopSelector: 'button[data-testid="stop-button"], button[aria-label*="Stop"]',
   },
   gemini: {
     label: "Gemini (gemini.google.com)",
     newChatUrl: "https://gemini.google.com/app",
-    inputSelector: 'div[contenteditable="true"], rich-textarea div[contenteditable="true"]',
+    inputSelector: 'rich-textarea div[contenteditable="true"], div[contenteditable="true"], textarea',
     assistantSelector: "message-content, .model-response-text",
-    stopSelector: 'button[aria-label*="Stop"]',
+    stopSelector: 'button[aria-label*="Stop"], button[aria-label*="stop"]',
   },
 };
 
@@ -55,18 +55,81 @@ function profileDir(provider: WebProvider): string {
   return dir;
 }
 
-async function openContext(provider: WebProvider, headless: boolean): Promise<BrowserContext> {
+function connectedMarker(provider: WebProvider): string {
+  return join(profileDir(provider), ".connected");
+}
+
+/** Has this provider been logged in at least once (session saved)? */
+export function isConnected(provider: WebProvider): boolean {
+  return existsSync(connectedMarker(provider));
+}
+
+/** Which providers have a saved session. */
+export function connectedProviders(): WebProvider[] {
+  return (Object.keys(PROVIDERS) as WebProvider[]).filter(isConnected);
+}
+
+function markConnected(provider: WebProvider): void {
+  try {
+    writeFileSync(connectedMarker(provider), new Date().toISOString());
+  } catch {
+    /* non-fatal */
+  }
+}
+
+/** Log out: wipe the saved session (cookies + profile) for a provider. */
+export function disconnect(provider: WebProvider): void {
+  try {
+    rmSync(profileDir(provider), { recursive: true, force: true });
+  } catch {
+    /* non-fatal */
+  }
+}
+
+// Push the run window far off-screen so it drives the session without stealing
+// focus or cluttering the desktop. Login windows stay on-screen (you interact).
+const OFFSCREEN_ARGS = ["--window-position=-3200,-3200", "--window-size=1280,900"];
+
+async function openContext(
+  provider: WebProvider,
+  opts: { headless: boolean; offscreen?: boolean },
+): Promise<BrowserContext> {
   return chromium.launchPersistentContext(profileDir(provider), {
-    headless,
+    headless: opts.headless,
     viewport: { width: 1280, height: 900 },
-    args: ["--disable-blink-features=AutomationControlled"],
+    args: [
+      "--disable-blink-features=AutomationControlled",
+      ...(opts.offscreen ? OFFSCREEN_ARGS : []),
+    ],
   });
+}
+
+// One long-lived background browser per provider, reused across completions so
+// nothing pops up per task. Launched on first webComplete, closed on app exit.
+const runContexts = new Map<WebProvider, BrowserContext>();
+
+async function runContext(provider: WebProvider): Promise<BrowserContext> {
+  const existing = runContexts.get(provider);
+  if (existing) return existing;
+  const ctx = await openContext(provider, { headless: false, offscreen: true });
+  ctx.on("close", () => {
+    if (runContexts.get(provider) === ctx) runContexts.delete(provider);
+  });
+  runContexts.set(provider, ctx);
+  return ctx;
+}
+
+/** Close every background browser. Call on app exit. */
+export async function closeWebSessions(): Promise<void> {
+  const ctxs = [...runContexts.values()];
+  runContexts.clear();
+  await Promise.all(ctxs.map((c) => c.close().catch(() => {})));
 }
 
 /** Open a real browser window so you can log in once; the session is saved to disk. */
 export async function webLogin(provider: WebProvider): Promise<void> {
   const cfg = PROVIDERS[provider];
-  const ctx = await openContext(provider, false);
+  const ctx = await openContext(provider, { headless: false });
   const page = ctx.pages()[0] ?? (await ctx.newPage());
   // Non-fatal: even if the page is slow / behind a challenge, the window is open
   // and you can log in (or navigate) manually.
@@ -84,7 +147,34 @@ export async function webLogin(provider: WebProvider): Promise<void> {
     });
   });
   await ctx.close();
+  markConnected(provider);
   process.stdout.write("  Session saved.\n");
+}
+
+/** Non-interactive login for the TUI: open the login window and resolve once the
+ *  caller signals done (e.g. user pressed a key in the app). Returns a handle to
+ *  finish. The window shows the real site so you can log in. */
+export async function webLoginBegin(provider: WebProvider): Promise<{
+  finish: () => Promise<void>;
+  cancel: () => Promise<void>;
+}> {
+  const cfg = PROVIDERS[provider];
+  const ctx = await openContext(provider, { headless: false });
+  const page = ctx.pages()[0] ?? (await ctx.newPage());
+  try {
+    await page.goto(cfg.newChatUrl, { waitUntil: "commit", timeout: 60_000 });
+  } catch {
+    /* keep the window open regardless */
+  }
+  return {
+    finish: async () => {
+      await ctx.close();
+      markConnected(provider);
+    },
+    cancel: async () => {
+      await ctx.close();
+    },
+  };
 }
 
 async function lastAssistantText(page: Page, cfg: ProviderConfig): Promise<string> {
@@ -104,9 +194,10 @@ export async function webComplete(
 ): Promise<string> {
   const cfg = PROVIDERS[provider];
   const timeoutMs = opts.timeoutMs ?? 90_000;
-  const ctx = await openContext(provider, opts.headless ?? false);
+  // Reuse the one background browser; open a fresh page (= fresh chat) per ask.
+  const ctx = await runContext(provider);
+  const page = await ctx.newPage();
   try {
-    const page = ctx.pages()[0] ?? (await ctx.newPage());
     try {
       await page.goto(cfg.newChatUrl, { waitUntil: "commit", timeout: 60_000 });
     } catch {
@@ -154,7 +245,7 @@ export async function webComplete(
     if (last) return last;
     throw new Error("No response captured (selectors may be stale, or you're not logged in).");
   } finally {
-    await ctx.close();
+    await page.close().catch(() => {}); // keep the context alive for the next ask
   }
 }
 
@@ -162,7 +253,7 @@ export async function webComplete(
  *  right one for the assistant reply. Headed. */
 export async function webDump(provider: WebProvider, prompt: string): Promise<void> {
   const cfg = PROVIDERS[provider];
-  const ctx = await openContext(provider, false);
+  const ctx = await openContext(provider, { headless: false });
   try {
     const page = ctx.pages()[0] ?? (await ctx.newPage());
     try { await page.goto(cfg.newChatUrl, { waitUntil: "commit", timeout: 60_000 }); } catch { /* ignore */ }
@@ -176,9 +267,14 @@ export async function webDump(provider: WebProvider, prompt: string): Promise<vo
 
     const report = await page.evaluate(() => {
       const cands = [
-        '[data-testid="assistant-message"]', ".font-claude-message", ".prose",
-        '[class*="message"]', '[data-test-render-count]', "[data-is-streaming]",
-        '[class*="claude"]', "main div[tabindex]",
+        // chatgpt
+        '[data-message-author-role="assistant"]', ".markdown",
+        // gemini
+        "message-content", ".model-response-text", "model-response",
+        // claude
+        '[class*="claude"]', ".font-claude-message", "[data-is-streaming]",
+        // generic
+        ".prose", '[class*="message"]', "[data-testid]", "main div[tabindex]",
       ];
       const out: { sel: string; count: number; lastText: string }[] = [];
       for (const sel of cands) {
