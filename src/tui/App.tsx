@@ -1283,7 +1283,20 @@ export default function App(): React.ReactElement {
         </Box>
         <Box marginTop={1} flexDirection="column">
           <Standup tasks={board} spent={spent} />
-          <BudgetBar spent={spent} cap={getPrefs().budgetCapUSD} />
+          {(() => {
+            const prefs = getPrefs();
+            const cap = projectCap ?? prefs.budgetCapUSD;
+            const pct = prefs.budgetAlertPct;
+            const alerting = spent >= cap * (pct / 100) && spent < cap;
+            return (
+              <>
+                <BudgetBar spent={spent} cap={cap} />
+                {alerting ? (
+                  <Text color={C.warn}>⚠ {Math.round((spent / cap) * 100)}% of the ${cap} cap spent — nearing the limit.</Text>
+                ) : null}
+              </>
+            );
+          })()}
         </Box>
       </Box>
     );

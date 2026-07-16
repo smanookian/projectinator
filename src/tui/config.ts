@@ -13,6 +13,8 @@ export interface AppConfig {
   keys: Partial<Record<Provider, string>>;
   budgetCapUSD?: number;
   concurrency?: number;
+  /** Warn (not halt) once spend crosses this % of the cap. Default 80. */
+  budgetAlertPct?: number;
   /** If set, always route to this provider (when it has a key), ignoring the others. */
   preferredProvider?: Provider;
   /** Default workflow for new builds: auto-run, or require PM approval before building. */
@@ -42,6 +44,7 @@ export function loadConfig(): AppConfig {
       keys: parsed.keys ?? {},
       budgetCapUSD: parsed.budgetCapUSD,
       concurrency: parsed.concurrency,
+      budgetAlertPct: parsed.budgetAlertPct,
       preferredProvider: parsed.preferredProvider,
       defaultMode: parsed.defaultMode,
       notify: parsed.notify,
@@ -101,14 +104,19 @@ export function setKey(provider: Provider, key: string): void {
   process.env[ENV_VAR[provider]] = key;
 }
 
-export function getPrefs(): { budgetCapUSD: number; concurrency: number } {
+export function getPrefs(): { budgetCapUSD: number; concurrency: number; budgetAlertPct: number } {
   const cfg = loadConfig();
-  return { budgetCapUSD: cfg.budgetCapUSD ?? 25, concurrency: cfg.concurrency ?? 3 };
+  return {
+    budgetCapUSD: cfg.budgetCapUSD ?? 25,
+    concurrency: cfg.concurrency ?? 3,
+    budgetAlertPct: cfg.budgetAlertPct ?? 80,
+  };
 }
 
-export function setPrefs(prefs: { budgetCapUSD?: number; concurrency?: number }): void {
+export function setPrefs(prefs: { budgetCapUSD?: number; concurrency?: number; budgetAlertPct?: number }): void {
   const cfg = loadConfig();
   if (prefs.budgetCapUSD !== undefined) cfg.budgetCapUSD = prefs.budgetCapUSD;
   if (prefs.concurrency !== undefined) cfg.concurrency = prefs.concurrency;
+  if (prefs.budgetAlertPct !== undefined) cfg.budgetAlertPct = prefs.budgetAlertPct;
   saveConfig(cfg);
 }

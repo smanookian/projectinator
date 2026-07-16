@@ -316,13 +316,21 @@ function PrefsEditor({
   onDone,
   onCancel,
 }: {
-  initial: { budgetCapUSD: number; concurrency: number };
-  onDone: (p: { budgetCapUSD: number; concurrency: number }) => void;
+  initial: { budgetCapUSD: number; concurrency: number; budgetAlertPct: number };
+  onDone: (p: { budgetCapUSD: number; concurrency: number; budgetAlertPct: number }) => void;
   onCancel: () => void;
 }): React.ReactElement {
   const [cap, setCap] = useState(String(initial.budgetCapUSD));
   const [conc, setConc] = useState(String(initial.concurrency));
-  const [field, setField] = useState<"cap" | "conc">("cap");
+  const [pct, setPct] = useState(String(initial.budgetAlertPct));
+  const [field, setField] = useState<"cap" | "conc" | "pct">("cap");
+
+  const commit = () => {
+    const b = Math.max(1, parseFloat(cap) || initial.budgetCapUSD);
+    const c = Math.max(1, Math.floor(parseFloat(conc) || initial.concurrency));
+    const p = Math.min(99, Math.max(1, Math.round(parseFloat(pct) || initial.budgetAlertPct)));
+    onDone({ budgetCapUSD: b, concurrency: c, budgetAlertPct: p });
+  };
 
   return (
     <Box flexDirection="column">
@@ -342,14 +350,18 @@ function PrefsEditor({
             <TextInput
               value={conc}
               onChange={setConc}
-              onSubmit={() => {
-                const b = Math.max(1, parseFloat(cap) || initial.budgetCapUSD);
-                const c = Math.max(1, Math.floor(parseFloat(conc) || initial.concurrency));
-                onDone({ budgetCapUSD: b, concurrency: c });
-              }}
+              onSubmit={() => setField("pct")}
             />
           ) : (
             <Text>{conc}</Text>
+          )}
+        </Box>
+        <Box>
+          <Box width={22}><Text color={field === "pct" ? C.accent : C.text}>Alert at % of cap</Text></Box>
+          {field === "pct" ? (
+            <TextInput value={pct} onChange={setPct} onSubmit={commit} />
+          ) : (
+            <Text>{pct}%</Text>
           )}
         </Box>
       </Box>
