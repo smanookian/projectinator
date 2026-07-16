@@ -462,6 +462,15 @@ export function projectBurndown(dir: string): Burndown | null {
   return state ? computeBurndown(state) : null;
 }
 
+/** Set (or clear, when undefined) a project's per-build budget cap. */
+export function setProjectBudget(dir: string, cap: number | undefined): void {
+  const statePath = join(dir, "build-state.json");
+  const state = loadState(statePath);
+  if (!state) return;
+  state.budgetCapUSD = cap;
+  saveState(state, statePath);
+}
+
 /** Undo the last task: revert its file changes (git reset) AND roll back the
  *  build-state so the task is no longer "done" and can be rebuilt via Resume. */
 export function undoLastTask(dir: string): { ok: boolean; taskId?: string; error?: string } {
@@ -605,6 +614,7 @@ export function startBuild(
   mkdirSync(workspace, { recursive: true });
   const statePath = join(workspace, "build-state.json");
   const state = newBuildState(slugify(idea), plan.tasks, idea, opts.mode);
+  state.budgetCapUSD = opts.budgetCapUSD; // remember this project's cap
 
   const executor = makePiExecutor({ workspace, backend: "api" });
   const policy = { ...DEFAULT_POLICY, backendMode: "api" as const, budgetCapUSD: opts.budgetCapUSD };

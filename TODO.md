@@ -31,7 +31,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 
 ### Robustness
 - [x] Provider fallback — routed provider errors / returns 0 tokens → auto-retry the same-strength model on another key-holding provider (executor-level, both build paths). CLI prints the fallback
-- [ ] Per-project budget cap + alerts
+- [x] Per-project budget cap — 💰 Budget cap on the plan screen (new build) and project screen (existing) overrides the global default; persisted in build-state, carried into resume/change; the orchestrator halts at the effective cap. Next: soft alert at ~80%
 
 ### Sharing
 - [ ] Zip / share a build

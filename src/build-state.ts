@@ -17,6 +17,8 @@ export interface BuildState {
   totalCost: number;
   status: "running" | "complete" | "halted";
   haltReason?: string;
+  /** Per-project budget cap (USD). Overrides the global default when set. */
+  budgetCapUSD?: number;
 }
 
 export function newBuildState(id: string, tasks: Task[], idea?: string, mode?: "auto" | "approval"): BuildState {

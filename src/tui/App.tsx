@@ -24,6 +24,7 @@ import {
   chooseRegistry,
   planBuild,
   assessBuild,
+  setProjectBudget,
   startBuild,
   estimateTasks,
   listProjects,
@@ -53,7 +54,7 @@ import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
   | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio"
-  | "idea" | "change" | "assessing" | "intake" | "planning" | "plan" | "board" | "building" | "done" | "error";
+  | "idea" | "change" | "assessing" | "intake" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
   const { exit } = useApp();
@@ -83,6 +84,9 @@ export default function App(): React.ReactElement {
   const [epicFilter, setEpicFilter] = useState<string | null>(null);
   const [flash, setFlash] = useState<string>("");
   const [intakeQs, setIntakeQs] = useState<IntakeQuestion[]>([]);
+  const [projectCap, setProjectCap] = useState<number | null>(null); // per-build cap override
+  const [capDraft, setCapDraft] = useState("");
+  const [capReturn, setCapReturn] = useState<Phase>("plan");
   const [deployState, setDeployState] = useState<{
     target: DeployTarget;
     status: "running" | "done" | "error";
@@ -111,6 +115,7 @@ export default function App(): React.ReactElement {
     setSelected(null);
     setMode(getDefaultMode());
     setGate(null);
+    setProjectCap(null);
   };
 
   // Esc goes back one screen. Phases with their own Esc handling (board editors,
@@ -120,6 +125,7 @@ export default function App(): React.ReactElement {
       case "idea": resetBuildContext(); return setPhase("home");
       case "assessing": resetBuildContext(); return setPhase("home");
       case "intake": return setPhase("idea");
+      case "setCap": return setPhase(capReturn);
       case "templates": return setPhase("home");
       case "change": return setPhase(selected ? "projectActions" : buildResult ? "done" : "home");
       case "rename": return setPhase("projectActions");
@@ -146,7 +152,7 @@ export default function App(): React.ReactElement {
   };
 
   // global quit (not while typing an idea/change)
-  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff" || phase === "intake";
+  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff" || phase === "intake" || phase === "setCap";
   useInput((input, key) => {
     if (key.ctrl && input === "c") return exit();
     if (input === "q" && !typing) return exit();
@@ -234,7 +240,7 @@ export default function App(): React.ReactElement {
         : undefined;
     const handle = startBuild(idea, plan, {
       concurrency: prefs.concurrency,
-      budgetCapUSD: prefs.budgetCapUSD,
+      budgetCapUSD: projectCap ?? prefs.budgetCapUSD,
       onEvent,
       workspace: targetWorkspace,
       seedOutcomes: seed,
@@ -436,7 +442,9 @@ export default function App(): React.ReactElement {
             onSelect={(i) => {
               if (i.value === "__back") setPhase("home");
               else {
-                setSelected(projects.find((p) => p.slug === i.value) ?? null);
+                const proj = projects.find((p) => p.slug === i.value) ?? null;
+                setSelected(proj);
+                setProjectCap(proj?.state.budgetCapUSD ?? null); // carry the saved cap into resume/change
                 setPhase("projectActions");
               }
             }}
@@ -478,6 +486,7 @@ export default function App(): React.ReactElement {
       { label: "📜 History (per-task commits)", value: "history" },
       { label: "📊 Retro (build summary)", value: "retro" },
       { label: "📉 Burndown (progress + spend)", value: "burndown" },
+      { label: `💰 Budget cap: ${selected.state.budgetCapUSD != null ? `$${selected.state.budgetCapUSD}` : "global default"}`, value: "cap" },
       ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
       { label: "📝 Make changes", value: "change" },
       { label: "📎 Add a file / image", value: "asset" },
@@ -514,6 +523,7 @@ export default function App(): React.ReactElement {
               else if (i.value === "history") { setFlash(""); setPhase("history"); }
               else if (i.value === "retro") { setFlash(""); setPhase("retro"); }
               else if (i.value === "burndown") { setFlash(""); setPhase("burndown"); }
+              else if (i.value === "cap") { setCapReturn("projectActions"); setCapDraft(selected.state.budgetCapUSD != null ? String(selected.state.budgetCapUSD) : ""); setPhase("setCap"); }
               else if (i.value === "preview") {
                 const dir = selected.dir;
                 setPreview(null);
@@ -1111,9 +1121,43 @@ export default function App(): React.ReactElement {
     );
   }
 
+  if (phase === "setCap") {
+    const globalCap = getPrefs().budgetCapUSD;
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Budget cap for this project</Text>
+        <Text color={C.dim}>The build halts if spend passes this. Leave blank to use the global default (${globalCap}).</Text>
+        <Box marginTop={1}>
+          <Text color={C.accent}>{"$ "}</Text>
+          <TextInput
+            value={capDraft}
+            onChange={setCapDraft}
+            onSubmit={() => {
+              const v = capDraft.trim();
+              const parsed = v === "" ? null : parseFloat(v);
+              const cap = parsed != null && parsed > 0 ? parsed : null;
+              if (capReturn === "projectActions" && selected) {
+                setProjectBudget(selected.dir, cap ?? undefined);
+                setProjectCap(cap);
+                reselect(selected.dir);
+                setPhase("projectActions");
+              } else {
+                setProjectCap(cap);
+                setPhase("plan");
+              }
+            }}
+          />
+        </Box>
+        <Text color={C.dim}>{"\n"}Enter to save · Esc to cancel.</Text>
+      </Box>
+    );
+  }
+
   if (phase === "plan" && plan) {
     const prefs = getPrefs();
-    const overCap = plan.estCost > prefs.budgetCapUSD;
+    const effCap = projectCap ?? prefs.budgetCapUSD;
+    const overCap = plan.estCost > effCap;
     return (
       <Box flexDirection="column">
         <Header />
@@ -1123,13 +1167,13 @@ export default function App(): React.ReactElement {
           <Text>
             {"  "}Tasks: <Text color={C.accent} bold>{plan.tasks.length}</Text>
             {"   "}Estimated cost: <Badge color={overCap ? "red" : C.accent}>${plan.estCost.toFixed(2)}</Badge>
-            <Text color={C.dim}> (cap ${prefs.budgetCapUSD})</Text>
+            <Text color={C.dim}> (cap ${effCap}{projectCap != null ? " · this project" : ""})</Text>
           </Text>
           <Text color={C.dim}>
             {"  "}Runs {prefs.concurrency} tasks at once. {targetWorkspace ? "Edits this project's files." : "Output goes to a fresh folder."}
           </Text>
         </Box>
-        {overCap && <Text color={C.bad}>{"\n"}Estimate exceeds the ${prefs.budgetCapUSD} cap — it may halt partway.</Text>}
+        {overCap && <Text color={C.bad}>{"\n"}Estimate exceeds the ${effCap} cap — it may halt partway.</Text>}
         <Text color={C.dim}>{"\n"}Workflow: {mode === "approval" ? "approval-gated (approve the backlog, then again after design before dev)" : "auto-run"}.</Text>
         <Box marginTop={1}>
           <Panel title="Ready?">
@@ -1138,6 +1182,7 @@ export default function App(): React.ReactElement {
               mode === "approval"
                 ? [
                     { label: `Open the board & approve (${plan.tasks.length}) →`, value: "board" },
+                    { label: `💰 Budget cap: $${effCap}`, value: "cap" },
                     { label: "Change idea", value: "idea" },
                     { label: "Switch to auto-run", value: "auto" },
                     { label: "🚪 Quit", value: "quit" },
@@ -1145,6 +1190,7 @@ export default function App(): React.ReactElement {
                 : [
                     { label: `Plan the sprint on the board (${plan.tasks.length} in backlog) →`, value: "board" },
                     { label: `Build everything now  ($${plan.estCost.toFixed(2)})`, value: "build" },
+                    { label: `💰 Budget cap: $${effCap}`, value: "cap" },
                     { label: "Change idea", value: "idea" },
                     { label: "Switch to approval-gated", value: "approval" },
                     { label: "🚪 Quit", value: "quit" },
@@ -1153,6 +1199,7 @@ export default function App(): React.ReactElement {
             onSelect={(i) => {
               if (i.value === "build") setPhase("building");
               else if (i.value === "board") setPhase("board");
+              else if (i.value === "cap") { setCapReturn("plan"); setCapDraft(String(effCap)); setPhase("setCap"); }
               else if (i.value === "auto") setMode("auto");
               else if (i.value === "approval") setMode("approval");
               else if (i.value === "idea") {
