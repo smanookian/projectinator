@@ -12,6 +12,7 @@ import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
 import { EditableBoard } from "./EditableBoard.js";
 import { Settings } from "./Settings.js";
+import { BakeOff } from "./BakeOff.js";
 import { TEMPLATES } from "./templates.js";
 import { getPrefs, getDefaultMode, getNotify, type WorkflowMode } from "./config.js";
 import { notifyBuildDone } from "./notify.js";
@@ -43,7 +44,7 @@ import { startStaticServer, type StaticServer } from "../preview.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff"
   | "idea" | "change" | "planning" | "plan" | "board" | "building" | "done" | "error";
 
 export default function App(): React.ReactElement {
@@ -130,7 +131,7 @@ export default function App(): React.ReactElement {
   };
 
   // global quit (not while typing an idea/change)
-  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename";
+  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff";
   useInput((input, key) => {
     if (key.ctrl && input === "c") return exit();
     if (input === "q" && !typing) return exit();
@@ -280,6 +281,7 @@ export default function App(): React.ReactElement {
       { label: "🆕 New build", value: "new" },
       { label: "📄 Start from a template", value: "templates" },
       ...(projs.length ? [{ label: `📂 Open a project (${projs.length})`, value: "open" }] : []),
+      { label: "🆚 Compare models (bake-off)", value: "bakeoff" },
       { label: "🔧 Settings", value: "settings" },
       { label: "🚪 Quit", value: "quit" },
     ];
@@ -299,6 +301,8 @@ export default function App(): React.ReactElement {
               } else if (i.value === "open") {
                 setProjects(projs);
                 setPhase("projects");
+              } else if (i.value === "bakeoff") {
+                setPhase("bakeoff");
               } else if (i.value === "settings") {
                 setPhase("settings");
               } else exit();
@@ -320,6 +324,15 @@ export default function App(): React.ReactElement {
             setPhase(next.length ? "home" : "setup");
           }}
         />
+      </Box>
+    );
+  }
+
+  if (phase === "bakeoff") {
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <BakeOff onExit={() => setPhase("home")} />
       </Box>
     );
   }

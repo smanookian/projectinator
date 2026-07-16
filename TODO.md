@@ -13,7 +13,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 ## Top 3 (done)
 - [x] **Real test execution** — tester RUNS the app headless (Playwright check_app), catches runtime JS errors, not just reads code
 - [x] **Live preview** — local server serves the build + auto-reloads on change (👁 Live preview)
-- [x] **Model bake-off / case study** — `npm run bakeoff` runs one task across models, judges quality, compares cost/latency (the founding goal). Next: TUI integration + save-winner-to-registry, cross-provider once keys work, code bake-off with test scoring
+- [x] **Model bake-off / case study** — `npm run bakeoff` + TUI (Home → 🆚 Compare models): runs one task across models, judges quality, compares cost/latency, saves winner to the registry (the founding goal). Next: cross-provider once keys work, code bake-off with test scoring
 
 ## Backlog (brainstorm 2026-07-16)
 
