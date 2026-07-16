@@ -35,6 +35,7 @@ import {
   exportTrello,
   projectHistory,
   undoLastTask,
+  projectRetro,
   breakdownEpic,
   modelLabel,
   PROVIDER_LABEL,
@@ -46,7 +47,7 @@ import { startStaticServer, type StaticServer } from "../preview.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro"
   | "idea" | "change" | "planning" | "plan" | "board" | "building" | "done" | "error";
 
 export default function App(): React.ReactElement {
@@ -119,6 +120,7 @@ export default function App(): React.ReactElement {
       case "exportMenu": return setPhase("projectActions");
       case "deployMenu": return setPhase("projectActions");
       case "history": return setPhase("projectActions");
+      case "retro": return setPhase("projectActions");
       case "preview": {
         if (preview && "server" in preview) void preview.server.close();
         setPreview(null);
@@ -399,6 +401,7 @@ export default function App(): React.ReactElement {
       { label: "🌐 Open in browser", value: "open" },
       { label: "👁 Live preview (local server, auto-reload)", value: "preview" },
       { label: "📜 History (per-task commits)", value: "history" },
+      { label: "📊 Retro (build summary)", value: "retro" },
       ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
       { label: "📝 Make changes", value: "change" },
       { label: "📎 Add a file / image", value: "asset" },
@@ -433,6 +436,7 @@ export default function App(): React.ReactElement {
               else if (i.value === "filter") setPhase("filterEpic");
               else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
               else if (i.value === "history") { setFlash(""); setPhase("history"); }
+              else if (i.value === "retro") { setFlash(""); setPhase("retro"); }
               else if (i.value === "preview") {
                 const dir = selected.dir;
                 setPreview(null);
@@ -632,6 +636,74 @@ export default function App(): React.ReactElement {
             <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => { setDeployState(null); setPhase("projectActions"); }} />
           </Box>
         ) : null}
+      </Box>
+    );
+  }
+
+  if (phase === "retro" && selected) {
+    const r = projectRetro(selected.dir);
+    const money = (n: number) => `$${n.toFixed(2)}`;
+    const maxEpic = r ? Math.max(1, ...r.byEpic.map((e) => e.cost)) : 1;
+    const bar = (cost: number) => "█".repeat(Math.max(1, Math.round((cost / maxEpic) * 16)));
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold wrap="truncate-end">Retro — {selected.idea}</Text>
+        {!r ? (
+          <Box marginTop={1}><Text color={C.dim}>No build data yet.</Text></Box>
+        ) : (
+          <Box flexDirection="column" marginTop={1}>
+            <Text>
+              <Text color={C.dim}>Status </Text>{r.status}
+              <Text color={C.dim}>   ·   Cost </Text><Text color={C.accent}>{money(r.totalCost)}</Text>
+              <Text color={C.dim}>   ·   Tasks </Text>{r.doneCount}/{r.taskCount}
+              <Text color={C.dim}>   ·   Tests </Text><Text color={C.good ?? "green"}>{r.tests.passed}✓</Text> <Text color={r.tests.failed ? (C.bad ?? "red") : C.dim}>{r.tests.failed}✗</Text>
+            </Text>
+
+            {r.byEpic.length ? (
+              <Box flexDirection="column" marginTop={1}>
+                <Text color={C.dim}>Cost by epic</Text>
+                {r.byEpic.map((e) => (
+                  <Text key={e.epic} wrap="truncate-end">  <Text color={C.accent}>{bar(e.cost)}</Text> {money(e.cost).padEnd(7)} <Text color={C.dim}>{e.epic} ({e.tasks})</Text></Text>
+                ))}
+              </Box>
+            ) : null}
+
+            <Box flexDirection="column" marginTop={1}>
+              <Text color={C.dim}>Cost by model</Text>
+              {r.byModel.map((m) => (
+                <Text key={m.model} wrap="truncate-end">  {money(m.cost).padEnd(7)} <Text color={C.dim}>{modelLabel(m.model)} ({m.tasks})</Text></Text>
+              ))}
+            </Box>
+
+            {r.topCost.length ? (
+              <Box flexDirection="column" marginTop={1}>
+                <Text color={C.dim}>Priciest tasks</Text>
+                {r.topCost.map((t) => (
+                  <Text key={t.taskId} wrap="truncate-end">  {money(t.cost).padEnd(7)} <Text color={C.dim}>{t.taskId}</Text> {t.title}</Text>
+                ))}
+              </Box>
+            ) : null}
+
+            {r.retries.length ? (
+              <Box marginTop={1}><Text color={C.warn}>Rebuilds: {r.retries.map((x) => `${x.taskId}×${x.rounds}`).join(", ")}</Text></Box>
+            ) : null}
+
+            {r.bugs.length ? (
+              <Box flexDirection="column" marginTop={1}>
+                <Text color={C.dim}>Tester flagged {r.bugs.length} issue{r.bugs.length === 1 ? "" : "s"}:</Text>
+                {r.bugs.slice(0, 5).map((b, i) => (
+                  <Text key={i} wrap="truncate-end">  <Text color={b.severity === "high" ? (C.bad ?? "red") : C.warn}>[{b.severity}]</Text> {b.description}</Text>
+                ))}
+              </Box>
+            ) : (
+              <Box marginTop={1}><Text color={C.good ?? "green"}>No open issues flagged by the tester.</Text></Box>
+            )}
+          </Box>
+        )}
+        <Box marginTop={1}>
+          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
+        </Box>
       </Box>
     );
   }

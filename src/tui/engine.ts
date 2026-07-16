@@ -15,6 +15,7 @@ import { loadConfig } from "./config.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
 import { runBacklog, type OrchestratorEvent } from "../orchestrator.js";
 import { initRepo, commitTask, undoLastCommit, history as gitHistory, type Commit } from "../git.js";
+import { computeRetro, type RetroReport } from "../retro.js";
 import { decomposeIdea } from "../pm.js";
 import { newBuildState, loadState, saveState, type BuildState } from "../build-state.js";
 
@@ -436,6 +437,12 @@ export function exportTrello(dir: string): string {
 /** Per-task git history for a project (newest first). Empty if not versioned. */
 export function projectHistory(dir: string): Commit[] {
   return gitHistory(dir);
+}
+
+/** Data-driven retro for a finished build, or null if there's no state. */
+export function projectRetro(dir: string): RetroReport | null {
+  const state = loadState(join(dir, "build-state.json"));
+  return state ? computeRetro(state) : null;
 }
 
 /** Undo the last task: revert its file changes (git reset) AND roll back the
