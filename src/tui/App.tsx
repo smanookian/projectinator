@@ -48,7 +48,7 @@ import { startStaticServer, type StaticServer } from "../preview.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio"
   | "idea" | "change" | "planning" | "plan" | "board" | "building" | "done" | "error";
 
 export default function App(): React.ReactElement {
@@ -131,6 +131,7 @@ export default function App(): React.ReactElement {
       case "filterEpic": return setPhase("projectActions");
       case "projectActions": return setPhase("projects");
       case "projects": return setPhase("home");
+      case "portfolio": return setPhase("home");
       case "home": return setPhase("setup");
       case "done": resetBuildContext(); return setPhase("home");
       case "error": return setPhase("home");
@@ -288,6 +289,7 @@ export default function App(): React.ReactElement {
       { label: "🆕 New build", value: "new" },
       { label: "📄 Start from a template", value: "templates" },
       ...(projs.length ? [{ label: `📂 Open a project (${projs.length})`, value: "open" }] : []),
+      ...(projs.length ? [{ label: "📊 Portfolio dashboard", value: "portfolio" }] : []),
       { label: "🆚 Compare models (bake-off)", value: "bakeoff" },
       { label: "🔧 Settings", value: "settings" },
       { label: "🚪 Quit", value: "quit" },
@@ -310,6 +312,8 @@ export default function App(): React.ReactElement {
                 setPhase("projects");
               } else if (i.value === "bakeoff") {
                 setPhase("bakeoff");
+              } else if (i.value === "portfolio") {
+                setPhase("portfolio");
               } else if (i.value === "settings") {
                 setPhase("settings");
               } else exit();
@@ -340,6 +344,45 @@ export default function App(): React.ReactElement {
       <Box flexDirection="column">
         <Header />
         <BakeOff onExit={() => setPhase("home")} />
+      </Box>
+    );
+  }
+
+  if (phase === "portfolio") {
+    const all = listProjects();
+    const money = (n: number) => `$${n.toFixed(2)}`;
+    const total = all.reduce((a, p) => a + p.totalCost, 0);
+    const complete = all.filter((p) => p.status === "complete").length;
+    const halted = all.filter((p) => p.status === "halted").length;
+    const running = all.filter((p) => p.status === "running").length;
+    const maxCost = Math.max(0.0001, ...all.map((p) => p.totalCost));
+    const icon = (s: ProjectInfo["status"]) => (s === "complete" ? "🟢" : s === "halted" ? "🟠" : "⚪");
+    const bar = (c: number) => "█".repeat(Math.max(0, Math.round((c / maxCost) * 14))).padEnd(14, " ");
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Portfolio</Text>
+        <Text>
+          <Text color={C.dim}>{all.length} projects</Text>
+          <Text color={C.dim}>  ·  spend </Text><Text color={C.accent}>{money(total)}</Text>
+          <Text color={C.dim}>  ·  </Text><Text color={C.good ?? "green"}>{complete}🟢</Text> <Text color={C.warn}>{halted}🟠</Text> <Text color={C.dim}>{running}⚪</Text>
+        </Text>
+        <Box marginTop={1} flexDirection="column">
+          {all.map((p) => {
+            const done = new Set(p.state.outcomes.map((o) => o.taskId)).size;
+            return (
+              <Text key={p.dir} wrap="truncate-end">
+                {icon(p.status)} <Text color={C.good ?? "green"}>{bar(p.totalCost)}</Text> {money(p.totalCost).padEnd(8)}<Text color={C.dim}>{`${done}/${p.taskCount}`.padEnd(7)}</Text>{p.idea}
+              </Text>
+            );
+          })}
+        </Box>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[{ label: "📂 Open a project", value: "open" }, { label: "🔙 Back", value: "back" }]}
+            onSelect={(i) => { if (i.value === "open") { setProjects(all); setPhase("projects"); } else setPhase("home"); }}
+          />
+        </Box>
       </Box>
     );
   }

@@ -25,7 +25,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [x] Retro — 📊 Retro (project screen): status/cost/tests, cost-by-epic bars, cost-by-model, priciest tasks, rebuilds, tester flags. Free (from build-state). Next: optional AI narrative (what went well / to improve)
 - [x] Burndown — 📉 Burndown (project screen): ASCII bars of tasks-remaining + cumulative spend across completion order; retries flagged
 - [x] Estimates vs actuals — Retro shows predicted-vs-actual build cost (Δ%); Settings → 📈 Estimate accuracy shows baseline-vs-measured output tokens per bucket + sample count + whether calibration is live
-- [ ] Portfolio dashboard — all projects, total spend, statuses at a glance
+- [x] Portfolio dashboard — Home → 📊 Portfolio: project count, total spend, status breakdown, and a per-project spend bar + done/total progress
 - [ ] Task comments / notes
 
 ### Robustness
