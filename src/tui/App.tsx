@@ -36,6 +36,7 @@ import {
   projectHistory,
   undoLastTask,
   projectRetro,
+  projectBurndown,
   breakdownEpic,
   modelLabel,
   PROVIDER_LABEL,
@@ -47,7 +48,7 @@ import { startStaticServer, type StaticServer } from "../preview.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown"
   | "idea" | "change" | "planning" | "plan" | "board" | "building" | "done" | "error";
 
 export default function App(): React.ReactElement {
@@ -121,6 +122,7 @@ export default function App(): React.ReactElement {
       case "deployMenu": return setPhase("projectActions");
       case "history": return setPhase("projectActions");
       case "retro": return setPhase("projectActions");
+      case "burndown": return setPhase("projectActions");
       case "preview": {
         if (preview && "server" in preview) void preview.server.close();
         setPreview(null);
@@ -402,6 +404,7 @@ export default function App(): React.ReactElement {
       { label: "👁 Live preview (local server, auto-reload)", value: "preview" },
       { label: "📜 History (per-task commits)", value: "history" },
       { label: "📊 Retro (build summary)", value: "retro" },
+      { label: "📉 Burndown (progress + spend)", value: "burndown" },
       ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
       { label: "📝 Make changes", value: "change" },
       { label: "📎 Add a file / image", value: "asset" },
@@ -437,6 +440,7 @@ export default function App(): React.ReactElement {
               else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
               else if (i.value === "history") { setFlash(""); setPhase("history"); }
               else if (i.value === "retro") { setFlash(""); setPhase("retro"); }
+              else if (i.value === "burndown") { setFlash(""); setPhase("burndown"); }
               else if (i.value === "preview") {
                 const dir = selected.dir;
                 setPreview(null);
@@ -636,6 +640,44 @@ export default function App(): React.ReactElement {
             <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => { setDeployState(null); setPhase("projectActions"); }} />
           </Box>
         ) : null}
+      </Box>
+    );
+  }
+
+  if (phase === "burndown" && selected) {
+    const b = projectBurndown(selected.dir);
+    const W = 18;
+    const money = (n: number) => `$${n.toFixed(2)}`;
+    const maxCost = b ? Math.max(0.0001, ...b.steps.map((s) => s.cumCost)) : 1;
+    const remBar = (rem: number) => "█".repeat(Math.round((rem / (b?.taskCount || 1)) * W)).padEnd(W, "·");
+    const costBar = (c: number) => "█".repeat(Math.max(0, Math.round((c / maxCost) * W))).padEnd(W, " ");
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold wrap="truncate-end">Burndown — {selected.idea}</Text>
+        {!b || b.steps.length === 0 ? (
+          <Box marginTop={1}><Text color={C.dim}>No steps yet — run the build.</Text></Box>
+        ) : (
+          <Box flexDirection="column" marginTop={1}>
+            <Text color={C.dim}>Tasks remaining after each step (X = completion order, {b.taskCount} total)</Text>
+            {b.steps.map((s, i) => (
+              <Text key={i} wrap="truncate-end">
+                {`${(i + 1).toString().padStart(2)} ${s.taskId}`.padEnd(9)} <Text color={C.accent}>{remBar(s.remaining)}</Text> {String(s.remaining).padStart(2)}{s.retry ? <Text color={C.warn}>  ↻ retry</Text> : null}
+              </Text>
+            ))}
+            <Box marginTop={1} flexDirection="column">
+              <Text color={C.dim}>Cumulative spend (total {money(b.totalCost)})</Text>
+              {b.steps.map((s, i) => (
+                <Text key={i} wrap="truncate-end">
+                  {`${(i + 1).toString().padStart(2)} ${s.taskId}`.padEnd(9)} <Text color={C.good ?? "green"}>{costBar(s.cumCost)}</Text> {money(s.cumCost)}
+                </Text>
+              ))}
+            </Box>
+          </Box>
+        )}
+        <Box marginTop={1}>
+          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
+        </Box>
       </Box>
     );
   }

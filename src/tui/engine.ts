@@ -16,6 +16,7 @@ import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
 import { runBacklog, type OrchestratorEvent } from "../orchestrator.js";
 import { initRepo, commitTask, undoLastCommit, history as gitHistory, type Commit } from "../git.js";
 import { computeRetro, type RetroReport } from "../retro.js";
+import { computeBurndown, type Burndown } from "../burndown.js";
 import { decomposeIdea } from "../pm.js";
 import { newBuildState, loadState, saveState, type BuildState } from "../build-state.js";
 
@@ -443,6 +444,12 @@ export function projectHistory(dir: string): Commit[] {
 export function projectRetro(dir: string): RetroReport | null {
   const state = loadState(join(dir, "build-state.json"));
   return state ? computeRetro(state) : null;
+}
+
+/** Burndown series (tasks remaining + cumulative cost per step), or null. */
+export function projectBurndown(dir: string): Burndown | null {
+  const state = loadState(join(dir, "build-state.json"));
+  return state ? computeBurndown(state) : null;
 }
 
 /** Undo the last task: revert its file changes (git reset) AND roll back the
