@@ -34,6 +34,7 @@ import {
   exportJira,
   exportTrello,
   projectHistory,
+  undoLastTask,
   breakdownEpic,
   modelLabel,
   PROVIDER_LABEL,
@@ -636,12 +637,15 @@ export default function App(): React.ReactElement {
   }
 
   if (phase === "history" && selected) {
-    const commits = projectHistory(selected.dir);
+    const dir = selected.dir;
+    const commits = projectHistory(dir);
+    const canUndo = commits.length > 1; // more than the initial commit
     return (
       <Box flexDirection="column">
         <Header />
         <Text bold>History — {selected.idea}</Text>
         <Text color={C.dim}>One commit per finished task, newest first. Diff/checkout in the project folder with git.</Text>
+        {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
         <Box marginTop={1} flexDirection="column">
           {commits.length ? (
             commits.slice(0, 20).map((c) => (
@@ -652,7 +656,22 @@ export default function App(): React.ReactElement {
           )}
         </Box>
         <Box marginTop={1}>
-          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
+          <SelectInput
+            items={[
+              ...(canUndo ? [{ label: "↩ Undo last task (revert files + reopen it to rebuild)", value: "undo" }] : []),
+              { label: "🔙 Back", value: "back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "undo") {
+                const r = undoLastTask(dir);
+                reselect(dir);
+                setFlash(r.ok ? `Undid ${r.taskId ?? "last task"}. Resume the build to rebuild it.` : (r.error ?? "Undo failed."));
+              } else {
+                setFlash("");
+                setPhase("projectActions");
+              }
+            }}
+          />
         </Box>
       </Box>
     );

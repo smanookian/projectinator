@@ -14,7 +14,7 @@ import { loadRegistry, saveOverrides, OVERRIDES_FILENAME } from "../registry-sto
 import { loadConfig } from "./config.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
 import { runBacklog, type OrchestratorEvent } from "../orchestrator.js";
-import { initRepo, commitTask, history as gitHistory, type Commit } from "../git.js";
+import { initRepo, commitTask, undoLastCommit, history as gitHistory, type Commit } from "../git.js";
 import { decomposeIdea } from "../pm.js";
 import { newBuildState, loadState, saveState, type BuildState } from "../build-state.js";
 
@@ -436,6 +436,28 @@ export function exportTrello(dir: string): string {
 /** Per-task git history for a project (newest first). Empty if not versioned. */
 export function projectHistory(dir: string): Commit[] {
   return gitHistory(dir);
+}
+
+/** Undo the last task: revert its file changes (git reset) AND roll back the
+ *  build-state so the task is no longer "done" and can be rebuilt via Resume. */
+export function undoLastTask(dir: string): { ok: boolean; taskId?: string; error?: string } {
+  const { ok, taskId } = undoLastCommit(dir);
+  if (!ok) return { ok: false, error: "Nothing to undo (only the initial commit, or git isn't available)." };
+  const statePath = join(dir, "build-state.json");
+  const state = loadState(statePath);
+  if (state) {
+    // Remove the most recent outcome for the reverted task (fallback: the last one).
+    let idx = -1;
+    for (let i = state.outcomes.length - 1; i >= 0; i--) {
+      if (!taskId || state.outcomes[i]!.taskId === taskId) { idx = i; break; }
+    }
+    if (idx >= 0) state.outcomes.splice(idx, 1);
+    state.totalCost = Math.round(state.outcomes.reduce((a, o) => a + o.cost, 0) * 100) / 100;
+    state.status = "halted";
+    state.haltReason = `undid ${taskId ?? "last task"} — resume to rebuild`;
+    saveState(state, statePath);
+  }
+  return { ok: true, taskId };
 }
 
 /** Permanently delete a project's folder. */

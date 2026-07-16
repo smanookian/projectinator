@@ -46,6 +46,18 @@ export function commitTask(dir: string, taskId: string, title: string): string |
   return h.ok ? h.out : null;
 }
 
+/** Hard-reset one commit back (undo the last task's file changes). Returns the
+ *  reverted task id parsed from the commit message. Refuses to undo past the
+ *  initial commit. */
+export function undoLastCommit(dir: string): { ok: boolean; taskId?: string } {
+  if (!isRepo(dir)) return { ok: false };
+  const commits = history(dir);
+  if (commits.length <= 1) return { ok: false }; // nothing but the initial commit
+  const taskId = (commits[0]?.msg.split(":")[0] ?? "").trim() || undefined;
+  const r = git(dir, ["reset", "--hard", "HEAD~1"]);
+  return { ok: r.ok, taskId };
+}
+
 export interface Commit { hash: string; msg: string; }
 
 /** Commit log, newest first. */
