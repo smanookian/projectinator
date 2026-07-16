@@ -30,6 +30,8 @@ import {
   deleteProject,
   saveProjectTasks,
   exportProject,
+  exportJira,
+  exportTrello,
   breakdownEpic,
   modelLabel,
   PROVIDER_LABEL,
@@ -39,7 +41,7 @@ import {
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu"
   | "idea" | "change" | "planning" | "plan" | "board" | "building" | "done" | "error";
 
 export default function App(): React.ReactElement {
@@ -101,6 +103,7 @@ export default function App(): React.ReactElement {
       case "rename": return setPhase("projectActions");
       case "addAsset": return setPhase(assetReturn);
       case "plan": return setPhase("idea");
+      case "exportMenu": return setPhase("projectActions");
       case "filterEpic": return setPhase("projectActions");
       case "projectActions": return setPhase("projects");
       case "projects": return setPhase("home");
@@ -357,7 +360,7 @@ export default function App(): React.ReactElement {
     const epics = [...new Set(allBoard.map((t) => t.epic || "General"))];
     const items = [
       { label: "📋 Edit board", value: "editBoard" },
-      { label: "📤 Export (Markdown + CSV)", value: "export" },
+      { label: "📤 Export (Markdown, CSV, Jira, Trello)", value: "export" },
       { label: `🔀 View: ${viewMode === "board" ? "Board → List" : "List → Board"}`, value: "view" },
       ...(epics.length > 1 ? [{ label: `🔎 Filter: ${epicFilter ?? "All epics"}`, value: "filter" }] : []),
       { label: "🌐 Open in browser", value: "open" },
@@ -389,15 +392,8 @@ export default function App(): React.ReactElement {
             onSelect={(i) => {
               if (i.value !== "export") setFlash("");
               if (i.value === "editBoard") setPhase("editBoard");
-              else if (i.value === "export") {
-                try {
-                  const { md } = exportProject(selected.dir);
-                  reselect(selected.dir);
-                  setFlash(`Exported → ${md} (+ export.csv)`);
-                } catch (e) {
-                  setFlash(e instanceof Error ? e.message : "Export failed.");
-                }
-              } else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
+              else if (i.value === "export") { setFlash(""); setPhase("exportMenu"); }
+              else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
               else if (i.value === "filter") setPhase("filterEpic");
               else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
               else if (i.value === "back") setPhase("projects");
@@ -467,6 +463,51 @@ export default function App(): React.ReactElement {
           }}
           onCancel={() => setPhase("projectActions")}
         />
+      </Box>
+    );
+  }
+
+  if (phase === "exportMenu" && selected) {
+    const dir = selected.dir;
+    const run = (fn: () => string | string[], done: () => void) => {
+      try {
+        const out = fn();
+        const paths = Array.isArray(out) ? out : [out];
+        reselect(dir);
+        setFlash(`Exported → ${paths.map((p) => p.split("/").pop()).join(", ")}  (in the project folder)`);
+      } catch (e) {
+        setFlash(e instanceof Error ? e.message : "Export failed.");
+      }
+      done();
+    };
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Export backlog</Text>
+        <Text color={C.dim}>Writes files into the project folder. Import them into your tool of choice.</Text>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: "📝 Markdown + CSV (readable + spreadsheet)", value: "md" },
+              { label: "🟦 Jira CSV (Jira → External System Import → CSV)", value: "jira" },
+              { label: "🟩 Trello CSV (Trello CSV-import Power-Up)", value: "trello" },
+              { label: "📦 All formats", value: "all" },
+              { label: "🔙 Back", value: "back" },
+            ]}
+            onSelect={(i) => {
+              const back = () => setPhase("projectActions");
+              if (i.value === "back") return back();
+              if (i.value === "md") return run(() => { const { md, csv } = exportProject(dir); return [md, csv]; }, back);
+              if (i.value === "jira") return run(() => exportJira(dir), back);
+              if (i.value === "trello") return run(() => exportTrello(dir), back);
+              if (i.value === "all") return run(() => {
+                const { md, csv } = exportProject(dir);
+                return [md, csv, exportJira(dir), exportTrello(dir)];
+              }, back);
+            }}
+          />
+        </Box>
+        <Text color={C.dim}>{"\n"}Esc to go back.</Text>
       </Box>
     );
   }

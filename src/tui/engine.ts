@@ -362,6 +362,76 @@ export function exportProject(dir: string): { md: string; csv: string } {
   return { md: mdPath, csv: csvPath };
 }
 
+// Shared: load state + a done-set + per-task cost, or throw.
+function projectRows(dir: string) {
+  const state = loadState(join(dir, "build-state.json"));
+  if (!state) throw new Error("No project data to export.");
+  const done = new Set(state.outcomes.map((o) => o.taskId));
+  const cost = new Map<string, number>();
+  for (const o of state.outcomes) cost.set(o.taskId, (cost.get(o.taskId) ?? 0) + o.cost);
+  return { state, done, cost };
+}
+
+const csvEsc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+
+/** Export the backlog as a Jira-importable CSV (one Epic row per epic + linked
+ *  Task rows). Import via Jira → System → External System Import → CSV. */
+export function exportJira(dir: string): string {
+  const { state, done, cost } = projectRows(dir);
+  const epics = [...new Set(state.tasks.map((t) => t.epic || "General"))];
+  const header = "Issue Type,Summary,Epic Name,Epic Link,Status,Labels,Description";
+  const rows: string[] = [header];
+  // Epic rows first so Epic Link resolves by name on import.
+  for (const e of epics) {
+    rows.push(["Epic", csvEsc(e), csvEsc(e), "", "To Do", "projectinator", ""].join(","));
+  }
+  for (const t of state.tasks) {
+    const epic = t.epic || "General";
+    const deps = (t.dependsOn ?? []).length ? `Depends on: ${(t.dependsOn ?? []).join(", ")}. ` : "";
+    const c = cost.has(t.id) ? `Cost: $${cost.get(t.id)!.toFixed(2)}. ` : "";
+    const desc = `${deps}${c}[${t.id}]`;
+    rows.push(
+      [
+        "Task",
+        csvEsc(t.title),
+        "",
+        csvEsc(epic),
+        done.has(t.id) ? "Done" : "To Do",
+        csvEsc(`${t.capability} ${t.difficulty}`),
+        csvEsc(desc),
+      ].join(","),
+    );
+  }
+  const p = join(dir, "jira-import.csv");
+  writeFileSync(p, rows.join("\n") + "\n");
+  return p;
+}
+
+/** Export the backlog as a Trello-importable CSV (lists = epics, one card per
+ *  task). Import via a Trello CSV-import Power-Up / board import. */
+export function exportTrello(dir: string): string {
+  const { state, done, cost } = projectRows(dir);
+  const header = "List Name,Card Name,Card Description,Labels";
+  const rows: string[] = [header];
+  for (const t of state.tasks) {
+    const epic = t.epic || "General";
+    const deps = (t.dependsOn ?? []).length ? `Depends on: ${(t.dependsOn ?? []).join(", ")}. ` : "";
+    const c = cost.has(t.id) ? `Cost: $${cost.get(t.id)!.toFixed(2)}. ` : "";
+    const name = `${done.has(t.id) ? "✓ " : ""}${t.title}`;
+    rows.push(
+      [
+        csvEsc(epic),
+        csvEsc(name),
+        csvEsc(`${deps}${c}[${t.id}]`),
+        csvEsc(`${t.capability},${t.difficulty},${done.has(t.id) ? "done" : "todo"}`),
+      ].join(","),
+    );
+  }
+  const p = join(dir, "trello-import.csv");
+  writeFileSync(p, rows.join("\n") + "\n");
+  return p;
+}
+
 /** Permanently delete a project's folder. */
 export function deleteProject(dir: string): void {
   // Safety: only ever delete inside our own tui workspace root.
