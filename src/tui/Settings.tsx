@@ -1,0 +1,326 @@
+// Settings — API keys, model-per-role assignments, preferences, web-login (soon).
+// Self-contained: manages its own sub-navigation; calls onExit when done.
+
+import React, { useState } from "react";
+import { Box, Text } from "ink";
+import { Spinner, StatusMessage } from "@inkjs/ui";
+import type { Capability, Provider, Tier } from "../types.js";
+import { C, Panel, Menu as SelectInput, TextField as TextInput, Password } from "./components.js";
+import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
+import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, ENV_VAR } from "./config.js";
+import { validateKey } from "./validate.js";
+
+type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "prefs" | "provider" | "workflow" | "weblogin";
+
+export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
+  const [sub, setSub] = useState<Sub>("menu");
+  const [keyProvider, setKeyProvider] = useState<Provider>("anthropic");
+  const [keyDraft, setKeyDraft] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [keyError, setKeyError] = useState("");
+  const [role, setRole] = useState<{ capability: Capability; tier: Tier; label: string } | null>(null);
+  const [notice, setNotice] = useState("");
+  const [, force] = useState(0);
+  const refresh = () => force((n) => n + 1);
+
+  // ---------- menu ----------
+  if (sub === "menu") {
+    return (
+      <Box flexDirection="column">
+        {notice ? <Box marginBottom={1}><StatusMessage variant="success">{notice}</StatusMessage></Box> : null}
+        <Panel title="Settings">
+          <SelectInput
+            items={[
+              { label: "🔑 API keys", value: "keys" },
+              { label: "🎯 Preferred provider", value: "provider" },
+              { label: "🚦 Default workflow", value: "workflow" },
+              { label: "🧠 Model assignments", value: "models" },
+              { label: "🔩 Preferences (budget, speed)", value: "prefs" },
+              { label: `🔔 Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
+              { label: "🌐 Web login (coming soon)", value: "weblogin" },
+              { label: "🔙 Back", value: "back" },
+            ]}
+            onSelect={(i) => {
+              setNotice("");
+              if (i.value === "back") onExit();
+              else if (i.value === "notify") {
+                const next = !getNotify();
+                setNotify(next);
+                setNotice(`Notifications ${next ? "on" : "off"}.`);
+              } else setSub(i.value as Sub);
+            }}
+          />
+        </Panel>
+      </Box>
+    );
+  }
+
+  // ---------- API keys ----------
+  if (sub === "keys") {
+    const have = new Set(availableProviders());
+    const providers: Provider[] = ["anthropic", "openai", "google"];
+    return (
+      <Box flexDirection="column">
+        <Text bold>API keys</Text>
+        <Text color={C.dim}>Select a provider to add or replace its key. Saved to ~/.projectinator (0600).</Text>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              ...providers.map((p) => ({
+                label: `${have.has(p) ? "✓" : "·"}  ${PROVIDER_LABEL[p]}  ${have.has(p) ? "(set)" : "(not set)"}`,
+                value: p,
+              })),
+              { label: "🔙 Back", value: "__back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "__back") setSub("menu");
+              else {
+                setKeyProvider(i.value as Provider);
+                setKeyDraft("");
+                setKeyError("");
+                setChecking(false);
+                setSub("keyEntry");
+              }
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  if (sub === "keyEntry") {
+    if (checking) {
+      return (
+        <Box flexDirection="column">
+          <Text bold>Enter key for {PROVIDER_LABEL[keyProvider]}</Text>
+          <Spinner label={`Verifying key with ${PROVIDER_LABEL[keyProvider]}…`} />
+        </Box>
+      );
+    }
+    return (
+      <Box flexDirection="column">
+        <Text bold>Enter key for {PROVIDER_LABEL[keyProvider]}</Text>
+        <Text color={C.dim}>Sets {ENV_VAR[keyProvider]}. Paste and press Enter — it's verified before saving. (hidden)</Text>
+        {keyError ? <Box marginTop={1}><StatusMessage variant="error">{keyError}</StatusMessage></Box> : null}
+        <Box marginTop={1}>
+          <Password
+            placeholder="paste your key…"
+            onSubmit={(k) => {
+              const trimmed = k.trim();
+              if (!trimmed) {
+                setSub("menu");
+                return;
+              }
+              setKeyError("");
+              setChecking(true);
+              void validateKey(keyProvider, trimmed).then((res) => {
+                setChecking(false);
+                if (res.ok) {
+                  setKey(keyProvider, trimmed);
+                  setNotice(`Saved ${PROVIDER_LABEL[keyProvider]} key (verified ✓).`);
+                  setSub("menu");
+                } else {
+                  setKeyError(res.error ?? "Key rejected.");
+                }
+              });
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  // ---------- model assignments ----------
+  if (sub === "models") {
+    const rows = effectiveRoster();
+    const lock = loadConfig().preferredProvider;
+    return (
+      <Box flexDirection="column">
+        <Text bold>Model assignments</Text>
+        <Text color={C.dim}>Which model plays each role. {lock ? `Pinned to ${PROVIDER_LABEL[lock]} — pick from its models.` : "Saved as overrides."}</Text>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              ...rows.map((r) => ({
+                label: `${r.label.padEnd(16)} ${r.model ?? "—"}`,
+                value: `${r.capability}:${r.tier}`,
+              })),
+              { label: "🔙 Back", value: "__back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "__back") setSub("menu");
+              else {
+                const [capability, tier] = i.value.split(":") as [Capability, Tier];
+                const r = rows.find((x) => x.capability === capability && x.tier === tier)!;
+                setRole({ capability, tier, label: r.label });
+                setSub("modelPick");
+              }
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  if (sub === "modelPick" && role) {
+    const lock = loadConfig().preferredProvider;
+    const models = lock ? allModels().filter((m) => m.provider === lock) : allModels();
+    return (
+      <Box flexDirection="column">
+        <Text bold>Pick a model for {role.label}</Text>
+        {lock ? <Text color={C.dim}>Showing {PROVIDER_LABEL[lock]} models (you've pinned this provider).</Text> : null}
+        <Box marginTop={1}>
+          <SelectInput
+            limit={10}
+            items={[
+              ...models.map((m) => ({ label: `${m.name}  (${m.provider})`, value: m.id })),
+              { label: "🔙 Back", value: "__back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value !== "__back") {
+                setRoleModel(role.capability, role.tier, i.value);
+                setNotice(`${role.label} → ${i.value}`);
+                refresh();
+              }
+              setSub("models");
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  // ---------- preferred provider ----------
+  if (sub === "provider") {
+    const have = new Set(availableProviders());
+    const current = loadConfig().preferredProvider;
+    const providers: Provider[] = ["anthropic", "openai", "google"];
+    return (
+      <Box flexDirection="column">
+        <Text bold>Preferred provider</Text>
+        <Text color={C.dim}>Pin one provider for every role, or Auto to use the best available. Current: {current ?? "Auto"}.</Text>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: `Auto (best available)${!current ? "  ✓" : ""}`, value: "__auto" },
+              ...providers.map((p) => ({
+                label: `${PROVIDER_LABEL[p]}${have.has(p) ? "" : " (no key)"}${current === p ? "  ✓" : ""}`,
+                value: p,
+              })),
+              { label: "🔙 Back", value: "__back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "__back") {
+                setSub("menu");
+                return;
+              }
+              const choice = i.value === "__auto" ? undefined : (i.value as Provider);
+              setPreferredProvider(choice);
+              setNotice(`Preferred provider: ${choice ?? "Auto"}.`);
+              setSub("menu");
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  // ---------- default workflow ----------
+  if (sub === "workflow") {
+    const current = getDefaultMode();
+    return (
+      <Box flexDirection="column">
+        <Text bold>Default workflow for new builds</Text>
+        <Text color={C.dim}>Current: {current === "approval" ? "Approval-gated" : "Auto-run"}.</Text>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: `Auto-run — confirm cost, then build${current === "auto" ? "  ✓" : ""}`, value: "auto" },
+              { label: `Approval-gated — you approve the backlog first${current === "approval" ? "  ✓" : ""}`, value: "approval" },
+              { label: "🔙 Back", value: "__back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value !== "__back") {
+                setDefaultMode(i.value as "auto" | "approval");
+                setNotice(`Default workflow: ${i.value === "approval" ? "Approval-gated" : "Auto-run"}.`);
+              }
+              setSub("menu");
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  // ---------- preferences ----------
+  if (sub === "prefs") {
+    const prefs = getPrefs();
+    return <PrefsEditor initial={prefs} onDone={(p) => { setPrefs(p); setNotice("Preferences saved."); setSub("menu"); }} onCancel={() => setSub("menu")} />;
+  }
+
+  // ---------- web login ----------
+  if (sub === "weblogin") {
+    return (
+      <Box flexDirection="column">
+        <Text bold>Web login</Text>
+        <Box marginTop={1} flexDirection="column">
+          <Text color={C.dim}>Not built yet. Planned: sign in to your ChatGPT / Claude / Gemini web</Text>
+          <Text color={C.dim}>subscription and route cheap/bulk tasks through it (~free, but fragile).</Text>
+          <Text color={C.dim}>For now, use API keys.</Text>
+        </Box>
+        <Box marginTop={1}>
+          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setSub("menu")} />
+        </Box>
+      </Box>
+    );
+  }
+
+  return <Text>…</Text>;
+}
+
+function PrefsEditor({
+  initial,
+  onDone,
+  onCancel,
+}: {
+  initial: { budgetCapUSD: number; concurrency: number };
+  onDone: (p: { budgetCapUSD: number; concurrency: number }) => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  const [cap, setCap] = useState(String(initial.budgetCapUSD));
+  const [conc, setConc] = useState(String(initial.concurrency));
+  const [field, setField] = useState<"cap" | "conc">("cap");
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>Preferences</Text>
+      <Box marginTop={1} flexDirection="column">
+        <Box>
+          <Box width={22}><Text color={field === "cap" ? C.accent : C.text}>Budget cap (USD)</Text></Box>
+          {field === "cap" ? (
+            <TextInput value={cap} onChange={setCap} onSubmit={() => setField("conc")} />
+          ) : (
+            <Text>{cap}</Text>
+          )}
+        </Box>
+        <Box>
+          <Box width={22}><Text color={field === "conc" ? C.accent : C.text}>Tasks at once</Text></Box>
+          {field === "conc" ? (
+            <TextInput
+              value={conc}
+              onChange={setConc}
+              onSubmit={() => {
+                const b = Math.max(1, parseFloat(cap) || initial.budgetCapUSD);
+                const c = Math.max(1, Math.floor(parseFloat(conc) || initial.concurrency));
+                onDone({ budgetCapUSD: b, concurrency: c });
+              }}
+            />
+          ) : (
+            <Text>{conc}</Text>
+          )}
+        </Box>
+      </Box>
+      <Text color={C.dim}>{"\n"}Enter moves to the next field, then saves. Ctrl+C to cancel.</Text>
+    </Box>
+  );
+}
