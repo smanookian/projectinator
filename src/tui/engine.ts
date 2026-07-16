@@ -18,6 +18,7 @@ import { initRepo, commitTask, undoLastCommit, history as gitHistory, type Commi
 import { computeRetro, type RetroReport } from "../retro.js";
 import { computeBurndown, type Burndown } from "../burndown.js";
 import { decomposeIdea } from "../pm.js";
+import { assessIntake, type IntakeQuestion } from "../intake.js";
 import { newBuildState, loadState, saveState, type BuildState } from "../build-state.js";
 
 const PROVIDER_KEYS: Record<Provider, string[]> = {
@@ -172,6 +173,15 @@ export function cleanDeps(tasks: Task[]): Task[] {
 }
 
 /** Decompose an idea and estimate the whole build's cost. Spends money (PM call). */
+/** PM intake: clarifying questions for a vague request ([] = clear enough). */
+export async function assessBuild(idea: string, providers: Provider[]): Promise<IntakeQuestion[]> {
+  const { registry, lock } = chooseRegistry(providers);
+  const modelOverride = lock
+    ? { provider: lock, model: registry.find((e) => e.capability === "plan")!.byBackend.api.model }
+    : undefined;
+  return assessIntake(idea, { backend: "api", modelOverride });
+}
+
 export async function planBuild(
   idea: string,
   providers: Provider[],

@@ -13,6 +13,9 @@ import { Team, Standup, ListView } from "./panels.js";
 import { EditableBoard } from "./EditableBoard.js";
 import { Settings } from "./Settings.js";
 import { BakeOff } from "./BakeOff.js";
+import { Intake, type Answer } from "./Intake.js";
+import { enrichBrief } from "../intake.js";
+import type { IntakeQuestion } from "../intake.js";
 import { TEMPLATES } from "./templates.js";
 import { getPrefs, getDefaultMode, getNotify, type WorkflowMode } from "./config.js";
 import { notifyBuildDone } from "./notify.js";
@@ -20,6 +23,7 @@ import {
   availableProviders,
   chooseRegistry,
   planBuild,
+  assessBuild,
   startBuild,
   estimateTasks,
   listProjects,
@@ -49,7 +53,7 @@ import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
   | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio"
-  | "idea" | "change" | "planning" | "plan" | "board" | "building" | "done" | "error";
+  | "idea" | "change" | "assessing" | "intake" | "planning" | "plan" | "board" | "building" | "done" | "error";
 
 export default function App(): React.ReactElement {
   const { exit } = useApp();
@@ -78,6 +82,7 @@ export default function App(): React.ReactElement {
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [epicFilter, setEpicFilter] = useState<string | null>(null);
   const [flash, setFlash] = useState<string>("");
+  const [intakeQs, setIntakeQs] = useState<IntakeQuestion[]>([]);
   const [deployState, setDeployState] = useState<{
     target: DeployTarget;
     status: "running" | "done" | "error";
@@ -113,6 +118,8 @@ export default function App(): React.ReactElement {
   const goBack = () => {
     switch (phase) {
       case "idea": resetBuildContext(); return setPhase("home");
+      case "assessing": resetBuildContext(); return setPhase("home");
+      case "intake": return setPhase("idea");
       case "templates": return setPhase("home");
       case "change": return setPhase(selected ? "projectActions" : buildResult ? "done" : "home");
       case "rename": return setPhase("projectActions");
@@ -139,12 +146,35 @@ export default function App(): React.ReactElement {
   };
 
   // global quit (not while typing an idea/change)
-  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff";
+  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff" || phase === "intake";
   useInput((input, key) => {
     if (key.ctrl && input === "c") return exit();
     if (input === "q" && !typing) return exit();
     if (key.escape) goBack();
   });
+
+  // ---- intake effect: for a fresh build, ask the PM if it needs clarification ----
+  useEffect(() => {
+    if (phase !== "assessing") return;
+    let alive = true;
+    // Only interview for fresh full builds; targeted changes go straight to planning.
+    if (scope !== "full" || targetWorkspace) {
+      setPhase("planning");
+      return;
+    }
+    assessBuild(idea, providers)
+      .then((qs) => {
+        if (!alive) return;
+        if (qs.length) {
+          setIntakeQs(qs);
+          setPhase("intake");
+        } else {
+          setPhase("planning");
+        }
+      })
+      .catch(() => { if (alive) setPhase("planning"); }); // never block on intake
+    return () => { alive = false; };
+  }, [phase, idea, providers, scope, targetWorkspace]);
 
   // ---- planning effect ----
   useEffect(() => {
@@ -988,7 +1018,7 @@ export default function App(): React.ReactElement {
           <TextInput
             value={idea}
             onChange={setIdea}
-            onSubmit={() => idea.trim() && setPhase("planning")}
+            onSubmit={() => idea.trim() && setPhase("assessing")}
             placeholder="make the header dark blue and add a footer with a copyright line"
           />
         </Box>
@@ -1018,7 +1048,7 @@ export default function App(): React.ReactElement {
               resetBuildContext();
               setScope("full");
               setIdea(tpl.idea);
-              setPhase("planning");
+              setPhase("assessing");
             }}
           />
         </Box>
@@ -1037,6 +1067,36 @@ export default function App(): React.ReactElement {
           <TextInput value={idea} onChange={setIdea} onSubmit={() => idea.trim() && setPhase("planning")} placeholder="a landing page for a coffee shop with a menu and contact form" />
         </Box>
         <Text color={C.dim}>{"\n"}Enter to continue · Esc to go back.</Text>
+      </Box>
+    );
+  }
+
+  if (phase === "assessing") {
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Spinner label="Reading your request…" />
+        <Text color={C.dim}>{"\n"}“{idea}”</Text>
+      </Box>
+    );
+  }
+
+  if (phase === "intake") {
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>A few quick questions</Text>
+        <Text color={C.dim}>The PM needs a little more to build the right thing.</Text>
+        <Box marginTop={1}>
+          <Intake
+            questions={intakeQs}
+            onDone={(answers: Answer[]) => {
+              setIdea(enrichBrief(idea, answers));
+              setPhase("planning");
+            }}
+            onCancel={() => setPhase("idea")}
+          />
+        </Box>
       </Box>
     );
   }

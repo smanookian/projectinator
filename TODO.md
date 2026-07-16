@@ -9,6 +9,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [x] Multi-file apps (dev inspects + builds on existing tree; design defines file structure)
 - [x] Export → Markdown, CSV, Jira CSV, Trello CSV
 - [x] Deploy → Cloudflare Pages / Vercel / Netlify (user picks target)
+- [x] PM intake — a vague request (bare template, one-liner) triggers 2-4 AI-generated clarifying questions with pickable options (+ Other/Skip) before planning; specific requests skip straight through
 
 ## Top 3 (done)
 - [x] **Real test execution** — tester RUNS the app headless (Playwright check_app), catches runtime JS errors, not just reads code
