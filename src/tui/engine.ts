@@ -14,6 +14,7 @@ import { loadRegistry, saveOverrides, OVERRIDES_FILENAME } from "../registry-sto
 import { loadConfig } from "./config.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
 import { runBacklog, type OrchestratorEvent } from "../orchestrator.js";
+import { initRepo, commitTask, history as gitHistory, type Commit } from "../git.js";
 import { decomposeIdea } from "../pm.js";
 import { newBuildState, loadState, saveState, type BuildState } from "../build-state.js";
 
@@ -432,6 +433,11 @@ export function exportTrello(dir: string): string {
   return p;
 }
 
+/** Per-task git history for a project (newest first). Empty if not versioned. */
+export function projectHistory(dir: string): Commit[] {
+  return gitHistory(dir);
+}
+
 /** Permanently delete a project's folder. */
 export function deleteProject(dir: string): void {
   // Safety: only ever delete inside our own tui workspace root.
@@ -557,6 +563,14 @@ export function startBuild(
   const executor = makePiExecutor({ workspace, backend: "api" });
   const policy = { ...DEFAULT_POLICY, backendMode: "api" as const, budgetCapUSD: opts.budgetCapUSD };
 
+  // Version the workspace: init a repo, then commit after each finished task.
+  initRepo(workspace);
+  const titleById = new Map(plan.tasks.map((t) => [t.id, t.title]));
+  const onProgress = (e: OrchestratorEvent) => {
+    opts.onEvent(e);
+    if (e.type === "task_done") commitTask(workspace, e.outcome.taskId, titleById.get(e.outcome.taskId) ?? e.outcome.taskId);
+  };
+
   const promise = runBacklog(plan.tasks, {
     policy,
     execute: executor,
@@ -564,7 +578,7 @@ export function startBuild(
     concurrency: opts.concurrency,
     seedOutcomes: opts.seedOutcomes,
     onGate: opts.onGate,
-    onProgress: opts.onEvent,
+    onProgress,
     onCheckpoint: (outcomes, totalCost) => {
       state.outcomes = outcomes;
       state.totalCost = totalCost;

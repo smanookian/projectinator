@@ -18,7 +18,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 ## Backlog (brainstorm 2026-07-16)
 
 ### Build quality
-- [ ] Git per build — init repo in workspace, commit per task → history, diffs, undo-a-task
+- [x] Git per build — init repo in workspace, commit per task → history + diffs (History view in project screen). Next: undo-a-task (reset + roll back build-state)
 - [ ] Framework choice — React/Vite, Next scaffolds (beyond vanilla HTML/JS)
 
 ### PM cockpit depth

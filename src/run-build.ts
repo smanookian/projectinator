@@ -21,6 +21,7 @@ import { estimateTokens } from "./estimate.js";
 import { route } from "./router.js";
 import { decomposeIdea } from "./pm.js";
 import { newBuildState, saveState, loadState, type BuildState } from "./build-state.js";
+import { initRepo, commitTask } from "./git.js";
 
 const args = process.argv.slice(2);
 const live = args.includes("--live");
@@ -141,12 +142,19 @@ if (prior) {
 }
 console.log(`  Workspace: ${workspace}\n  Building...\n`);
 
+// Version the workspace + commit after each task.
+initRepo(workspace);
+const titleById = new Map(tasks.map((t) => [t.id, t.title]));
+
 const onEvent = (_e: AgentSessionEvent) => {};
 const executor = makePiExecutor({ workspace, backend: "api", onEvent });
 
 const onProgress = (e: OrchestratorEvent) => {
   if (e.type === "task_start") console.log(`  ▶ ${e.task.id} [${e.task.capability}] -> ${e.provider}/${e.modelId} (round ${e.round})`);
-  else if (e.type === "task_done") console.log(`    ✓ ${e.outcome.taskId} ${money(e.outcome.cost)}  running ${money(e.runningTotal)}${e.outcome.verdict ? `  verdict=${e.outcome.verdict.passed ? "PASS" : "FAIL"}` : ""}`);
+  else if (e.type === "task_done") {
+    const hash = commitTask(workspace, e.outcome.taskId, titleById.get(e.outcome.taskId) ?? e.outcome.taskId);
+    console.log(`    ✓ ${e.outcome.taskId} ${money(e.outcome.cost)}  running ${money(e.runningTotal)}${e.outcome.verdict ? `  verdict=${e.outcome.verdict.passed ? "PASS" : "FAIL"}` : ""}${hash ? `  [${hash}]` : ""}`);
+  }
   else if (e.type === "task_skipped") console.log(`    · ${e.taskId} skipped (already done)`);
   else if (e.type === "test_failed") console.log(`    ✗ ${e.taskId} FAILED (${e.bugs} bugs) — round ${e.round}`);
   else if (e.type === "retry_dev") console.log(`    ↻ re-running ${e.taskId} to fix ${e.forTest}`);

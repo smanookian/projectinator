@@ -33,6 +33,7 @@ import {
   exportProject,
   exportJira,
   exportTrello,
+  projectHistory,
   breakdownEpic,
   modelLabel,
   PROVIDER_LABEL,
@@ -44,7 +45,7 @@ import { startStaticServer, type StaticServer } from "../preview.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history"
   | "idea" | "change" | "planning" | "plan" | "board" | "building" | "done" | "error";
 
 export default function App(): React.ReactElement {
@@ -116,6 +117,7 @@ export default function App(): React.ReactElement {
       case "plan": return setPhase("idea");
       case "exportMenu": return setPhase("projectActions");
       case "deployMenu": return setPhase("projectActions");
+      case "history": return setPhase("projectActions");
       case "preview": {
         if (preview && "server" in preview) void preview.server.close();
         setPreview(null);
@@ -395,6 +397,7 @@ export default function App(): React.ReactElement {
       ...(epics.length > 1 ? [{ label: `🔎 Filter: ${epicFilter ?? "All epics"}`, value: "filter" }] : []),
       { label: "🌐 Open in browser", value: "open" },
       { label: "👁 Live preview (local server, auto-reload)", value: "preview" },
+      { label: "📜 History (per-task commits)", value: "history" },
       ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
       { label: "📝 Make changes", value: "change" },
       { label: "📎 Add a file / image", value: "asset" },
@@ -428,6 +431,7 @@ export default function App(): React.ReactElement {
               else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
               else if (i.value === "filter") setPhase("filterEpic");
               else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
+              else if (i.value === "history") { setFlash(""); setPhase("history"); }
               else if (i.value === "preview") {
                 const dir = selected.dir;
                 setPreview(null);
@@ -627,6 +631,29 @@ export default function App(): React.ReactElement {
             <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => { setDeployState(null); setPhase("projectActions"); }} />
           </Box>
         ) : null}
+      </Box>
+    );
+  }
+
+  if (phase === "history" && selected) {
+    const commits = projectHistory(selected.dir);
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>History — {selected.idea}</Text>
+        <Text color={C.dim}>One commit per finished task, newest first. Diff/checkout in the project folder with git.</Text>
+        <Box marginTop={1} flexDirection="column">
+          {commits.length ? (
+            commits.slice(0, 20).map((c) => (
+              <Text key={c.hash} wrap="truncate-end"><Text color={C.accent}>{c.hash}</Text>  {c.msg}</Text>
+            ))
+          ) : (
+            <Text color={C.dim}>No history yet (this project predates git-per-build, or git isn't installed).</Text>
+          )}
+        </Box>
+        <Box marginTop={1}>
+          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
+        </Box>
       </Box>
     );
   }
