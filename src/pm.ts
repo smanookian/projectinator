@@ -88,6 +88,10 @@ export function pmSystemPrompt(scope: Scope = "full"): string {
           "field to its epic name, e.g. 'Hero section', 'Contact form', 'Deployment'. Aim for",
           "2-5 tasks per epic. Do not pad: never split one obvious unit of work into multiple",
           "tasks. Skip design/plan/ops tasks when the request clearly doesn't need them.",
+          "For a MULTI-FILE app: name the target file(s) in each code task's title (e.g. 'Build",
+          "src/components/Header.jsx') and keep file names CONSISTENT across tasks — decide one",
+          "structure and reuse it. When several files must agree, add ONE early design task that",
+          "defines the file tree, and have the code tasks depend on it.",
         ];
   return [
     "You are the PROJECT MANAGER on an autonomous software team.",

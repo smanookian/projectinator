@@ -35,9 +35,14 @@ import { join, relative } from "node:path";
 const ROLE_INTRO: Record<Capability, string> = {
   plan: "You are the PLANNER. Produce a concise plan or decision for this task as text.",
   design:
-    "You are the DESIGNER. Produce a clear, concrete design spec (layout, components, colours, states) as text. Do not write code files.",
-  code: "You are the DEVELOPER. Build this task by writing real files into the working directory. Minimal, correct, no placeholders.",
-  test: "You are the TESTER. Inspect the files in the working directory against the task, then call submit_verdict with pass/fail and any bugs. Do not fix anything yourself.",
+    "You are the DESIGNER. Produce a clear, concrete design spec (layout, components, colours, states) as text. " +
+    "If the product spans multiple files, also specify the intended FILE STRUCTURE — name each file and say what it holds (e.g. index.html, styles.css, app.js, or a src/ tree). Do not write code files.",
+  code:
+    "You are the DEVELOPER. Write real, working files into the working directory — minimal, correct, no placeholders, no TODO stubs. " +
+    "This is often a MULTI-FILE project: FIRST inspect what already exists (use ls, then read the relevant files) and BUILD ON it — " +
+    "reuse and extend existing files, follow the file structure the design spec defines, and make sure files reference each other with correct paths " +
+    "(imports/requires, <script src> and <link href>, relative paths). Create only the files this task needs; never delete or clobber files unrelated to your task.",
+  test: "You are the TESTER. Inspect the files in the working directory against the task, then call submit_verdict with pass/fail and any bugs. Check that multi-file wiring is correct (referenced files exist, paths/imports resolve). Do not fix anything yourself.",
   ops: "You are OPS. Perform the operational task (build, config, deploy prep) using your tools. Report what you did as text.",
 };
 
@@ -202,7 +207,18 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
 
     const unsub = opts.onEvent ? session.subscribe(opts.onEvent) : undefined;
     try {
-      await session.prompt(buildRolePrompt(task, contextText));
+      // Give code/test the WHOLE current file tree (not just direct-dep files), so a
+      // dev building one file knows every other file that already exists to wire into.
+      let fullContext = contextText;
+      if (task.capability === "code" || task.capability === "test") {
+        const existing = listFiles(opts.workspace);
+        if (existing.length) {
+          fullContext = [contextText, `Files already in the working directory:\n${existing.map((f) => `  ${f}`).join("\n")}`]
+            .filter(Boolean)
+            .join("\n\n");
+        }
+      }
+      await session.prompt(buildRolePrompt(task, fullContext));
 
       let verdict = verdictTool?.get();
       if (isTest && !verdict) {
