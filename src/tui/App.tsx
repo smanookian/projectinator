@@ -659,6 +659,17 @@ export default function App(): React.ReactElement {
               <Text color={C.dim}>   ·   Tasks </Text>{r.doneCount}/{r.taskCount}
               <Text color={C.dim}>   ·   Tests </Text><Text color={C.good ?? "green"}>{r.tests.passed}✓</Text> <Text color={r.tests.failed ? (C.bad ?? "red") : C.dim}>{r.tests.failed}✗</Text>
             </Text>
+            {r.estCost > 0 ? (() => {
+              const delta = r.estCost > 0 ? Math.round(((r.totalCost - r.estCost) / r.estCost) * 100) : 0;
+              const under = r.totalCost <= r.estCost;
+              return (
+                <Text>
+                  <Text color={C.dim}>Predicted </Text>{money(r.estCost)}
+                  <Text color={C.dim}> → actual </Text><Text color={C.accent}>{money(r.totalCost)}</Text>
+                  <Text color={under ? (C.good ?? "green") : C.warn}>  {delta >= 0 ? "+" : ""}{delta}% {under ? "under" : "over"}</Text>
+                </Text>
+              );
+            })() : null}
 
             {r.byEpic.length ? (
               <Box flexDirection="column" marginTop={1}>

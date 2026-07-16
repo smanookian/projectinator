@@ -68,6 +68,11 @@ export function recordActual(
   save(cal);
 }
 
+/** All recorded samples keyed "capability/difficulty" (for the accuracy view). */
+export function allSamples(): Record<string, { input: number; output: number; cachedFraction: number; n: number }> {
+  return load();
+}
+
 /** Calibrated estimate for a bucket, once enough samples exist. */
 export function calibratedTokens(
   capability: Capability,

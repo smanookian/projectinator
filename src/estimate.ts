@@ -14,7 +14,7 @@
 // These stay heuristic; wire measured actuals back in for self-calibration later.
 
 import type { Capability, Difficulty, TokenEstimate } from "./types.js";
-import { calibratedTokens } from "./calibration.js";
+import { calibratedTokens, allSamples } from "./calibration.js";
 
 type Bucket = { input: number; output: number };
 
@@ -61,4 +61,44 @@ export function estimateTokens(capability: Capability, difficulty: Difficulty): 
   if (learned) return learned;
   const b = BUCKETS[capability][difficulty];
   return { input: b.input, output: b.output, cachedInputFraction: DEFAULT_CACHED_INPUT_FRACTION };
+}
+
+/** The static baseline (pre-calibration) token budget for a bucket. */
+export function baselineTokens(capability: Capability, difficulty: Difficulty): Bucket {
+  return BUCKETS[capability][difficulty];
+}
+
+export interface AccuracyRow {
+  capability: Capability;
+  difficulty: Difficulty;
+  baseOutput: number;
+  actualOutput: number;
+  baseInput: number;
+  actualInput: number;
+  n: number;
+  active: boolean; // true once calibration overrides the baseline (enough samples)
+}
+
+/** Baseline vs measured tokens for every bucket that has real samples. */
+export function estimateAccuracy(): AccuracyRow[] {
+  const samples = allSamples();
+  const rows: AccuracyRow[] = [];
+  for (const cap of Object.keys(BUCKETS) as Capability[]) {
+    for (const diff of Object.keys(BUCKETS[cap]) as Difficulty[]) {
+      const s = samples[`${cap}/${diff}`];
+      if (!s) continue;
+      const b = BUCKETS[cap][diff];
+      rows.push({
+        capability: cap,
+        difficulty: diff,
+        baseOutput: b.output,
+        actualOutput: Math.round(s.output),
+        baseInput: b.input,
+        actualInput: Math.round(s.input),
+        n: s.n,
+        active: !!calibratedTokens(cap, diff),
+      });
+    }
+  }
+  return rows;
 }

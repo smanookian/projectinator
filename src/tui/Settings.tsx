@@ -8,11 +8,12 @@ import type { Capability, Provider, Tier } from "../types.js";
 import { C, Panel, Menu as SelectInput, TextField as TextInput, Password } from "./components.js";
 import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
+import { estimateAccuracy } from "../estimate.js";
 import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
 import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, ENV_VAR } from "./config.js";
 import { validateKey } from "./validate.js";
 
-type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "prefs" | "provider" | "workflow" | "weblogin";
+type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy";
 
 export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
   const [sub, setSub] = useState<Sub>("menu");
@@ -37,6 +38,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
               { label: "🎯 Preferred provider", value: "provider" },
               { label: "🚦 Default workflow", value: "workflow" },
               { label: "🧠 Model assignments", value: "models" },
+              { label: "📈 Estimate accuracy", value: "accuracy" },
               { label: "🔩 Preferences (budget, speed)", value: "prefs" },
               { label: `🔔 Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
               // Web-login (browser automation / OAuth) is parked — vendors closed
@@ -262,6 +264,43 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   if (sub === "prefs") {
     const prefs = getPrefs();
     return <PrefsEditor initial={prefs} onDone={(p) => { setPrefs(p); setNotice("Preferences saved."); setSub("menu"); }} onCancel={() => setSub("menu")} />;
+  }
+
+  // ---------- estimate accuracy (calibration vs baseline) ----------
+  if (sub === "accuracy") {
+    const rows = estimateAccuracy();
+    return (
+      <Box flexDirection="column">
+        <Text bold>Estimate accuracy</Text>
+        <Text color={C.dim}>Measured output tokens vs the static baseline, per role/difficulty. Self-calibration</Text>
+        <Text color={C.dim}>replaces the baseline once a bucket has ≥2 samples (✓ active).</Text>
+        <Box marginTop={1} flexDirection="column">
+          {rows.length === 0 ? (
+            <Text color={C.dim}>No data yet — run some builds and this fills in.</Text>
+          ) : (
+            <>
+              <Text color={C.dim}>{"role/diff".padEnd(16)}{"base".padEnd(8)}{"actual".padEnd(8)}{"Δ".padEnd(8)}{"n".padEnd(4)}live</Text>
+              {rows.map((r) => {
+                const delta = r.baseOutput > 0 ? Math.round(((r.actualOutput - r.baseOutput) / r.baseOutput) * 100) : 0;
+                return (
+                  <Text key={`${r.capability}/${r.difficulty}`}>
+                    {`${r.capability}/${r.difficulty}`.padEnd(16)}
+                    {String(r.baseOutput).padEnd(8)}
+                    <Text color={C.accent}>{String(r.actualOutput).padEnd(8)}</Text>
+                    <Text color={Math.abs(delta) > 40 ? C.warn : C.dim}>{`${delta >= 0 ? "+" : ""}${delta}%`.padEnd(8)}</Text>
+                    {String(r.n).padEnd(4)}
+                    {r.active ? <Text color={C.good ?? "green"}>✓</Text> : <Text color={C.dim}>·</Text>}
+                  </Text>
+                );
+              })}
+            </>
+          )}
+        </Box>
+        <Box marginTop={1}>
+          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setSub("menu")} />
+        </Box>
+      </Box>
+    );
   }
 
   // ---------- connect accounts (web subscriptions) ----------

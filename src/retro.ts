@@ -3,12 +3,16 @@
 // model, retries, and the priciest tasks. No model call.
 
 import type { BuildState } from "./build-state.js";
-import type { Bug } from "./types.js";
+import type { Bug, Difficulty } from "./types.js";
+import { baselineTokens } from "./estimate.js";
+import { estimateCost } from "./cost.js";
+import { getModel } from "./models.js";
 
 export interface RetroReport {
   idea: string;
   status: BuildState["status"];
   totalCost: number;
+  estCost: number; // baseline predicted cost for the tasks that ran
   taskCount: number;
   doneCount: number;
   tests: { passed: number; failed: number };
@@ -24,8 +28,22 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export function computeRetro(state: BuildState): RetroReport {
   const titleById = new Map(state.tasks.map((t) => [t.id, t.title]));
   const epicById = new Map(state.tasks.map((t) => [t.id, t.epic || "General"]));
+  const diffById = new Map(state.tasks.map((t) => [t.id, t.difficulty]));
   const outcomes = state.outcomes;
   const doneIds = new Set(outcomes.map((o) => o.taskId));
+
+  // Baseline-predicted cost for each run: static token budget × the model that ran it.
+  let estCost = 0;
+  for (const o of outcomes) {
+    const diff = (diffById.get(o.taskId) ?? "medium") as Difficulty;
+    try {
+      const model = getModel(o.modelId);
+      const tokens = baselineTokens(o.capability, diff);
+      estCost += estimateCost({ input: tokens.input, output: tokens.output, cachedInputFraction: 0.55 }, model);
+    } catch {
+      /* unknown model — skip its estimate */
+    }
+  }
 
   // Tests: judge each test task by its LAST outcome (final state after retries).
   const lastTestByTask = new Map<string, (typeof outcomes)[number]>();
@@ -68,6 +86,7 @@ export function computeRetro(state: BuildState): RetroReport {
     idea: state.idea ?? state.id,
     status: state.status,
     totalCost: round2(state.totalCost),
+    estCost: round2(estCost),
     taskCount: state.tasks.length,
     doneCount: doneIds.size,
     tests: { passed, failed },
