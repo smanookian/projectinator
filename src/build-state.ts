@@ -19,6 +19,8 @@ export interface BuildState {
   haltReason?: string;
   /** Per-project budget cap (USD). Overrides the global default when set. */
   budgetCapUSD?: number;
+  /** Cached AI retro narrative (generated on demand). */
+  retroNarrative?: string;
 }
 
 export function newBuildState(id: string, tasks: Task[], idea?: string, mode?: "auto" | "approval"): BuildState {

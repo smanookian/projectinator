@@ -17,6 +17,7 @@ import { runBacklog, type OrchestratorEvent } from "../orchestrator.js";
 import { initRepo, commitTask, undoLastCommit, history as gitHistory, type Commit } from "../git.js";
 import { computeRetro, type RetroReport } from "../retro.js";
 import { computeBurndown, type Burndown } from "../burndown.js";
+import { narrateRetro } from "../narrate.js";
 import { decomposeIdea } from "../pm.js";
 import { assessIntake, type IntakeQuestion } from "../intake.js";
 import { newBuildState, loadState, saveState, type BuildState } from "../build-state.js";
@@ -460,6 +461,26 @@ export function projectRetro(dir: string): RetroReport | null {
 export function projectBurndown(dir: string): Burndown | null {
   const state = loadState(join(dir, "build-state.json"));
   return state ? computeBurndown(state) : null;
+}
+
+/** Cached AI retro narrative for a project (null if never generated). */
+export function getRetroNarrative(dir: string): string | null {
+  return loadState(join(dir, "build-state.json"))?.retroNarrative ?? null;
+}
+
+/** Generate (or regenerate) the AI retro narrative and cache it on the state. */
+export async function generateRetroNarrative(dir: string, providers: Provider[]): Promise<string> {
+  const statePath = join(dir, "build-state.json");
+  const state = loadState(statePath);
+  if (!state) throw new Error("No build data to narrate.");
+  const { registry, lock } = chooseRegistry(providers);
+  const modelOverride = lock
+    ? { provider: lock, model: registry.find((e) => e.capability === "plan")!.byBackend.api.model }
+    : undefined;
+  const text = await narrateRetro(computeRetro(state), { backend: "api", modelOverride });
+  state.retroNarrative = text;
+  saveState(state, statePath);
+  return text;
 }
 
 /** Set (or clear, when undefined) a project's per-build budget cap. */

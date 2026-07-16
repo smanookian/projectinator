@@ -42,6 +42,8 @@ import {
   undoLastTask,
   projectRetro,
   projectBurndown,
+  getRetroNarrative,
+  generateRetroNarrative,
   breakdownEpic,
   modelLabel,
   PROVIDER_LABEL,
@@ -84,6 +86,7 @@ export default function App(): React.ReactElement {
   const [epicFilter, setEpicFilter] = useState<string | null>(null);
   const [flash, setFlash] = useState<string>("");
   const [intakeQs, setIntakeQs] = useState<IntakeQuestion[]>([]);
+  const [narr, setNarr] = useState<{ loading: boolean; text: string; error: string }>({ loading: false, text: "", error: "" });
   const [projectCap, setProjectCap] = useState<number | null>(null); // per-build cap override
   const [capDraft, setCapDraft] = useState("");
   const [capReturn, setCapReturn] = useState<Phase>("plan");
@@ -521,7 +524,7 @@ export default function App(): React.ReactElement {
               else if (i.value === "filter") setPhase("filterEpic");
               else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
               else if (i.value === "history") { setFlash(""); setPhase("history"); }
-              else if (i.value === "retro") { setFlash(""); setPhase("retro"); }
+              else if (i.value === "retro") { setFlash(""); setNarr({ loading: false, text: getRetroNarrative(selected.dir) ?? "", error: "" }); setPhase("retro"); }
               else if (i.value === "burndown") { setFlash(""); setPhase("burndown"); }
               else if (i.value === "cap") { setCapReturn("projectActions"); setCapDraft(selected.state.budgetCapUSD != null ? String(selected.state.budgetCapUSD) : ""); setPhase("setCap"); }
               else if (i.value === "preview") {
@@ -835,10 +838,37 @@ export default function App(): React.ReactElement {
             ) : (
               <Box marginTop={1}><Text color={C.good ?? "green"}>No open issues flagged by the tester.</Text></Box>
             )}
+
+            {narr.loading ? (
+              <Box marginTop={1}><Spinner label="Writing the retro narrative…" /></Box>
+            ) : narr.error ? (
+              <Box marginTop={1}><StatusMessage variant="error">{narr.error}</StatusMessage></Box>
+            ) : narr.text ? (
+              <Box marginTop={1}>
+                <Panel title="🧠 AI narrative">
+                  {narr.text.split("\n").map((line, i) => <Text key={i} wrap="wrap">{line}</Text>)}
+                </Panel>
+              </Box>
+            ) : null}
           </Box>
         )}
         <Box marginTop={1}>
-          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
+          <SelectInput
+            items={[
+              ...(r && !narr.loading ? [{ label: narr.text ? "🧠 Regenerate AI narrative" : "🧠 Generate AI narrative", value: "narrate" }] : []),
+              { label: "🔙 Back", value: "back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "narrate") {
+                setNarr({ loading: true, text: "", error: "" });
+                generateRetroNarrative(selected.dir, providers)
+                  .then((text) => setNarr({ loading: false, text, error: "" }))
+                  .catch((e) => setNarr({ loading: false, text: "", error: e instanceof Error ? e.message : String(e) }));
+              } else {
+                setPhase("projectActions");
+              }
+            }}
+          />
         </Box>
       </Box>
     );

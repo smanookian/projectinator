@@ -23,7 +23,8 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [ ] Framework choice — React/Vite, Next scaffolds (beyond vanilla HTML/JS)
 
 ### PM cockpit depth
-- [x] Retro — 📊 Retro (project screen): status/cost/tests, cost-by-epic bars, cost-by-model, priciest tasks, rebuilds, tester flags. Free (from build-state). Next: optional AI narrative (what went well / to improve)
+- [x] Retro — 📊 Retro (project screen): status/cost/tests, cost-by-epic bars, cost-by-model, priciest tasks, rebuilds, tester flags. Free (from build-state)
+- [x] AI-narrative retro — on-demand "what went well / what to improve / next time" written by a model over the retro facts; cached on build-state (🧠 Generate/Regenerate in the Retro screen)
 - [x] Burndown — 📉 Burndown (project screen): ASCII bars of tasks-remaining + cumulative spend across completion order; retries flagged
 - [x] Estimates vs actuals — Retro shows predicted-vs-actual build cost (Δ%); Settings → 📈 Estimate accuracy shows baseline-vs-measured output tokens per bucket + sample count + whether calibration is live
 - [x] Portfolio dashboard — Home → 📊 Portfolio: project count, total spend, status breakdown, and a per-project spend bar + done/total progress
