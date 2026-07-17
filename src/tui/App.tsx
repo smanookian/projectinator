@@ -18,7 +18,7 @@ import { enrichBrief } from "../intake.js";
 import type { IntakeQuestion } from "../intake.js";
 import { StackPick } from "./StackPick.js";
 import { stackInstruction, type StackChoice } from "../stack.js";
-import { TEMPLATES } from "./templates.js";
+import { allTemplates, saveUserTemplate, deleteUserTemplate, exportTemplate, importTemplate, type Template } from "./templates.js";
 import { getPrefs, getDefaultMode, getNotify, getPreferredStack, type WorkflowMode } from "./config.js";
 import { notifyBuildDone } from "./notify.js";
 import {
@@ -57,7 +57,7 @@ import { startStaticServer, type StaticServer } from "../preview.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
   | "idea" | "change" | "stack" | "assessing" | "intake" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
@@ -89,6 +89,9 @@ export default function App(): React.ReactElement {
   const [flash, setFlash] = useState<string>("");
   const [intakeQs, setIntakeQs] = useState<IntakeQuestion[]>([]);
   const [narr, setNarr] = useState<{ loading: boolean; text: string; error: string }>({ loading: false, text: "", error: "" });
+  const [tplName, setTplName] = useState("");
+  const [tplPath, setTplPath] = useState("");
+  const [tplSel, setTplSel] = useState<Template | null>(null);
   const [projectCap, setProjectCap] = useState<number | null>(null); // per-build cap override
   const [capDraft, setCapDraft] = useState("");
   const [capReturn, setCapReturn] = useState<Phase>("plan");
@@ -133,6 +136,10 @@ export default function App(): React.ReactElement {
       case "intake": return setPhase("idea");
       case "setCap": return setPhase(capReturn);
       case "templates": return setPhase("home");
+      case "saveTemplate": return setPhase("projectActions");
+      case "importTemplate": setFlash(""); return setPhase("templates");
+      case "myTemplates": setFlash(""); return setPhase("templates");
+      case "tplActions": return setPhase("myTemplates");
       case "change": return setPhase(selected ? "projectActions" : buildResult ? "done" : "home");
       case "rename": return setPhase("projectActions");
       case "addAsset": return setPhase(assetReturn);
@@ -158,7 +165,7 @@ export default function App(): React.ReactElement {
   };
 
   // global quit (not while typing an idea/change)
-  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff" || phase === "intake" || phase === "setCap" || phase === "stack";
+  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff" || phase === "intake" || phase === "setCap" || phase === "stack" || phase === "saveTemplate" || phase === "importTemplate";
   useInput((input, key) => {
     if (key.ctrl && input === "c") return exit();
     if (input === "q" && !typing) return exit();
@@ -507,6 +514,7 @@ export default function App(): React.ReactElement {
       { label: "📝 Make changes", value: "change" },
       { label: "📎 Add a file / image", value: "asset" },
       { label: "📛 Rename", value: "rename" },
+      { label: "💾 Save as template", value: "saveTpl" },
       { label: "📑 Duplicate", value: "duplicate" },
       { label: "❌ Delete", value: "delete" },
       { label: "🔙 Back", value: "back" },
@@ -540,6 +548,7 @@ export default function App(): React.ReactElement {
               else if (i.value === "retro") { setFlash(""); setNarr({ loading: false, text: getRetroNarrative(selected.dir) ?? "", error: "" }); setPhase("retro"); }
               else if (i.value === "burndown") { setFlash(""); setPhase("burndown"); }
               else if (i.value === "cap") { setCapReturn("projectActions"); setCapDraft(selected.state.budgetCapUSD != null ? String(selected.state.budgetCapUSD) : ""); setPhase("setCap"); }
+              else if (i.value === "saveTpl") { setFlash(""); setTplName(selected.idea.slice(0, 40)); setPhase("saveTemplate"); }
               else if (i.value === "preview") {
                 const dir = selected.dir;
                 setPreview(null);
@@ -1080,24 +1089,132 @@ export default function App(): React.ReactElement {
     );
   }
 
+  if (phase === "saveTemplate" && selected) {
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Save as template</Text>
+        <Text color={C.dim}>Reuse this project's brief as a starting point for future builds.</Text>
+        <Box marginTop={1}>
+          <Text color={C.accent}>{"name › "}</Text>
+          <TextInput
+            value={tplName}
+            onChange={setTplName}
+            onSubmit={() => {
+              const name = tplName.trim();
+              if (!name) { setPhase("projectActions"); return; }
+              saveUserTemplate({ name, blurb: selected.idea.slice(0, 48), idea: selected.state.idea ?? selected.idea });
+              setFlash(`Saved template “${name}”.`);
+              setPhase("projectActions");
+            }}
+          />
+        </Box>
+        <Text color={C.dim}>{"\n"}Enter to save · Esc to cancel.</Text>
+      </Box>
+    );
+  }
+
+  if (phase === "importTemplate") {
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Import a shared template</Text>
+        <Text color={C.dim}>Paste the path to a .pitemplate.json file someone shared.</Text>
+        {flash ? <Box marginTop={1}><StatusMessage variant="error">{flash}</StatusMessage></Box> : null}
+        <Box marginTop={1}>
+          <Text color={C.accent}>{"› "}</Text>
+          <TextInput
+            value={tplPath}
+            onChange={setTplPath}
+            onSubmit={() => {
+              if (!tplPath.trim()) { setPhase("templates"); return; }
+              try {
+                const t = importTemplate(tplPath);
+                setFlash(`Imported “${t.name}”.`);
+                setPhase("templates");
+              } catch (e) {
+                setFlash(e instanceof Error ? e.message : "Import failed.");
+              }
+            }}
+          />
+        </Box>
+        <Text color={C.dim}>{"\n"}Enter to import · Esc to cancel.</Text>
+      </Box>
+    );
+  }
+
+  if (phase === "myTemplates") {
+    const mine = allTemplates().filter((t) => !t.builtin);
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>My templates</Text>
+        {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              ...mine.map((t) => ({ label: `★ ${t.name}  —  ${t.blurb}`, value: t.name })),
+              { label: "🔙 Back", value: "__back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "__back") { setFlash(""); setPhase("templates"); return; }
+              setTplSel(mine.find((t) => t.name === i.value) ?? null);
+              setPhase("tplActions");
+            }}
+          />
+        </Box>
+        <Text color={C.dim}>{"\n"}Esc to go back.</Text>
+      </Box>
+    );
+  }
+
+  if (phase === "tplActions" && tplSel) {
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>{tplSel.name}</Text>
+        {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: "📤 Share — export to a file", value: "export" },
+              { label: "❌ Delete", value: "delete" },
+              { label: "🔙 Back", value: "back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "export") { const p = exportTemplate(tplSel); setFlash(`Shared → ${p}`); setPhase("myTemplates"); }
+              else if (i.value === "delete") { deleteUserTemplate(tplSel.name); setFlash(`Deleted “${tplSel.name}”.`); setPhase("myTemplates"); }
+              else setPhase("myTemplates");
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
   if (phase === "templates") {
+    const tpls = allTemplates();
+    const hasUser = tpls.some((t) => !t.builtin);
     return (
       <Box flexDirection="column">
         <Header />
         <Text bold>Start from a template</Text>
-        <Text color={C.dim}>Pick one — you can edit the tasks on the board after.</Text>
+        <Text color={C.dim}>Pick one — you can edit the tasks on the board after. ★ = yours.</Text>
+        {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
         <Box marginTop={1}>
           <SelectInput
             items={[
-              ...TEMPLATES.map((t) => ({ label: `${t.name}  —  ${t.blurb}`, value: t.name })),
+              ...tpls.map((t) => ({ label: `${t.builtin ? "  " : "★ "}${t.name}  —  ${t.blurb}`, value: `t:${t.name}` })),
+              { label: "📥 Import a shared template…", value: "__import" },
+              ...(hasUser ? [{ label: "🗂 Manage my templates", value: "__manage" }] : []),
               { label: "🔙 Back", value: "__back" },
             ]}
             onSelect={(i) => {
-              if (i.value === "__back") {
-                setPhase("home");
-                return;
-              }
-              const tpl = TEMPLATES.find((t) => t.name === i.value)!;
+              if (i.value === "__back") { setFlash(""); setPhase("home"); return; }
+              if (i.value === "__import") { setFlash(""); setTplPath(""); setPhase("importTemplate"); return; }
+              if (i.value === "__manage") { setFlash(""); setPhase("myTemplates"); return; }
+              const name = i.value.slice(2);
+              const tpl = tpls.find((t) => t.name === name)!;
               resetBuildContext();
               setScope("full");
               setIdea(tpl.idea);

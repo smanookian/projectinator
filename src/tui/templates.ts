@@ -1,5 +1,10 @@
 // Starter templates — curated, detailed idea prompts. Picking one skips the blank
-// page and gives the PM a strong brief to decompose.
+// page and gives the PM a strong brief to decompose. Users can also save their own
+// (persisted in ~/.projectinator/templates.json) and share them as portable files.
+
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 export interface Template {
   name: string;
@@ -44,3 +49,71 @@ export const TEMPLATES: Template[] = [
     idea: "A SaaS dashboard UI (front-end only, mock data): a left sidebar nav, a top bar, a row of 4 stat cards, a simple line-chart placeholder, and a recent-activity table. Clean product design, responsive, single self-contained HTML file with embedded CSS/JS.",
   },
 ];
+
+// ---- user templates (saved + shared) ----
+
+function homeDir(): string {
+  const d = join(homedir(), ".projectinator");
+  mkdirSync(d, { recursive: true });
+  return d;
+}
+function userTemplatesPath(): string {
+  return join(homeDir(), "templates.json");
+}
+function slug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "template";
+}
+
+export function loadUserTemplates(): Template[] {
+  try {
+    const raw = JSON.parse(readFileSync(userTemplatesPath(), "utf8")) as Template[];
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+function writeUserTemplates(list: Template[]): void {
+  writeFileSync(userTemplatesPath(), JSON.stringify(list, null, 2) + "\n");
+}
+
+/** Built-in + user templates, tagged. */
+export function allTemplates(): (Template & { builtin: boolean })[] {
+  return [
+    ...TEMPLATES.map((t) => ({ ...t, builtin: true })),
+    ...loadUserTemplates().map((t) => ({ ...t, builtin: false })),
+  ];
+}
+
+/** Save (or overwrite by name) a user template. */
+export function saveUserTemplate(t: Template): void {
+  const list = loadUserTemplates().filter((x) => x.name !== t.name);
+  list.push(t);
+  writeUserTemplates(list);
+}
+
+export function deleteUserTemplate(name: string): void {
+  writeUserTemplates(loadUserTemplates().filter((x) => x.name !== name));
+}
+
+/** Write a template to a portable file others can import. Returns the path. */
+export function exportTemplate(t: Template): string {
+  const dir = join(homeDir(), "exports");
+  mkdirSync(dir, { recursive: true });
+  const p = join(dir, `${slug(t.name)}.pitemplate.json`);
+  writeFileSync(p, JSON.stringify(t, null, 2) + "\n");
+  return p;
+}
+
+/** Import a template from a shared file. Adds it to the user's templates. */
+export function importTemplate(filePath: string): Template {
+  const clean = filePath.trim().replace(/^['"]|['"]$/g, "").replace(/\\(.)/g, "$1");
+  const abs = clean.startsWith("~") ? homedir() + clean.slice(1) : clean;
+  if (!existsSync(abs)) throw new Error(`File not found: ${abs}`);
+  const raw = JSON.parse(readFileSync(abs, "utf8")) as Partial<Template>;
+  if (!raw || typeof raw.name !== "string" || typeof raw.idea !== "string") {
+    throw new Error("Not a valid template file (needs name + idea).");
+  }
+  const t: Template = { name: raw.name, blurb: String(raw.blurb ?? ""), idea: raw.idea };
+  saveUserTemplate(t);
+  return t;
+}

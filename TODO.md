@@ -37,7 +37,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 
 ### Sharing
 - [ ] Zip / share a build
-- [ ] Template save + share (templates.ts exists)
+- [x] Template save + share — 💾 Save as template (from a project); picker shows built-in + user templates (★); 📥 Import a shared .pitemplate.json; 🗂 Manage → export (share) / delete. Persisted in ~/.projectinator/templates.json
 
 ### Packaging (deferred)
 - [ ] Bundle to install/run/share without `npm run` (npm binary or installer)
