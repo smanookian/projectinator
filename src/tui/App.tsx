@@ -557,7 +557,7 @@ export default function App(): React.ReactElement {
         ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
       ] },
       { title: "See it", items: [
-        { label: "🗂 Kanban board (columns)", value: "kanban" },
+        { label: "📇 Kanban board (columns)", value: "kanban" },
         { label: "👀 Live preview (local server, auto-reload)", value: "preview" },
         { label: "🌐 Open in browser", value: "open" },
       ] },
@@ -1296,7 +1296,7 @@ export default function App(): React.ReactElement {
             items={[
               ...tpls.map((t) => ({ label: `${t.builtin ? "  " : "★ "}${t.name}  —  ${t.blurb}`, value: `t:${t.name}` })),
               { label: "📥 Import a shared template…", value: "__import" },
-              ...(hasUser ? [{ label: "🗂 Manage my templates", value: "__manage" }] : []),
+              ...(hasUser ? [{ label: "📇 Manage my templates", value: "__manage" }] : []),
               { label: "🔙 Back", value: "__back" },
             ]}
             onSelect={(i) => {
@@ -1621,7 +1621,7 @@ export default function App(): React.ReactElement {
         ) : null}
         <Box marginTop={1}>
           <Panel title="Board">
-            <Kanban tasks={board} />
+            <Kanban tasks={board} compact maxPerCol={Math.max(2, Math.floor((termRows - (gate ? 20 : 12)) / 2))} />
           </Panel>
         </Box>
         <Box marginTop={1} flexDirection="column">

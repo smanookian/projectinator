@@ -71,11 +71,56 @@ function Card({ t }: { t: BoardTask }): React.ReactElement {
   );
 }
 
-export function Kanban({ tasks }: { tasks: BoardTask[] }): React.ReactElement {
+/** One-line card for the compact (live-build) board. */
+function MiniCard({ t }: { t: BoardTask }): React.ReactElement {
+  const running = t.status === "running";
+  return (
+    <Text wrap="truncate-end">
+      {running ? <Text color="cyan"><Spinner type="dots" /> </Text> : t.status === "failed" ? <Text color={C.bad}>✗ </Text> : <Text>{ROLE_META[t.capability].emoji} </Text>}
+      <Text color={C.dim}>{t.id} </Text>
+      <Text color={running ? "cyan" : C.text} wrap="truncate-end">{t.title}</Text>
+      {t.cost ? <Text color={C.dim}> ${t.cost.toFixed(2)}</Text> : null}
+    </Text>
+  );
+}
+
+/** Compact 4-column board (no epic swimlanes, one-line cards, per-column cap) —
+ *  for the live build screen where height must fit the viewport. */
+export function Kanban({ tasks, compact, maxPerCol }: { tasks: BoardTask[]; compact?: boolean; maxPerCol?: number }): React.ReactElement {
   const done = new Set(tasks.filter((t) => t.status === "done" || t.status === "skipped").map((t) => t.id));
-  const lanes = groupByEpic(tasks);
   const counts: Record<Col, number> = { backlog: 0, notStarted: 0, inProgress: 0, done: 0 };
   for (const t of tasks) counts[columnOf(t, done)]++;
+
+  if (compact) {
+    const byCol: Record<Col, BoardTask[]> = { backlog: [], notStarted: [], inProgress: [], done: [] };
+    for (const t of tasks) byCol[columnOf(t, done)].push(t);
+    const cap = Math.max(2, maxPerCol ?? 6);
+    return (
+      <Box flexDirection="column">
+        <Box>
+          {COLS.map((col) => (
+            <Box key={col.key} flexBasis="25%" flexGrow={1} marginRight={1}>
+              <Text color={col.color} bold>{col.label} <Text color={C.dim}>{counts[col.key]}</Text></Text>
+            </Box>
+          ))}
+        </Box>
+        <Box marginTop={1}>
+          {COLS.map((col) => {
+            const list = byCol[col.key];
+            return (
+              <Box key={col.key} flexDirection="column" flexBasis="25%" flexGrow={1} marginRight={1}>
+                {list.length === 0 ? <Text color={C.dim}>·</Text> : null}
+                {list.slice(0, cap).map((t) => <MiniCard key={t.id} t={t} />)}
+                {list.length > cap ? <Text color={C.dim}>+{list.length - cap} more</Text> : null}
+              </Box>
+            );
+          })}
+        </Box>
+      </Box>
+    );
+  }
+
+  const lanes = groupByEpic(tasks);
 
   return (
     <Box flexDirection="column">
