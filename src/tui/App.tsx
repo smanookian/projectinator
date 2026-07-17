@@ -59,7 +59,7 @@ import { startStaticServer, type StaticServer } from "../preview.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
   | "idea" | "change" | "stack" | "assessing" | "intake" | "planMode" | "council" | "approveEpics" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
@@ -174,6 +174,7 @@ export default function App(): React.ReactElement {
       case "history": return setPhase("projectActions");
       case "retro": return setPhase("projectActions");
       case "burndown": return setPhase("projectActions");
+      case "kanban": return setPhase("projectActions");
       case "preview": {
         if (preview && "server" in preview) void preview.server.close();
         setPreview(null);
@@ -551,11 +552,12 @@ export default function App(): React.ReactElement {
     const menuGroups: MenuGroup[] = [
       { title: "Work", items: [
         { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
-        { label: "📋 Board (view · add · reorder tasks)", value: "editBoard" },
+        { label: "📋 Edit board (add · reorder · deps)", value: "editBoard" },
         { label: "📎 Add a file / image", value: "asset" },
         ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
       ] },
       { title: "See it", items: [
+        { label: "🗂 Kanban board (columns)", value: "kanban" },
         { label: "👀 Live preview (local server, auto-reload)", value: "preview" },
         { label: "🌐 Open in browser", value: "open" },
       ] },
@@ -591,6 +593,7 @@ export default function App(): React.ReactElement {
             onSelect={(i) => {
               if (i.value !== "export") setFlash("");
               if (i.value === "editBoard") setPhase("editBoard");
+              else if (i.value === "kanban") { setFlash(""); setPhase("kanban"); }
               else if (i.value === "export") { setFlash(""); setPhase("exportMenu"); }
               else if (i.value === "deploy") { setFlash(""); setPhase("deployMenu"); }
               else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
@@ -835,6 +838,41 @@ export default function App(): React.ReactElement {
             </Box>
           </Box>
         )}
+        <Box marginTop={1}>
+          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
+        </Box>
+      </Box>
+    );
+  }
+
+  if (phase === "kanban" && selected) {
+    const done = new Set(selected.state.outcomes.map((o) => o.taskId));
+    const costBy = new Map<string, number>();
+    const modelBy = new Map<string, string>();
+    for (const o of selected.state.outcomes) {
+      costBy.set(o.taskId, (costBy.get(o.taskId) ?? 0) + o.cost);
+      modelBy.set(o.taskId, o.modelId);
+    }
+    const tasks: BoardTask[] = selected.state.tasks.map((t) => ({
+      id: t.id,
+      capability: t.capability,
+      title: t.title,
+      epic: t.epic,
+      dependsOn: t.dependsOn,
+      status: done.has(t.id) ? "done" : "pending",
+      cost: costBy.get(t.id),
+      assignee: modelBy.has(t.id) ? modelLabel(modelBy.get(t.id)!) : undefined,
+    }));
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold wrap="truncate-end">{selected.idea}</Text>
+        <Box marginTop={1}><Standup tasks={tasks} spent={selected.totalCost} /></Box>
+        <Box marginTop={1}>
+          <Panel title="Board">
+            <Kanban tasks={tasks} />
+          </Panel>
+        </Box>
         <Box marginTop={1}>
           <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
         </Box>
