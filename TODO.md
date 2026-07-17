@@ -10,6 +10,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [x] Export → Markdown, CSV, Jira CSV, Trello CSV
 - [x] Deploy → Cloudflare Pages / Vercel / Netlify (user picks target)
 - [x] PM intake — a vague request (bare template, one-liner) triggers 2-4 AI-generated clarifying questions with pickable options (+ Other/Skip) before planning; specific requests skip straight through
+- [x] Deep plan / council — opt-in per build (Quick vs Deep). Deep runs a council: architect + product + risk leads propose epics in parallel, a synthesizer merges them, you approve the epics, then they expand into the task backlog. Quick = today's single-PM decompose
 
 ## Top 3 (done)
 - [x] **Real test execution** — tester RUNS the app headless (Playwright check_app), catches runtime JS errors, not just reads code

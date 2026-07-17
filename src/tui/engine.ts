@@ -20,6 +20,7 @@ import { computeBurndown, type Burndown } from "../burndown.js";
 import { narrateRetro } from "../narrate.js";
 import { decomposeIdea } from "../pm.js";
 import { assessIntake, type IntakeQuestion } from "../intake.js";
+import { councilEpics, type Epic, type CouncilResult } from "../council.js";
 import { newBuildState, loadState, saveState, type BuildState } from "../build-state.js";
 
 const PROVIDER_KEYS: Record<Provider, string[]> = {
@@ -174,13 +175,22 @@ export function cleanDeps(tasks: Task[]): Task[] {
 }
 
 /** Decompose an idea and estimate the whole build's cost. Spends money (PM call). */
-/** PM intake: clarifying questions for a vague request ([] = clear enough). */
-export async function assessBuild(idea: string, providers: Provider[]): Promise<IntakeQuestion[]> {
+function planModelOverride(providers: Provider[]) {
   const { registry, lock } = chooseRegistry(providers);
   const modelOverride = lock
     ? { provider: lock, model: registry.find((e) => e.capability === "plan")!.byBackend.api.model }
     : undefined;
-  return assessIntake(idea, { backend: "api", modelOverride });
+  return { registry, lock, modelOverride };
+}
+
+/** PM intake: clarifying questions for a vague request ([] = clear enough). */
+export async function assessBuild(idea: string, providers: Provider[]): Promise<IntakeQuestion[]> {
+  return assessIntake(idea, { backend: "api", modelOverride: planModelOverride(providers).modelOverride });
+}
+
+/** Council: propose + synthesize epics for a "deep plan". */
+export async function councilBuild(idea: string, providers: Provider[]): Promise<CouncilResult> {
+  return councilEpics(idea, { backend: "api", modelOverride: planModelOverride(providers).modelOverride });
 }
 
 export async function planBuild(
@@ -188,15 +198,13 @@ export async function planBuild(
   providers: Provider[],
   scope: "full" | "change" = "full",
   workspace?: string,
+  epics?: Epic[],
 ): Promise<PlanResult> {
-  const { registry, lock } = chooseRegistry(providers);
-  const modelOverride = lock
-    ? { provider: lock, model: registry.find((e) => e.capability === "plan")!.byBackend.api.model }
-    : undefined;
+  const { registry, lock, modelOverride } = planModelOverride(providers);
 
   // On a change, hand the PM the existing project so it plans against what's really there.
   const projectContext = scope === "change" && workspace ? buildProjectContext(workspace) : undefined;
-  const res = await decomposeIdea(idea, { backend: "api", modelOverride, scope, projectContext });
+  const res = await decomposeIdea(idea, { backend: "api", modelOverride, scope, projectContext, epics });
   const { total } = estimateTasks(res.tasks, registry);
   return { tasks: res.tasks, provider: res.provider, modelId: res.modelId, estCost: total, registry, lock };
 }

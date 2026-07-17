@@ -220,6 +220,8 @@ export interface DecomposeOptions {
   scope?: Scope;
   /** Summary of the existing project (files + contents) so the PM plans with real context. */
   projectContext?: string;
+  /** Council-approved epics: organize ALL tasks under exactly these. */
+  epics?: { name: string; rationale: string }[];
 }
 
 export interface DecomposeResult {
@@ -253,7 +255,10 @@ export async function decomposeIdea(idea: string, opts: DecomposeOptions): Promi
   const unsub = opts.onEvent ? session.subscribe(opts.onEvent) : undefined;
   try {
     const ctx = opts.projectContext ? `\n\n--- EXISTING PROJECT (plan the change against this) ---\n${opts.projectContext}` : "";
-    await session.prompt(`${pmSystemPrompt(opts.scope ?? "full")}${ctx}\n\n--- REQUEST ---\n${idea}`);
+    const epicsBlock = opts.epics?.length
+      ? `\n\n--- APPROVED EPICS (organize ALL tasks under EXACTLY these; set each task's epic field to one of these names) ---\n${opts.epics.map((e) => `- ${e.name}: ${e.rationale}`).join("\n")}`
+      : "";
+    await session.prompt(`${pmSystemPrompt(opts.scope ?? "full")}${ctx}${epicsBlock}\n\n--- REQUEST ---\n${idea}`);
     let raw = get();
     // Nudge up to 3 times if the tool wasn't called (or its args failed validation).
     for (let i = 0; i < 3 && !raw; i++) {

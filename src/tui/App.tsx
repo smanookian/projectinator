@@ -18,6 +18,7 @@ import { enrichBrief } from "../intake.js";
 import type { IntakeQuestion } from "../intake.js";
 import { StackPick } from "./StackPick.js";
 import { stackInstruction, type StackChoice } from "../stack.js";
+import type { Epic, CouncilResult } from "../council.js";
 import { allTemplates, saveUserTemplate, deleteUserTemplate, exportTemplate, importTemplate, type Template } from "./templates.js";
 import { getPrefs, getDefaultMode, getNotify, getPreferredStack, type WorkflowMode } from "./config.js";
 import { notifyBuildDone } from "./notify.js";
@@ -26,6 +27,7 @@ import {
   chooseRegistry,
   planBuild,
   assessBuild,
+  councilBuild,
   setProjectBudget,
   startBuild,
   estimateTasks,
@@ -58,7 +60,7 @@ import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
   | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
-  | "idea" | "change" | "stack" | "assessing" | "intake" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
+  | "idea" | "change" | "stack" | "assessing" | "intake" | "planMode" | "council" | "approveEpics" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
   const { exit } = useApp();
@@ -88,6 +90,8 @@ export default function App(): React.ReactElement {
   const [epicFilter, setEpicFilter] = useState<string | null>(null);
   const [flash, setFlash] = useState<string>("");
   const [intakeQs, setIntakeQs] = useState<IntakeQuestion[]>([]);
+  const [approvedEpics, setApprovedEpics] = useState<Epic[] | null>(null);
+  const [council, setCouncil] = useState<{ loading: boolean; result: CouncilResult | null; error: string }>({ loading: false, result: null, error: "" });
   const [narr, setNarr] = useState<{ loading: boolean; text: string; error: string }>({ loading: false, text: "", error: "" });
   const [tplName, setTplName] = useState("");
   const [tplPath, setTplPath] = useState("");
@@ -124,6 +128,8 @@ export default function App(): React.ReactElement {
     setMode(getDefaultMode());
     setGate(null);
     setProjectCap(null);
+    setApprovedEpics(null);
+    setCouncil({ loading: false, result: null, error: "" });
   };
 
   // Esc goes back one screen. Phases with their own Esc handling (board editors,
@@ -134,6 +140,8 @@ export default function App(): React.ReactElement {
       case "stack": resetBuildContext(); return setPhase("home");
       case "assessing": resetBuildContext(); return setPhase("home");
       case "intake": return setPhase("idea");
+      case "planMode": resetBuildContext(); return setPhase("home");
+      case "approveEpics": return setPhase("planMode");
       case "setCap": return setPhase(capReturn);
       case "templates": return setPhase("home");
       case "saveTemplate": return setPhase("projectActions");
@@ -198,18 +206,38 @@ export default function App(): React.ReactElement {
           setIntakeQs(qs);
           setPhase("intake");
         } else {
+          setPhase("planMode");
+        }
+      })
+      .catch(() => { if (alive) setPhase("planMode"); }); // never block on intake
+    return () => { alive = false; };
+  }, [phase, idea, providers, scope, targetWorkspace]);
+
+  // ---- council effect: run the deep plan when entering "council" ----
+  useEffect(() => {
+    if (phase !== "council") return;
+    let alive = true;
+    setCouncil({ loading: true, result: null, error: "" });
+    councilBuild(idea, providers)
+      .then((result) => {
+        if (!alive) return;
+        if (result.epics.length) {
+          setCouncil({ loading: false, result, error: "" });
+          setPhase("approveEpics");
+        } else {
+          setApprovedEpics(null); // council came back empty — fall back to normal planning
           setPhase("planning");
         }
       })
-      .catch(() => { if (alive) setPhase("planning"); }); // never block on intake
+      .catch(() => { if (alive) { setApprovedEpics(null); setPhase("planning"); } });
     return () => { alive = false; };
-  }, [phase, idea, providers, scope, targetWorkspace]);
+  }, [phase, idea, providers]);
 
   // ---- planning effect ----
   useEffect(() => {
     if (phase !== "planning") return;
     let alive = true;
-    planBuild(idea, providers, scope, targetWorkspace)
+    planBuild(idea, providers, scope, targetWorkspace, approvedEpics ?? undefined)
       .then((p) => {
         if (!alive) return;
         setPlan(p);
@@ -1288,9 +1316,74 @@ export default function App(): React.ReactElement {
             questions={intakeQs}
             onDone={(answers: Answer[]) => {
               setIdea(enrichBrief(idea, answers));
-              setPhase("planning");
+              setPhase("planMode");
             }}
             onCancel={() => setPhase("idea")}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  if (phase === "planMode") {
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>How should the team plan this?</Text>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: "⚡ Quick plan — one PM breaks it into tasks", value: "quick" },
+              { label: "🏛 Deep plan — a council debates epics first, you approve (costs more)", value: "deep" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "deep") setPhase("council");
+              else { setApprovedEpics(null); setPhase("planning"); }
+            }}
+          />
+        </Box>
+        <Text color={C.dim}>{"\n"}Deep plan is worth it for bigger/complex builds. Esc to go back.</Text>
+      </Box>
+    );
+  }
+
+  if (phase === "council") {
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Planning council in session…</Text>
+        <Box marginTop={1}><Spinner label="Architect, product, and risk leads are proposing epics, then synthesizing…" /></Box>
+      </Box>
+    );
+  }
+
+  if (phase === "approveEpics" && council.result) {
+    const epics = council.result.epics;
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>Proposed epics ({epics.length})</Text>
+        <Text color={C.dim}>The council merged the architect / product / risk views. Approve to expand into tasks.</Text>
+        <Box marginTop={1} flexDirection="column">
+          {epics.map((e, i) => (
+            <Box key={i} flexDirection="column" marginBottom={1}>
+              <Text><Text color={C.accent}>{i + 1}. {e.name}</Text></Text>
+              <Text color={C.dim} wrap="wrap">   {e.rationale}</Text>
+            </Box>
+          ))}
+        </Box>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: "✅ Approve — expand these epics into tasks", value: "approve" },
+              { label: "⚡ Skip epics — quick plan instead", value: "quick" },
+              { label: "🔙 Back", value: "back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "approve") { setApprovedEpics(epics); setPhase("planning"); }
+              else if (i.value === "quick") { setApprovedEpics(null); setPhase("planning"); }
+              else setPhase("planMode");
+            }}
           />
         </Box>
       </Box>
@@ -1301,7 +1394,7 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Header />
-        <Spinner label="Breaking your idea into a plan…" />
+        <Spinner label={approvedEpics ? "Expanding the approved epics into tasks…" : "Breaking your idea into a plan…"} />
         <Text color={C.dim}>{"\n"}“{idea}”</Text>
       </Box>
     );
