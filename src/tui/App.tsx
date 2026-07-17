@@ -517,12 +517,11 @@ export default function App(): React.ReactElement {
     const menuGroups: MenuGroup[] = [
       { title: "Work", items: [
         { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
-        { label: "📋 Edit board (add · reorder · deps)", value: "editBoard" },
+        { label: "📋 Board (view columns · add · reorder · edit)", value: "kanban" },
         { label: "📎 Add a file / image", value: "asset" },
         ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
       ] },
       { title: "See it", items: [
-        { label: "📇 Kanban board (columns)", value: "kanban" },
         { label: "👀 Preview in browser (live server, auto-reload)", value: "preview" },
       ] },
       { title: "Reports", items: [
@@ -643,9 +642,9 @@ export default function App(): React.ReactElement {
           onSave={(t) => {
             saveProjectTasks(selected.dir, t);
             reselect(selected.dir);
-            setPhase("projectActions");
+            setPhase("kanban"); // back to the board view
           }}
-          onCancel={() => setPhase("projectActions")}
+          onCancel={() => setPhase("kanban")}
         />
       </Box>
     );
@@ -838,7 +837,13 @@ export default function App(): React.ReactElement {
           </Panel>
         </Box>
         <Box marginTop={1}>
-          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
+          <SelectInput
+            items={[
+              { label: "📝 Edit board (add · reorder · deps · rename)", value: "edit" },
+              { label: "🔙 Back", value: "back" },
+            ]}
+            onSelect={(i) => setPhase(i.value === "edit" ? "editBoard" : "projectActions")}
+          />
         </Box>
       </Box>
     );
