@@ -64,7 +64,7 @@ export function GroupedMenu({
   let fi = 0;
   groups.forEach((g, gi) => {
     if (gi) lines.push({ kind: "gap" });
-    lines.push({ kind: "header", text: g.title.toUpperCase() });
+    if (g.title) lines.push({ kind: "header", text: g.title.toUpperCase() });
     g.items.forEach((it) => { lines.push({ kind: "item", text: it.label, idx: fi }); fi++; });
   });
 

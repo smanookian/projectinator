@@ -1634,8 +1634,8 @@ export default function App(): React.ReactElement {
           <SelectInput
             items={[
               ...(buildResult.files.some((f) => f.endsWith(".html")) ? [{ label: "🌐 Open in browser", value: "open" }] : []),
+              { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
               { label: "📎 Add a file / image", value: "asset" },
-              { label: "📝 Make changes", value: "change" },
               { label: "🆕 New build", value: "new" },
               { label: "🏠 Home", value: "home" },
               { label: "🚪 Quit", value: "quit" },

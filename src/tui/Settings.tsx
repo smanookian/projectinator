@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { Box, Text } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
 import type { Capability, Provider, Tier } from "../types.js";
-import { C, Panel, Menu as SelectInput, TextField as TextInput, Password } from "./components.js";
+import { C, Panel, Menu as SelectInput, GroupedMenu, TextField as TextInput, Password, type MenuGroup } from "./components.js";
 import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
 import { estimateAccuracy } from "../estimate.js";
@@ -28,27 +28,32 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
 
   // ---------- menu ----------
   if (sub === "menu") {
+    const groups: MenuGroup[] = [
+      { title: "Models & providers", items: [
+        { label: "🔑 API keys", value: "keys" },
+        { label: "🎯 Preferred provider", value: "provider" },
+        { label: "🧠 Model assignments", value: "models" },
+        { label: "📈 Estimate accuracy", value: "accuracy" },
+      ] },
+      { title: "Build defaults", items: [
+        { label: "🚦 Default workflow", value: "workflow" },
+        { label: `🧱 Default stack: ${getPreferredStack()}`, value: "stack" },
+        { label: "🔩 Budget, speed & alerts", value: "prefs" },
+        { label: `🔔 Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
+      ] },
+      // Web-login (browser automation / OAuth) is parked — vendors closed
+      // third-party subscription auth in 2026. Hidden unless PROJECTINATOR_WEB=1.
+      ...(process.env.PROJECTINATOR_WEB === "1"
+        ? [{ title: "Experimental", items: [{ label: `🌐 Connect accounts${connectedProviders().length ? `  (${connectedProviders().length})` : ""}`, value: "weblogin" }] }]
+        : []),
+      { title: "", items: [{ label: "🔙 Back", value: "back" }] },
+    ];
     return (
       <Box flexDirection="column">
         {notice ? <Box marginBottom={1}><StatusMessage variant="success">{notice}</StatusMessage></Box> : null}
         <Panel title="Settings">
-          <SelectInput
-            items={[
-              { label: "🔑 API keys", value: "keys" },
-              { label: "🎯 Preferred provider", value: "provider" },
-              { label: "🚦 Default workflow", value: "workflow" },
-              { label: `🧱 Default stack: ${getPreferredStack()}`, value: "stack" },
-              { label: "🧠 Model assignments", value: "models" },
-              { label: "📈 Estimate accuracy", value: "accuracy" },
-              { label: "🔩 Preferences (budget, speed)", value: "prefs" },
-              { label: `🔔 Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
-              // Web-login (browser automation / OAuth) is parked — vendors closed
-              // third-party subscription auth in 2026. Hidden unless PROJECTINATOR_WEB=1.
-              ...(process.env.PROJECTINATOR_WEB === "1"
-                ? [{ label: `🌐 Connect accounts (experimental)${connectedProviders().length ? `  (${connectedProviders().length})` : ""}`, value: "weblogin" }]
-                : []),
-              { label: "🔙 Back", value: "back" },
-            ]}
+          <GroupedMenu
+            groups={groups}
             onSelect={(i) => {
               setNotice("");
               if (i.value === "back") onExit();
