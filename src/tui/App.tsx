@@ -549,22 +549,27 @@ export default function App(): React.ReactElement {
     const board = epicFilter ? allBoard.filter((t) => (t.epic || "General") === epicFilter) : allBoard;
     const epics = [...new Set(allBoard.map((t) => t.epic || "General"))];
     const items = [
-      { label: "📋 Edit board", value: "editBoard" },
-      { label: "📤 Export (Markdown, CSV, Jira, Trello)", value: "export" },
-      { label: "🚀 Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
+      // Work
+      { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
+      { label: "📋 Edit board (add / reorder tasks by hand)", value: "editBoard" },
+      { label: "📎 Add a file / image", value: "asset" },
+      ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
+      // See it
+      { label: "👀 Live preview (local server, auto-reload)", value: "preview" },
+      { label: "🌐 Open in browser", value: "open" },
       { label: `🔀 View: ${viewMode === "board" ? "Board → List" : "List → Board"}`, value: "view" },
       ...(epics.length > 1 ? [{ label: `🔎 Filter: ${epicFilter ?? "All epics"}`, value: "filter" }] : []),
-      { label: "🌐 Open in browser", value: "open" },
-      { label: "👀 Live preview (local server, auto-reload)", value: "preview" },
-      { label: "📜 History (per-task commits)", value: "history" },
+      // Reports
       { label: "📊 Retro (build summary)", value: "retro" },
       { label: "📉 Burndown (progress + spend)", value: "burndown" },
+      { label: "📜 History (per-task commits)", value: "history" },
+      // Ship
+      { label: "🚀 Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
+      { label: "📤 Export (Markdown, CSV, Jira, Trello)", value: "export" },
+      // Manage
       { label: `💰 Budget cap: ${selected.state.budgetCapUSD != null ? `$${selected.state.budgetCapUSD}` : "global default"}`, value: "cap" },
-      ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
-      { label: "📝 Make changes", value: "change" },
-      { label: "📎 Add a file / image", value: "asset" },
-      { label: "📛 Rename", value: "rename" },
       { label: "💾 Save as template", value: "saveTpl" },
+      { label: "📛 Rename", value: "rename" },
       { label: "📑 Duplicate", value: "duplicate" },
       { label: "❌ Delete", value: "delete" },
       { label: "🔙 Back", value: "back" },
@@ -586,6 +591,7 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={items}
+            limit={items.length}
             onSelect={(i) => {
               if (i.value !== "export") setFlash("");
               if (i.value === "editBoard") setPhase("editBoard");
@@ -1123,8 +1129,8 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Header />
-        <Text bold>What should change?</Text>
-        <Text color={C.dim}>Building on the existing files in this project.</Text>
+        <Text bold>Add to the backlog</Text>
+        <Text color={C.dim}>Describe what to add or change — the PM plans it into new tasks against this project's files.</Text>
         <Box marginTop={1}>
           <Text color={C.accent}>{"› "}</Text>
           <TextInput
