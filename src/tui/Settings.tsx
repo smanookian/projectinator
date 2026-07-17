@@ -10,10 +10,10 @@ import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
 import { estimateAccuracy } from "../estimate.js";
 import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
-import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, ENV_VAR } from "./config.js";
+import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getPreferredStack, setPreferredStack, ENV_VAR } from "./config.js";
 import { validateKey } from "./validate.js";
 
-type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy";
+type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack";
 
 export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
   const [sub, setSub] = useState<Sub>("menu");
@@ -37,6 +37,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
               { label: "🔑 API keys", value: "keys" },
               { label: "🎯 Preferred provider", value: "provider" },
               { label: "🚦 Default workflow", value: "workflow" },
+              { label: `🧱 Default stack: ${getPreferredStack()}`, value: "stack" },
               { label: "🧠 Model assignments", value: "models" },
               { label: "📈 Estimate accuracy", value: "accuracy" },
               { label: "🔩 Preferences (budget, speed)", value: "prefs" },
@@ -298,6 +299,35 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         </Box>
         <Box marginTop={1}>
           <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setSub("menu")} />
+        </Box>
+      </Box>
+    );
+  }
+
+  // ---------- default stack ----------
+  if (sub === "stack") {
+    const current = getPreferredStack();
+    return (
+      <Box flexDirection="column">
+        <Text bold>Default stack for new web builds</Text>
+        <Text color={C.dim}>“Ask each time” shows the picker; anything else skips it. Current: {current}.</Text>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: `Ask each time${current === "ask" ? "  ✓" : ""}`, value: "ask" },
+              { label: `Vanilla HTML/CSS/JS${current === "vanilla" ? "  ✓" : ""}`, value: "vanilla" },
+              { label: `React (CDN, no build)${current === "react" ? "  ✓" : ""}`, value: "react" },
+              { label: `Let the AI decide${current === "ai" ? "  ✓" : ""}`, value: "ai" },
+              { label: "🔙 Back", value: "__back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value !== "__back") {
+                setPreferredStack(i.value as "ask" | "vanilla" | "react" | "ai");
+                setNotice(`Default stack: ${i.value}.`);
+              }
+              setSub("menu");
+            }}
+          />
         </Box>
       </Box>
     );

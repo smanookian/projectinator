@@ -21,6 +21,8 @@ export interface AppConfig {
   defaultMode?: WorkflowMode;
   /** Desktop notification + sound when a build finishes. Default on. */
   notify?: boolean;
+  /** Default target stack for new web builds; "ask" prompts each time. */
+  preferredStack?: "ask" | "vanilla" | "react" | "ai";
 }
 
 export const ENV_VAR: Record<Provider, string> = {
@@ -48,6 +50,7 @@ export function loadConfig(): AppConfig {
       preferredProvider: parsed.preferredProvider,
       defaultMode: parsed.defaultMode,
       notify: parsed.notify,
+      preferredStack: parsed.preferredStack,
     };
   } catch {
     return { keys: {} };
@@ -60,6 +63,15 @@ export function getNotify(): boolean {
 export function setNotify(v: boolean): void {
   const cfg = loadConfig();
   cfg.notify = v;
+  saveConfig(cfg);
+}
+
+export function getPreferredStack(): "ask" | "vanilla" | "react" | "ai" {
+  return loadConfig().preferredStack ?? "ask";
+}
+export function setPreferredStack(v: "ask" | "vanilla" | "react" | "ai"): void {
+  const cfg = loadConfig();
+  cfg.preferredStack = v;
   saveConfig(cfg);
 }
 

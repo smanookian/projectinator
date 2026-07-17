@@ -20,7 +20,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 
 ### Build quality
 - [x] Git per build — init repo in workspace, commit per task → history + diffs (History view). Undo-a-task: reverts files (git reset) + rolls back build-state so Resume rebuilds it
-- [ ] Framework choice — React/Vite, Next scaffolds (beyond vanilla HTML/JS)
+- [x] Framework choice — stack picker (platform → web framework: vanilla / React-CDN / let-AI-decide / custom) before planning; Settings default to skip; choice threads into the brief. React is CDN/no-build so it runs in the existing static test/preview/deploy. Verified a React counter builds + passes the tester. Next: Vite-with-build (needs npm in the sandbox), mobile/desktop toolchains
 
 ### PM cockpit depth
 - [x] Retro — 📊 Retro (project screen): status/cost/tests, cost-by-epic bars, cost-by-model, priciest tasks, rebuilds, tester flags. Free (from build-state)

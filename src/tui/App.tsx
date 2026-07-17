@@ -16,8 +16,10 @@ import { BakeOff } from "./BakeOff.js";
 import { Intake, type Answer } from "./Intake.js";
 import { enrichBrief } from "../intake.js";
 import type { IntakeQuestion } from "../intake.js";
+import { StackPick } from "./StackPick.js";
+import { stackInstruction, type StackChoice } from "../stack.js";
 import { TEMPLATES } from "./templates.js";
-import { getPrefs, getDefaultMode, getNotify, type WorkflowMode } from "./config.js";
+import { getPrefs, getDefaultMode, getNotify, getPreferredStack, type WorkflowMode } from "./config.js";
 import { notifyBuildDone } from "./notify.js";
 import {
   availableProviders,
@@ -56,7 +58,7 @@ import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
   | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio"
-  | "idea" | "change" | "assessing" | "intake" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
+  | "idea" | "change" | "stack" | "assessing" | "intake" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
   const { exit } = useApp();
@@ -126,6 +128,7 @@ export default function App(): React.ReactElement {
   const goBack = () => {
     switch (phase) {
       case "idea": resetBuildContext(); return setPhase("home");
+      case "stack": resetBuildContext(); return setPhase("home");
       case "assessing": resetBuildContext(); return setPhase("home");
       case "intake": return setPhase("idea");
       case "setCap": return setPhase(capReturn);
@@ -155,12 +158,22 @@ export default function App(): React.ReactElement {
   };
 
   // global quit (not while typing an idea/change)
-  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff" || phase === "intake" || phase === "setCap";
+  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff" || phase === "intake" || phase === "setCap" || phase === "stack";
   useInput((input, key) => {
     if (key.ctrl && input === "c") return exit();
     if (input === "q" && !typing) return exit();
     if (key.escape) goBack();
   });
+
+  // ---- stack effect: apply the default stack (skip the picker) when one is set ----
+  useEffect(() => {
+    if (phase !== "stack") return;
+    const pref = getPreferredStack();
+    if (pref !== "ask") {
+      setIdea((cur) => cur + stackInstruction({ platform: "web", framework: pref }));
+      setPhase("assessing");
+    }
+  }, [phase]);
 
   // ---- intake effect: for a fresh build, ask the PM if it needs clarification ----
   useEffect(() => {
@@ -1088,7 +1101,7 @@ export default function App(): React.ReactElement {
               resetBuildContext();
               setScope("full");
               setIdea(tpl.idea);
-              setPhase("assessing");
+              setPhase("stack");
             }}
           />
         </Box>
@@ -1104,9 +1117,35 @@ export default function App(): React.ReactElement {
         <Text bold>What do you want to build?</Text>
         <Box marginTop={1}>
           <Text color={C.accent}>{"› "}</Text>
-          <TextInput value={idea} onChange={setIdea} onSubmit={() => idea.trim() && setPhase("planning")} placeholder="a landing page for a coffee shop with a menu and contact form" />
+          <TextInput value={idea} onChange={setIdea} onSubmit={() => idea.trim() && setPhase("stack")} placeholder="a landing page for a coffee shop with a menu and contact form" />
         </Box>
         <Text color={C.dim}>{"\n"}Enter to continue · Esc to go back.</Text>
+      </Box>
+    );
+  }
+
+  if (phase === "stack") {
+    // When a default stack is set, the effect above skips straight to assessing.
+    if (getPreferredStack() !== "ask") {
+      return (
+        <Box flexDirection="column">
+          <Header />
+          <Spinner label="Preparing…" />
+        </Box>
+      );
+    }
+    return (
+      <Box flexDirection="column">
+        <Header />
+        <Text bold>What should I build it with?</Text>
+        <Box marginTop={1}>
+          <StackPick
+            onDone={(choice: StackChoice) => {
+              setIdea((cur) => cur + stackInstruction(choice));
+              setPhase("assessing");
+            }}
+          />
+        </Box>
       </Box>
     );
   }
