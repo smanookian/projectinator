@@ -870,7 +870,7 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}><Standup tasks={tasks} spent={selected.totalCost} /></Box>
         <Box marginTop={1}>
           <Panel title="Board">
-            <Kanban tasks={tasks} />
+            <Kanban tasks={tasks} compact maxPerCol={Math.max(4, termRows - 14)} />
           </Panel>
         </Box>
         <Box marginTop={1}>
