@@ -6,7 +6,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import { Spinner, StatusMessage, Badge } from "@inkjs/ui";
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
-import { C, Header, BudgetBar, Panel, Menu as SelectInput, TextField as TextInput, type TaskView } from "./components.js";
+import { C, Header, BudgetBar, Panel, Menu as SelectInput, GroupedMenu, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
 import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
@@ -548,31 +548,36 @@ export default function App(): React.ReactElement {
     }));
     const board = epicFilter ? allBoard.filter((t) => (t.epic || "General") === epicFilter) : allBoard;
     const epics = [...new Set(allBoard.map((t) => t.epic || "General"))];
-    const items = [
-      // Work
-      { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
-      { label: "📋 Edit board (add / reorder tasks by hand)", value: "editBoard" },
-      { label: "📎 Add a file / image", value: "asset" },
-      ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
-      // See it
-      { label: "👀 Live preview (local server, auto-reload)", value: "preview" },
-      { label: "🌐 Open in browser", value: "open" },
-      { label: `🔀 View: ${viewMode === "board" ? "Board → List" : "List → Board"}`, value: "view" },
-      ...(epics.length > 1 ? [{ label: `🔎 Filter: ${epicFilter ?? "All epics"}`, value: "filter" }] : []),
-      // Reports
-      { label: "📊 Retro (build summary)", value: "retro" },
-      { label: "📉 Burndown (progress + spend)", value: "burndown" },
-      { label: "📜 History (per-task commits)", value: "history" },
-      // Ship
-      { label: "🚀 Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
-      { label: "📤 Export (Markdown, CSV, Jira, Trello)", value: "export" },
-      // Manage
-      { label: `💰 Budget cap: ${selected.state.budgetCapUSD != null ? `$${selected.state.budgetCapUSD}` : "global default"}`, value: "cap" },
-      { label: "💾 Save as template", value: "saveTpl" },
-      { label: "📛 Rename", value: "rename" },
-      { label: "📑 Duplicate", value: "duplicate" },
-      { label: "❌ Delete", value: "delete" },
-      { label: "🔙 Back", value: "back" },
+    const menuGroups: MenuGroup[] = [
+      { title: "Work", items: [
+        { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
+        { label: "📋 Edit board (add / reorder tasks by hand)", value: "editBoard" },
+        { label: "📎 Add a file / image", value: "asset" },
+        ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
+      ] },
+      { title: "See it", items: [
+        { label: "👀 Live preview (local server, auto-reload)", value: "preview" },
+        { label: "🌐 Open in browser", value: "open" },
+        { label: `🔀 View: ${viewMode === "board" ? "Board → List" : "List → Board"}`, value: "view" },
+        ...(epics.length > 1 ? [{ label: `🔎 Filter: ${epicFilter ?? "All epics"}`, value: "filter" }] : []),
+      ] },
+      { title: "Reports", items: [
+        { label: "📊 Retro (build summary)", value: "retro" },
+        { label: "📉 Burndown (progress + spend)", value: "burndown" },
+        { label: "📜 History (per-task commits)", value: "history" },
+      ] },
+      { title: "Ship", items: [
+        { label: "🚀 Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
+        { label: "📤 Export (Markdown, CSV, Jira, Trello)", value: "export" },
+      ] },
+      { title: "Manage", items: [
+        { label: `💰 Budget cap: ${selected.state.budgetCapUSD != null ? `$${selected.state.budgetCapUSD}` : "global default"}`, value: "cap" },
+        { label: "💾 Save as template", value: "saveTpl" },
+        { label: "📛 Rename", value: "rename" },
+        { label: "📑 Duplicate", value: "duplicate" },
+        { label: "❌ Delete", value: "delete" },
+        { label: "🔙 Back", value: "back" },
+      ] },
     ];
     return (
       <Box flexDirection="column">
@@ -589,9 +594,8 @@ export default function App(): React.ReactElement {
           </Box>
         ) : null}
         <Box marginTop={1}>
-          <SelectInput
-            items={items}
-            limit={items.length}
+          <GroupedMenu
+            groups={menuGroups}
             onSelect={(i) => {
               if (i.value !== "export") setFlash("");
               if (i.value === "editBoard") setPhase("editBoard");

@@ -1,7 +1,7 @@
 // Shared TUI pieces + theme. Kept small and presentational.
 
-import React from "react";
-import { Box, Text } from "ink";
+import React, { useState } from "react";
+import { Box, Text, useInput } from "ink";
 import Spinner from "ink-spinner";
 import { Select, TextInput as UITextInput, PasswordInput, ProgressBar } from "@inkjs/ui";
 import type { Capability } from "../types.js";
@@ -11,6 +11,51 @@ import type { Capability } from "../types.js";
 export interface MenuItem {
   label: string;
   value: string;
+}
+
+export interface MenuGroup {
+  title: string;
+  items: MenuItem[];
+}
+
+/** A vertical menu with dim, non-selectable section headers. Arrow keys move
+ *  through the selectable items only (headers are skipped); Enter selects. */
+export function GroupedMenu({
+  groups,
+  onSelect,
+}: {
+  groups: MenuGroup[];
+  onSelect: (item: MenuItem) => void;
+}): React.ReactElement {
+  const flat = groups.flatMap((g) => g.items);
+  const [idx, setIdx] = useState(0);
+  const cur = Math.min(idx, Math.max(0, flat.length - 1));
+
+  useInput((_input, key) => {
+    if (key.upArrow) setIdx((i) => (i - 1 + flat.length) % flat.length);
+    else if (key.downArrow) setIdx((i) => (i + 1) % flat.length);
+    else if (key.return) { const it = flat[cur]; if (it) onSelect(it); }
+  });
+
+  let running = -1;
+  return (
+    <Box flexDirection="column">
+      {groups.map((g, gi) => (
+        <Box key={g.title} flexDirection="column" marginTop={gi ? 1 : 0}>
+          <Text color={C.dim} bold>{g.title.toUpperCase()}</Text>
+          {g.items.map((it) => {
+            running += 1;
+            const sel = running === cur;
+            return (
+              <Text key={it.value} color={sel ? C.accent : C.text} wrap="truncate-end">
+                {sel ? "❯ " : "  "}{it.label}
+              </Text>
+            );
+          })}
+        </Box>
+      ))}
+    </Box>
+  );
 }
 
 /** SelectInput-shaped wrapper over @inkjs/ui Select (items/onSelect). */
