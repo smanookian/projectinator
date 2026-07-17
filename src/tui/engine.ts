@@ -508,12 +508,13 @@ export function undoLastTask(dir: string): { ok: boolean; taskId?: string; error
   const statePath = join(dir, "build-state.json");
   const state = loadState(statePath);
   if (state) {
-    // Remove the most recent outcome for the reverted task (fallback: the last one).
-    let idx = -1;
-    for (let i = state.outcomes.length - 1; i >= 0; i--) {
-      if (!taskId || state.outcomes[i]!.taskId === taskId) { idx = i; break; }
-    }
-    if (idx >= 0) state.outcomes.splice(idx, 1);
+    // Drop EVERY outcome for the reverted task — a task that went through the
+    // Tester→Developer loop has several (rounds 0,1,…); leaving any behind keeps
+    // its id in the resume done-set, so Resume would skip it while its files are
+    // already gone. If we couldn't parse a task id, fall back to the last outcome.
+    state.outcomes = taskId
+      ? state.outcomes.filter((o) => o.taskId !== taskId)
+      : state.outcomes.slice(0, -1);
     state.totalCost = Math.round(state.outcomes.reduce((a, o) => a + o.cost, 0) * 100) / 100;
     state.status = "halted";
     state.haltReason = `undid ${taskId ?? "last task"} — resume to rebuild`;
@@ -642,7 +643,16 @@ export function startBuild(
   const workspace = opts.workspace ?? join(projectRoot(), ".workspace", "tui", slugify(idea));
   mkdirSync(workspace, { recursive: true });
   const statePath = join(workspace, "build-state.json");
-  const state = newBuildState(slugify(idea), plan.tasks, idea, opts.mode);
+  // Reuse the existing state when resuming/changing an existing project so we keep
+  // its id and cached retro narrative; only start fresh for a brand-new build.
+  const prior = opts.workspace ? loadState(statePath) : undefined;
+  const state = prior ?? newBuildState(slugify(idea), plan.tasks, idea, opts.mode);
+  if (prior) {
+    state.tasks = plan.tasks; // authoritative backlog for this run
+    state.status = "running";
+    state.haltReason = undefined;
+    state.mode = opts.mode ?? state.mode;
+  }
   state.budgetCapUSD = opts.budgetCapUSD; // remember this project's cap
 
   const executor = makePiExecutor({ workspace, backend: "api" });
@@ -673,6 +683,7 @@ export function startBuild(
     state.outcomes = result.outcomes;
     state.totalCost = result.totalCost;
     state.status = result.halted ? "halted" : "complete";
+    state.haltReason = result.haltReason; // keep why it stopped (budget cap / gate)
     saveState(state, statePath);
     return {
       totalCost: result.totalCost,

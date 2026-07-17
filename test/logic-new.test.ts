@@ -5,11 +5,13 @@ import { describe, it, expect } from "vitest";
 import { computeBurndown } from "../src/burndown.js";
 import { computeRetro } from "../src/retro.js";
 import { stackInstruction } from "../src/stack.js";
+import { enrichBrief } from "../src/intake.js";
+import { deploySlug } from "../src/tui/deploy.js";
 import type { BuildState } from "../src/build-state.js";
 import type { Task, TaskOutcome } from "../src/types.js";
 
 function task(id: string, cap: Task["capability"], epic: string, diff: Task["difficulty"] = "low"): Task {
-  return { id, title: `${id} title`, capability: cap, difficulty: diff, dependsOn: [], epic, estTokens: 1000 };
+  return { id, title: `${id} title`, capability: cap, difficulty: diff, dependsOn: [], epic, estTokens: { input: 1000, output: 500, cachedInputFraction: 0.5 } };
 }
 function outcome(taskId: string, cap: TaskOutcome["capability"], cost: number, round = 0, verdict?: TaskOutcome["verdict"]): TaskOutcome {
   return { taskId, capability: cap, provider: "anthropic", modelId: "claude-opus-4-8", round, cost, finalText: "", files: [], verdict };
@@ -76,5 +78,33 @@ describe("stackInstruction", () => {
   });
   it("falls back to web for non-web platforms", () => {
     expect(stackInstruction({ platform: "mobile", framework: "ai" })).toMatch(/web app/i);
+  });
+});
+
+describe("enrichBrief", () => {
+  it("returns the idea unchanged when there are no answers", () => {
+    expect(enrichBrief("a todo app", [])).toBe("a todo app");
+    expect(enrichBrief("a todo app", [{ question: "Q?", answer: "" }])).toBe("a todo app");
+  });
+  it("appends non-empty clarifications once", () => {
+    const out = enrichBrief("a landing page", [
+      { question: "What business?", answer: "Coffee shop" },
+      { question: "Sections?", answer: "Hero, Menu" },
+      { question: "Skipped?", answer: "  " },
+    ]);
+    expect(out).toContain("a landing page");
+    expect(out).toContain("Clarifications from the requester");
+    expect(out).toContain("What business? Coffee shop");
+    expect(out).not.toContain("Skipped");
+    // idempotent shape: only one clarifications block
+    expect(out.match(/Clarifications from the requester/g)).toHaveLength(1);
+  });
+});
+
+describe("deploySlug", () => {
+  it("sanitises names to a deploy-safe slug", () => {
+    expect(deploySlug("A Todo List web app!!")).toBe("a-todo-list-web-app");
+    expect(deploySlug("   ")).toBe("projectinator-app");
+    expect(deploySlug("Café ☕ Site")).toBe("caf-site");
   });
 });
