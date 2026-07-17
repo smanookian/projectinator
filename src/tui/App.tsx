@@ -59,7 +59,7 @@ import { startStaticServer, type StaticServer } from "../preview.js";
 import type { Task, TaskOutcome } from "../types.js";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "portfolio" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
   | "idea" | "change" | "stack" | "assessing" | "intake" | "planMode" | "council" | "approveEpics" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
@@ -183,7 +183,6 @@ export default function App(): React.ReactElement {
       case "filterEpic": return setPhase("projectActions");
       case "projectActions": return setPhase("projects");
       case "projects": return setPhase("home");
-      case "portfolio": return setPhase("home");
       case "home": return setPhase("setup");
       case "done": resetBuildContext(); return setPhase("home");
       case "error": return setPhase("home");
@@ -399,8 +398,7 @@ export default function App(): React.ReactElement {
     const items = [
       { label: "🆕 New build", value: "new" },
       { label: "📄 Start from a template", value: "templates" },
-      ...(projs.length ? [{ label: `📂 Open a project (${projs.length})`, value: "open" }] : []),
-      ...(projs.length ? [{ label: "📊 Portfolio dashboard", value: "portfolio" }] : []),
+      ...(projs.length ? [{ label: `📂 Projects (${projs.length}) — open, spend, status`, value: "open" }] : []),
       { label: "🆚 Compare models (bake-off)", value: "bakeoff" },
       { label: "🔧 Settings", value: "settings" },
       { label: "🚪 Quit", value: "quit" },
@@ -423,8 +421,6 @@ export default function App(): React.ReactElement {
                 setPhase("projects");
               } else if (i.value === "bakeoff") {
                 setPhase("bakeoff");
-              } else if (i.value === "portfolio") {
-                setPhase("portfolio");
               } else if (i.value === "settings") {
                 setPhase("settings");
               } else exit();
@@ -459,45 +455,6 @@ export default function App(): React.ReactElement {
     );
   }
 
-  if (phase === "portfolio") {
-    const all = listProjects();
-    const money = (n: number) => `$${n.toFixed(2)}`;
-    const total = all.reduce((a, p) => a + p.totalCost, 0);
-    const complete = all.filter((p) => p.status === "complete").length;
-    const halted = all.filter((p) => p.status === "halted").length;
-    const running = all.filter((p) => p.status === "running").length;
-    const maxCost = Math.max(0.0001, ...all.map((p) => p.totalCost));
-    const icon = (s: ProjectInfo["status"]) => (s === "complete" ? "🟢" : s === "halted" ? "🟠" : "⚪");
-    const bar = (c: number) => "█".repeat(Math.max(0, Math.round((c / maxCost) * 14))).padEnd(14, " ");
-    return (
-      <Box flexDirection="column">
-        <Header />
-        <Text bold>Portfolio</Text>
-        <Text>
-          <Text color={C.dim}>{all.length} projects</Text>
-          <Text color={C.dim}>  ·  spend </Text><Text color={C.accent}>{money(total)}</Text>
-          <Text color={C.dim}>  ·  </Text><Text color={C.good ?? "green"}>{complete}🟢</Text> <Text color={C.warn}>{halted}🟠</Text> <Text color={C.dim}>{running}⚪</Text>
-        </Text>
-        <Box marginTop={1} flexDirection="column">
-          {all.map((p) => {
-            const done = new Set(p.state.outcomes.map((o) => o.taskId)).size;
-            return (
-              <Text key={p.dir} wrap="truncate-end">
-                {icon(p.status)} <Text color={C.good ?? "green"}>{bar(p.totalCost)}</Text> {money(p.totalCost).padEnd(8)}<Text color={C.dim}>{`${done}/${p.taskCount}`.padEnd(7)}</Text>{p.idea}
-              </Text>
-            );
-          })}
-        </Box>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[{ label: "📂 Open a project", value: "open" }, { label: "🔙 Back", value: "back" }]}
-            onSelect={(i) => { if (i.value === "open") { setProjects(all); setPhase("projects"); } else setPhase("home"); }}
-          />
-        </Box>
-      </Box>
-    );
-  }
-
   if (phase === "projects") {
     const mark = (s: ProjectInfo["status"]) => (s === "complete" ? "✓" : s === "halted" ? "⚠" : "·");
     const items = [
@@ -507,10 +464,18 @@ export default function App(): React.ReactElement {
       })),
       { label: "🔙 Back", value: "__back" },
     ];
+    const total = projects.reduce((a, p) => a + p.totalCost, 0);
+    const nComplete = projects.filter((p) => p.status === "complete").length;
+    const nHalted = projects.filter((p) => p.status === "halted").length;
+    const nRunning = projects.filter((p) => p.status === "running").length;
     return (
       <Box flexDirection="column">
         <Header />
         <Text bold>Your projects <Text color={C.dim}>(newest first)</Text></Text>
+        <Text>
+          <Text color={C.dim}>{projects.length} projects · spent </Text><Text color={C.accent}>${total.toFixed(2)}</Text>
+          <Text color={C.dim}> · </Text><Text color={C.good ?? "green"}>{nComplete}✓</Text> <Text color={nHalted ? C.warn : C.dim}>{nHalted}⚠</Text> <Text color={C.dim}>{nRunning}·</Text>
+        </Text>
         <Box marginTop={1}>
           <SelectInput
             items={items}
@@ -558,8 +523,7 @@ export default function App(): React.ReactElement {
       ] },
       { title: "See it", items: [
         { label: "📇 Kanban board (columns)", value: "kanban" },
-        { label: "👀 Live preview (local server, auto-reload)", value: "preview" },
-        { label: "🌐 Open in browser", value: "open" },
+        { label: "👀 Preview in browser (live server, auto-reload)", value: "preview" },
       ] },
       { title: "Reports", items: [
         { label: "📊 Retro (build summary)", value: "retro" },
