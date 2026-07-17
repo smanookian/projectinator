@@ -1627,23 +1627,23 @@ export default function App(): React.ReactElement {
             <Kanban tasks={board} compact maxPerCol={Math.max(2, Math.floor((termRows - (gate ? 20 : 12)) / 2))} />
           </Panel>
         </Box>
-        <Box marginTop={1} flexDirection="column">
+        <Box marginTop={1}>
           <Standup tasks={board} spent={spent} />
-          {(() => {
-            const prefs = getPrefs();
-            const cap = projectCap ?? prefs.budgetCapUSD;
-            const pct = prefs.budgetAlertPct;
-            const alerting = spent >= cap * (pct / 100) && spent < cap;
-            return (
-              <>
-                <BudgetBar spent={spent} cap={cap} />
-                {alerting ? (
-                  <Text color={C.warn}>⚠ {Math.round((spent / cap) * 100)}% of the ${cap} cap spent — nearing the limit.</Text>
-                ) : null}
-              </>
-            );
-          })()}
         </Box>
+        {(() => {
+          const prefs = getPrefs();
+          const cap = projectCap ?? prefs.budgetCapUSD;
+          const pct = prefs.budgetAlertPct;
+          const alerting = spent >= cap * (pct / 100) && spent < cap;
+          return (
+            <Box marginTop={1} flexDirection="column">
+              <BudgetBar spent={spent} cap={cap} />
+              {alerting ? (
+                <Text color={C.warn}>⚠ {Math.round((spent / cap) * 100)}% of the ${cap} cap spent — nearing the limit.</Text>
+              ) : null}
+            </Box>
+          );
+        })()}
       </Box>
     );
   }
