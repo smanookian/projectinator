@@ -92,6 +92,10 @@ export default function App(): React.ReactElement {
   const [intakeQs, setIntakeQs] = useState<IntakeQuestion[]>([]);
   const [approvedEpics, setApprovedEpics] = useState<Epic[] | null>(null);
   const [council, setCouncil] = useState<{ loading: boolean; result: CouncilResult | null; error: string }>({ loading: false, result: null, error: "" });
+  // Keep `idea` as the raw user input; derive the brief from these so re-entering
+  // the stack/intake steps never double-appends (bug: back-nav re-appended text).
+  const [stackChoice, setStackChoice] = useState<StackChoice | null>(null);
+  const [intakeAnswers, setIntakeAnswers] = useState<Answer[] | null>(null);
   const [narr, setNarr] = useState<{ loading: boolean; text: string; error: string }>({ loading: false, text: "", error: "" });
   const [tplName, setTplName] = useState("");
   const [tplPath, setTplPath] = useState("");
@@ -130,6 +134,16 @@ export default function App(): React.ReactElement {
     setProjectCap(null);
     setApprovedEpics(null);
     setCouncil({ loading: false, result: null, error: "" });
+    setStackChoice(null);
+    setIntakeAnswers(null);
+    setEpicFilter(null);
+  };
+
+  // The brief the planner sees: raw idea + stack instruction (+ intake answers).
+  // Pure function of state, so it's idempotent no matter how the user navigates.
+  const composeBrief = (withIntake: boolean): string => {
+    const base = idea + (stackChoice ? stackInstruction(stackChoice) : "");
+    return withIntake ? enrichBrief(base, intakeAnswers ?? []) : base;
   };
 
   // Esc goes back one screen. Phases with their own Esc handling (board editors,
@@ -152,6 +166,7 @@ export default function App(): React.ReactElement {
       case "rename": return setPhase("projectActions");
       case "addAsset": return setPhase(assetReturn);
       case "plan": return setPhase("idea");
+      case "confirmDelete": return setPhase("projectActions");
       case "exportMenu": return setPhase("projectActions");
       case "deployMenu": return setPhase("projectActions");
       case "history": return setPhase("projectActions");
@@ -173,7 +188,13 @@ export default function App(): React.ReactElement {
   };
 
   // global quit (not while typing an idea/change)
-  const typing = phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "bakeoff" || phase === "intake" || phase === "setCap" || phase === "stack" || phase === "saveTemplate" || phase === "importTemplate";
+  // Any phase that hosts a text/number input must be here, or the App-level
+  // useInput below quits on a "q" keystroke (both handlers see every key).
+  const typing =
+    phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" ||
+    phase === "bakeoff" || phase === "intake" || phase === "setCap" || phase === "stack" ||
+    phase === "saveTemplate" || phase === "importTemplate" || phase === "settings" ||
+    phase === "editBoard" || phase === "board";
   useInput((input, key) => {
     if (key.ctrl && input === "c") return exit();
     if (input === "q" && !typing) return exit();
@@ -185,7 +206,7 @@ export default function App(): React.ReactElement {
     if (phase !== "stack") return;
     const pref = getPreferredStack();
     if (pref !== "ask") {
-      setIdea((cur) => cur + stackInstruction({ platform: "web", framework: pref }));
+      setStackChoice({ platform: "web", framework: pref });
       setPhase("assessing");
     }
   }, [phase]);
@@ -199,7 +220,7 @@ export default function App(): React.ReactElement {
       setPhase("planning");
       return;
     }
-    assessBuild(idea, providers)
+    assessBuild(composeBrief(false), providers) // intake not answered yet
       .then((qs) => {
         if (!alive) return;
         if (qs.length) {
@@ -218,7 +239,7 @@ export default function App(): React.ReactElement {
     if (phase !== "council") return;
     let alive = true;
     setCouncil({ loading: true, result: null, error: "" });
-    councilBuild(idea, providers)
+    councilBuild(composeBrief(true), providers)
       .then((result) => {
         if (!alive) return;
         if (result.epics.length) {
@@ -237,7 +258,7 @@ export default function App(): React.ReactElement {
   useEffect(() => {
     if (phase !== "planning") return;
     let alive = true;
-    planBuild(idea, providers, scope, targetWorkspace, approvedEpics ?? undefined)
+    planBuild(composeBrief(true), providers, scope, targetWorkspace, approvedEpics ?? undefined)
       .then((p) => {
         if (!alive) return;
         setPlan(p);
@@ -496,6 +517,7 @@ export default function App(): React.ReactElement {
                 const proj = projects.find((p) => p.slug === i.value) ?? null;
                 setSelected(proj);
                 setProjectCap(proj?.state.budgetCapUSD ?? null); // carry the saved cap into resume/change
+                setEpicFilter(null); // don't carry a filter from a previously-opened project
                 setPhase("projectActions");
               }
             }}
@@ -1286,7 +1308,7 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <StackPick
             onDone={(choice: StackChoice) => {
-              setIdea((cur) => cur + stackInstruction(choice));
+              setStackChoice(choice);
               setPhase("assessing");
             }}
           />
@@ -1315,7 +1337,7 @@ export default function App(): React.ReactElement {
           <Intake
             questions={intakeQs}
             onDone={(answers: Answer[]) => {
-              setIdea(enrichBrief(idea, answers));
+              setIntakeAnswers(answers);
               setPhase("planMode");
             }}
             onCancel={() => setPhase("idea")}
@@ -1483,7 +1505,9 @@ export default function App(): React.ReactElement {
               else if (i.value === "approval") setMode("approval");
               else if (i.value === "idea") {
                 setIdea("");
-                setPhase("idea");
+                // A change build must go back to the change screen (keeps its
+                // targetWorkspace + scope), not the fresh-build idea/stack path.
+                setPhase(scope === "change" ? "change" : "idea");
               } else exit();
             }}
           />

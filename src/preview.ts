@@ -113,7 +113,13 @@ export async function renderCheck(
 ): Promise<RenderReport> {
   const { chromium } = await import("playwright");
   const server = await startStaticServer(dir);
-  const browser = await chromium.launch({ headless: true });
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (e) {
+    await server.close(); // don't leak the port if Chromium can't launch
+    throw e;
+  }
   const errors: string[] = [];
   try {
     const page = await browser.newPage();

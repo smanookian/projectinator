@@ -31,7 +31,7 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
             }}
           />
         </Panel>
-        <Text color={C.dim}>Esc to go back.</Text>
+        <Text color={C.dim}>Esc cancels the build.</Text>
       </Box>
     );
   }
@@ -61,14 +61,16 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
           items={[
             ...WEB_FRAMEWORKS.map((f) => ({ label: f.label, value: String(f.id) })),
             { label: "✍️ Something else…", value: OTHER },
+            { label: "🔙 Platform", value: "__platform" },
           ]}
           onSelect={(i) => {
-            if (i.value === OTHER) setTyping(true);
+            if (i.value === "__platform") setPlatform(null);
+            else if (i.value === OTHER) setTyping(true);
             else onDone({ platform: "web", framework: i.value });
           }}
         />
       </Panel>
-      <Text color={C.dim}>Esc to go back.</Text>
+      <Text color={C.dim}>Esc cancels the build.</Text>
     </Box>
   );
 }

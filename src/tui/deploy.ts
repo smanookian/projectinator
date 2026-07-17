@@ -44,7 +44,7 @@ export const DEPLOY_META: Record<DeployTarget, TargetMeta> = {
 // Project metadata / non-servable files we never want on the public site.
 const INTERNAL = new Set([
   "build-state.json", "DESIGN-SPEC.md", "export.md", "export.csv",
-  "jira-import.csv", "trello-import.csv",
+  "jira-import.csv", "trello-import.csv", "node_modules",
 ]);
 
 /** Sanitise a project name into a deploy-safe slug (Cloudflare/Vercel project id). */

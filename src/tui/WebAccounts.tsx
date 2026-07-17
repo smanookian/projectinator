@@ -37,13 +37,21 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
   useEffect(() => {
     if (view.kind !== "connecting" || openingRef.current) return;
     openingRef.current = true;
+    let alive = true;
     void webLoginBegin(view.provider)
-      .then((h) => { loginRef.current = h; })
+      .then((h) => {
+        // If the user already left "connecting", close the just-opened browser
+        // instead of orphaning it with no UI path to finish/cancel.
+        if (!alive) { void h.cancel(); return; }
+        loginRef.current = h;
+      })
       .catch(() => {
+        if (!alive) return;
         setNotice("Could not open the browser.");
         setView({ kind: "list" });
       })
       .finally(() => { openingRef.current = false; });
+    return () => { alive = false; };
   }, [view]);
 
   // ---- run a test completion when we enter "testing" ----

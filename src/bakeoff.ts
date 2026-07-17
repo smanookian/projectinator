@@ -82,21 +82,24 @@ async function runCandidate(task: Task, cand: Candidate): Promise<BakeoffEntry> 
       thinkingLevel: "medium",
       noTools: "all",
     });
-    const t0 = Date.now();
-    await session.prompt(buildRolePrompt(task, ""));
-    const ms = Date.now() - t0;
-    const stats = session.getSessionStats();
-    addSessionCost(stats.cost);
-    const out: BakeoffEntry = {
-      ...base,
-      output: lastAssistantText(session),
-      cost: Math.round(stats.cost * 10000) / 10000,
-      ms,
-      outputTokens: stats.tokens.output,
-    };
-    session.dispose();
-    if (stats.tokens.total === 0) out.error = "returned 0 tokens (key likely can't access this model)";
-    return out;
+    try {
+      const t0 = Date.now();
+      await session.prompt(buildRolePrompt(task, ""));
+      const ms = Date.now() - t0;
+      const stats = session.getSessionStats();
+      addSessionCost(stats.cost);
+      const out: BakeoffEntry = {
+        ...base,
+        output: lastAssistantText(session),
+        cost: Math.round(stats.cost * 10000) / 10000,
+        ms,
+        outputTokens: stats.tokens.output,
+      };
+      if (stats.tokens.total === 0) out.error = "returned 0 tokens (key likely can't access this model)";
+      return out;
+    } finally {
+      session.dispose(); // dispose even when prompt() throws (expected for inaccessible models)
+    }
   } catch (e) {
     return { ...base, error: e instanceof Error ? e.message : String(e) };
   }

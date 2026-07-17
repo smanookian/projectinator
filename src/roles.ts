@@ -235,7 +235,10 @@ function listFiles(dir: string): string[] {
     for (const name of entries) {
       if (skip.has(name)) continue;
       const full = join(d, name);
-      if (statSync(full).isDirectory()) walk(full);
+      // Tolerate broken symlinks / files removed mid-build; skip, don't abort the run.
+      let st;
+      try { st = statSync(full); } catch { continue; }
+      if (st.isDirectory()) walk(full);
       else out.push(relative(dir, full));
     }
   };
