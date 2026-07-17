@@ -1516,14 +1516,19 @@ export default function App(): React.ReactElement {
             onSelect={(i) => {
               if (i.value === "backlog" && selected) {
                 // Merge the new tasks into the project's backlog without building.
+                // Give them clean sequential ids (T-03, T-04, …) so they read well.
                 const existing = selected.state.tasks;
                 const used = new Set(existing.map((t) => t.id));
+                let n = 0;
+                const nextId = () => {
+                  let id: string;
+                  do { id = `T-${String(++n).padStart(2, "0")}`; } while (used.has(id));
+                  used.add(id);
+                  return id;
+                };
                 const idMap = new Map<string, string>();
-                let n = 1;
                 const reided = plan.tasks.map((t) => {
-                  let nid = t.id;
-                  while (used.has(nid)) nid = `${t.id}+${n++}`;
-                  used.add(nid);
+                  const nid = nextId();
                   idMap.set(t.id, nid);
                   return { ...t, id: nid };
                 });
