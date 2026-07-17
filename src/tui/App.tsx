@@ -6,7 +6,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import { Spinner, StatusMessage, Badge } from "@inkjs/ui";
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
-import { C, Header, BudgetBar, Panel, Menu as SelectInput, GroupedMenu, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
+import { C, Header, BudgetBar, Panel, Menu as SelectInput, GroupedMenu, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
 import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
@@ -111,6 +111,8 @@ export default function App(): React.ReactElement {
     log: string[];
   } | null>(null);
   const [preview, setPreview] = useState<{ server: StaticServer; error?: string } | { error: string } | null>(null);
+
+  const termRows = useTermRows();
 
   // Reload the projects list and re-point `selected` at the given dir (after a mutation).
   const reselect = (dir: string | null) => {
@@ -546,20 +548,16 @@ export default function App(): React.ReactElement {
       cost: costById.get(t.id),
       assignee: modelById.has(t.id) ? modelLabel(modelById.get(t.id)!) : undefined,
     }));
-    const board = epicFilter ? allBoard.filter((t) => (t.epic || "General") === epicFilter) : allBoard;
-    const epics = [...new Set(allBoard.map((t) => t.epic || "General"))];
     const menuGroups: MenuGroup[] = [
       { title: "Work", items: [
         { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
-        { label: "📋 Edit board (add / reorder tasks by hand)", value: "editBoard" },
+        { label: "📋 Board (view · add · reorder tasks)", value: "editBoard" },
         { label: "📎 Add a file / image", value: "asset" },
         ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
       ] },
       { title: "See it", items: [
         { label: "👀 Live preview (local server, auto-reload)", value: "preview" },
         { label: "🌐 Open in browser", value: "open" },
-        { label: `🔀 View: ${viewMode === "board" ? "Board → List" : "List → Board"}`, value: "view" },
-        ...(epics.length > 1 ? [{ label: `🔎 Filter: ${epicFilter ?? "All epics"}`, value: "filter" }] : []),
       ] },
       { title: "Reports", items: [
         { label: "📊 Retro (build summary)", value: "retro" },
@@ -586,16 +584,10 @@ export default function App(): React.ReactElement {
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
         <Box marginTop={1}><Standup tasks={allBoard} spent={selected.totalCost} /></Box>
         <Box marginTop={1}><Team /></Box>
-        {board.length > 0 ? (
-          <Box marginTop={1}>
-            <Panel title={`${viewMode === "list" ? "List" : "Board"}${epicFilter ? ` · ${epicFilter}` : ""}`}>
-              {viewMode === "list" ? <ListView tasks={board} /> : <Kanban tasks={board} />}
-            </Panel>
-          </Box>
-        ) : null}
         <Box marginTop={1}>
           <GroupedMenu
             groups={menuGroups}
+            maxRows={Math.max(6, termRows - 20)}
             onSelect={(i) => {
               if (i.value !== "export") setFlash("");
               if (i.value === "editBoard") setPhase("editBoard");

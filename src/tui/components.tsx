@@ -1,7 +1,7 @@
 // Shared TUI pieces + theme. Kept small and presentational.
 
-import React, { useState } from "react";
-import { Box, Text, useInput } from "ink";
+import React, { useState, useEffect } from "react";
+import { Box, Text, useInput, useStdout } from "ink";
 import Spinner from "ink-spinner";
 import { Select, TextInput as UITextInput, PasswordInput, ProgressBar } from "@inkjs/ui";
 import type { Capability } from "../types.js";
@@ -18,14 +18,36 @@ export interface MenuGroup {
   items: MenuItem[];
 }
 
+/** Current terminal size (rows), updated on resize. */
+export function useTermRows(): number {
+  const { stdout } = useStdout();
+  const [rows, setRows] = useState(stdout?.rows ?? 24);
+  useEffect(() => {
+    if (!stdout) return;
+    const onResize = () => setRows(stdout.rows ?? 24);
+    stdout.on("resize", onResize);
+    return () => { stdout.off("resize", onResize); };
+  }, [stdout]);
+  return rows;
+}
+
+type MenuLine =
+  | { kind: "gap" }
+  | { kind: "header"; text: string }
+  | { kind: "item"; text: string; idx: number };
+
 /** A vertical menu with dim, non-selectable section headers. Arrow keys move
- *  through the selectable items only (headers are skipped); Enter selects. */
+ *  through the selectable items only (headers are skipped); Enter selects.
+ *  When `maxRows` is smaller than the content, it scrolls, keeping the
+ *  selection in view, with ↑/↓ hints. */
 export function GroupedMenu({
   groups,
   onSelect,
+  maxRows,
 }: {
   groups: MenuGroup[];
   onSelect: (item: MenuItem) => void;
+  maxRows?: number;
 }): React.ReactElement {
   const flat = groups.flatMap((g) => g.items);
   const [idx, setIdx] = useState(0);
@@ -37,23 +59,43 @@ export function GroupedMenu({
     else if (key.return) { const it = flat[cur]; if (it) onSelect(it); }
   });
 
-  let running = -1;
+  // Flatten to display lines (gaps + headers + items) so scrolling is line-exact.
+  const lines: MenuLine[] = [];
+  let fi = 0;
+  groups.forEach((g, gi) => {
+    if (gi) lines.push({ kind: "gap" });
+    lines.push({ kind: "header", text: g.title.toUpperCase() });
+    g.items.forEach((it) => { lines.push({ kind: "item", text: it.label, idx: fi }); fi++; });
+  });
+
+  const budget = maxRows && maxRows < lines.length ? Math.max(3, maxRows) : lines.length;
+  let start = 0;
+  let end = lines.length;
+  let clipTop = false;
+  let clipBot = false;
+  if (budget < lines.length) {
+    const selLine = lines.findIndex((l) => l.kind === "item" && l.idx === cur);
+    start = Math.max(0, Math.min(selLine - Math.floor(budget / 2), lines.length - budget));
+    end = start + budget;
+    clipTop = start > 0;
+    clipBot = end < lines.length;
+  }
+  const visible = lines.slice(clipTop ? start + 1 : start, clipBot ? end - 1 : end);
+
   return (
     <Box flexDirection="column">
-      {groups.map((g, gi) => (
-        <Box key={g.title} flexDirection="column" marginTop={gi ? 1 : 0}>
-          <Text color={C.dim} bold>{g.title.toUpperCase()}</Text>
-          {g.items.map((it) => {
-            running += 1;
-            const sel = running === cur;
-            return (
-              <Text key={it.value} color={sel ? C.accent : C.text} wrap="truncate-end">
-                {sel ? "❯ " : "  "}{it.label}
-              </Text>
-            );
-          })}
-        </Box>
-      ))}
+      {clipTop ? <Text color={C.dim}>  ↑ more</Text> : null}
+      {visible.map((l, i) => {
+        if (l.kind === "gap") return <Text key={`g${i}`}> </Text>;
+        if (l.kind === "header") return <Text key={`h${i}`} color={C.dim} bold>{l.text}</Text>;
+        const sel = l.idx === cur;
+        return (
+          <Text key={`i${l.idx}`} color={sel ? C.accent : C.text} wrap="truncate-end">
+            {sel ? "❯ " : "  "}{l.text}
+          </Text>
+        );
+      })}
+      {clipBot ? <Text color={C.dim}>  ↓ more</Text> : null}
     </Box>
   );
 }
