@@ -496,8 +496,10 @@ export default function App(): React.ReactElement {
   }
 
   if (phase === "projectActions" && selected) {
-    const canResume = selected.status === "halted";
     const doneIds = new Set(selected.state.outcomes.map((o) => o.taskId));
+    // Buildable if it was halted OR the backlog has tasks that were never built.
+    const hasUnbuilt = selected.state.tasks.some((t) => !doneIds.has(t.id));
+    const canResume = selected.status === "halted" || hasUnbuilt;
     const costById = new Map<string, number>();
     const modelById = new Map<string, string>();
     for (const o of selected.state.outcomes) {
@@ -519,7 +521,7 @@ export default function App(): React.ReactElement {
         { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
         { label: "📋 Board (view columns · add · reorder · edit)", value: "kanban" },
         { label: "📎 Add a file / image", value: "asset" },
-        ...(canResume ? [{ label: "⏩ Resume build", value: "resume" }] : []),
+        ...(canResume ? [{ label: selected.status === "halted" ? "⏩ Resume build" : `🔨 Build the backlog (${selected.state.tasks.filter((t) => !doneIds.has(t.id)).length} to do)`, value: "resume" }] : []),
       ] },
       { title: "See it", items: [
         { label: "👀 Preview in browser (live server, auto-reload)", value: "preview" },
@@ -1488,8 +1490,13 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <Panel title="Ready?">
           <SelectInput
-            items={
-              mode === "approval"
+            items={[
+              // When adding to an existing project, let the user just queue the
+              // new tasks without building them right now.
+              ...(scope === "change" && selected
+                ? [{ label: `➕ Add ${plan.tasks.length} task${plan.tasks.length === 1 ? "" : "s"} to the backlog (don't build yet)`, value: "backlog" }]
+                : []),
+              ...(mode === "approval"
                 ? [
                     { label: `Open the board & approve (${plan.tasks.length}) →`, value: "board" },
                     { label: `💰 Budget cap: $${effCap}`, value: "cap" },
@@ -1504,10 +1511,32 @@ export default function App(): React.ReactElement {
                     { label: "Change idea", value: "idea" },
                     { label: "Switch to approval-gated", value: "approval" },
                     { label: "🚪 Quit", value: "quit" },
-                  ]
-            }
+                  ]),
+            ]}
             onSelect={(i) => {
-              if (i.value === "build") setPhase("building");
+              if (i.value === "backlog" && selected) {
+                // Merge the new tasks into the project's backlog without building.
+                const existing = selected.state.tasks;
+                const used = new Set(existing.map((t) => t.id));
+                const idMap = new Map<string, string>();
+                let n = 1;
+                const reided = plan.tasks.map((t) => {
+                  let nid = t.id;
+                  while (used.has(nid)) nid = `${t.id}+${n++}`;
+                  used.add(nid);
+                  idMap.set(t.id, nid);
+                  return { ...t, id: nid };
+                });
+                const merged = [
+                  ...existing,
+                  ...reided.map((t) => ({ ...t, dependsOn: (t.dependsOn ?? []).map((d) => idMap.get(d) ?? d) })),
+                ];
+                saveProjectTasks(selected.dir, merged);
+                reselect(selected.dir);
+                setFlash(`Added ${plan.tasks.length} task${plan.tasks.length === 1 ? "" : "s"} to the backlog.`);
+                setPhase("kanban");
+              }
+              else if (i.value === "build") setPhase("building");
               else if (i.value === "board") setPhase("board");
               else if (i.value === "cap") { setCapReturn("plan"); setCapDraft(String(effCap)); setPhase("setCap"); }
               else if (i.value === "auto") setMode("auto");
