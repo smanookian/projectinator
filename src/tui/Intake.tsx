@@ -85,7 +85,7 @@ export function Intake({
   // single-choice (or free-text-only when no options)
   const items = [
     ...q.options.map((o) => ({ label: o, value: o })),
-    { label: "✍️ Something else…", value: OTHER },
+    { label: "📝 Something else…", value: OTHER },
     { label: "⏭ Skip", value: SKIP },
   ];
   return (

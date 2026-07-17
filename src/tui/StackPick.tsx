@@ -60,7 +60,7 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
         <SelectInput
           items={[
             ...WEB_FRAMEWORKS.map((f) => ({ label: f.label, value: String(f.id) })),
-            { label: "✍️ Something else…", value: OTHER },
+            { label: "📝 Something else…", value: OTHER },
             { label: "🔙 Platform", value: "__platform" },
           ]}
           onSelect={(i) => {

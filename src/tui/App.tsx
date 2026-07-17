@@ -555,7 +555,7 @@ export default function App(): React.ReactElement {
       { label: `🔀 View: ${viewMode === "board" ? "Board → List" : "List → Board"}`, value: "view" },
       ...(epics.length > 1 ? [{ label: `🔎 Filter: ${epicFilter ?? "All epics"}`, value: "filter" }] : []),
       { label: "🌐 Open in browser", value: "open" },
-      { label: "👁 Live preview (local server, auto-reload)", value: "preview" },
+      { label: "👀 Live preview (local server, auto-reload)", value: "preview" },
       { label: "📜 History (per-task commits)", value: "history" },
       { label: "📊 Retro (build summary)", value: "retro" },
       { label: "📉 Burndown (progress + spend)", value: "burndown" },
@@ -968,7 +968,7 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              ...(canUndo ? [{ label: "↩ Undo last task (revert files + reopen it to rebuild)", value: "undo" }] : []),
+              ...(canUndo ? [{ label: "⏪ Undo last task (revert files + reopen it to rebuild)", value: "undo" }] : []),
               { label: "🔙 Back", value: "back" },
             ]}
             onSelect={(i) => {
