@@ -37,13 +37,15 @@ const ROLE_INTRO: Record<Capability, string> = {
   plan: "You are the PLANNER. Produce a concise plan or decision for this task as text.",
   design:
     "You are the DESIGNER. Produce a clear, concrete design spec (layout, components, colours, states) as text. " +
-    "If the product spans multiple files, also specify the intended FILE STRUCTURE — name each file and say what it holds (e.g. index.html, styles.css, app.js, or a src/ tree). Do not write code files.",
+    "If the product spans multiple files, also specify the intended FILE STRUCTURE — name each file and say what it holds (e.g. index.html, styles.css, app.js, or a src/ tree). Do not write code files. " +
+    "For a plain static site with no build step, DO NOT spec ES modules with relative imports (`<script type=\"module\">` + `import './x.js'`): browsers block those when the user double-clicks the file (file://), so the app looks dead. Prefer one classic `<script src>` (or a few, loaded in order) so it runs on double-click.",
   code:
     "You are the DEVELOPER. Write real, working files into the working directory — minimal, correct, no placeholders, no TODO stubs. " +
     "This is often a MULTI-FILE project: FIRST inspect what already exists (use ls, then read the relevant files) and BUILD ON it — " +
     "reuse and extend existing files, follow the file structure the design spec defines, and make sure files reference each other with correct paths " +
-    "(imports/requires, <script src> and <link href>, relative paths). Create only the files this task needs; never delete or clobber files unrelated to your task.",
-  test: "You are the TESTER. For a web app, FIRST call check_app to actually run it in a headless browser — confirm it renders, shows the expected content, and has no JavaScript/console errors. Then inspect the files against the task and check multi-file wiring (referenced files exist, paths/imports resolve). Then call submit_verdict with pass/fail and any bugs. A blank render or a JS error is a high-severity bug. Do not fix anything yourself.",
+    "(imports/requires, <script src> and <link href>, relative paths). Create only the files this task needs; never delete or clobber files unrelated to your task. " +
+    "MUST-RUN-ON-DOUBLE-CLICK: for a plain static site with no bundler/build step, the app has to work when the user just opens index.html as a file (file://). Do NOT use `<script type=\"module\">` with relative `import`s, and do not `fetch()` local files — browsers block both on file://, leaving a blank page. Split code with several plain `<script src>` tags in dependency order (globals), not ES modules. If the app genuinely needs a server (a real backend, bundler, or framework), write a short README.md with the exact run command.",
+  test: "You are the TESTER. For a web app, FIRST call check_app to actually run it in a headless browser — it reports how the app renders BOTH served over http AND opened directly as a file (double-click / file://). Confirm it renders, shows the expected content, and has no JavaScript/console errors. The app MUST also work on double-click (file://) UNLESS a README documents how to run it — if check_app says double-click is BROKEN and there is no README with a run command, that is a HIGH-severity bug (report it, describe the file:// failure). Then inspect the files against the task and check multi-file wiring (referenced files exist, paths/imports resolve). Then call submit_verdict with pass/fail and any bugs. A blank render or a JS error is a high-severity bug. Do not fix anything yourself.",
   ops: "You are OPS. Perform the operational task (build, config, deploy prep) using your tools. Report what you did as text.",
 };
 
@@ -93,10 +95,19 @@ function buildCheckTool(workspace: string) {
     execute: async (_id, params: { file?: string }) => {
       try {
         const r = await renderCheck(workspace, params.file || "index.html");
+        const doubleClick = r.doubleClickBroken
+          ? "BROKEN — renders behind a server but is blank/erroring when opened directly as a file (double-click). "
+            + "Most likely ES modules + relative imports (or fetch of local files), which browsers block on file://. "
+            + "This is a real defect for a user who just opens the folder. Fix: use a classic non-module <script>, "
+            + "or ship a README with a run command (e.g. `python3 -m http.server`)."
+          : r.fileOk
+            ? "OK (works on double-click too)"
+            : `over file://: ${r.fileErrors.length ? r.fileErrors.join("; ") : "(empty page)"}`;
         const text = [
-          `rendered: ${r.ok ? "OK (no JS errors)" : "with errors"}`,
+          `rendered (served over http): ${r.ok ? "OK (no JS errors)" : "with errors"}`,
           `title: ${r.title || "(none)"}`,
           `errors: ${r.errors.length ? "\n  - " + r.errors.join("\n  - ") : "none"}`,
+          `opened as a file (double-click / file://): ${doubleClick}`,
           `visible text:\n${r.text || "(empty page — nothing rendered)"}`,
         ].join("\n");
         return { content: [{ type: "text", text }], details: {} };

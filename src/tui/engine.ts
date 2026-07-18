@@ -685,6 +685,7 @@ export function startBuild(
     state.status = result.halted ? "halted" : "complete";
     state.haltReason = result.haltReason; // keep why it stopped (budget cap / gate)
     saveState(state, statePath);
+    if (!result.halted) ensureRunInstructions(workspace); // finished builds ship with how-to-run
     return {
       totalCost: result.totalCost,
       halted: result.halted,
@@ -693,4 +694,49 @@ export function startBuild(
   });
 
   return { workspace, promise };
+}
+
+/** After a static web build, make sure the folder ships with how-to-run notes.
+ *  A user who just double-clicks index.html hits a blank page when the app uses
+ *  ES modules / fetches local files (browsers block those on file://). We can't
+ *  rewrite their code here, but we can guarantee the folder tells them how to run
+ *  it — so the export is never a mystery. No-op if there's no index.html or a
+ *  README already exists. */
+function ensureRunInstructions(workspace: string): void {
+  const index = join(workspace, "index.html");
+  if (!existsSync(index)) return; // not a static site → nothing to say
+  const hasReadme = ["README.md", "readme.md", "README.txt"].some((n) => existsSync(join(workspace, n)));
+  if (hasReadme) return; // the developer/tester already documented it
+
+  let usesModules = false;
+  try {
+    const html = readFileSync(index, "utf8");
+    usesModules = /<script[^>]+type=["']module["']/.test(html);
+  } catch { /* unreadable → fall through with the generic note */ }
+
+  const serverNote = [
+    "## Run it",
+    "",
+    usesModules
+      ? "This app uses ES modules, so it must be served over http — opening `index.html` directly (double-click) will show a blank page. From this folder, run one of:"
+      : "Open `index.html` in your browser (double-click works). If anything looks off, serve it over http instead — from this folder run one of:",
+    "",
+    "```",
+    "python3 -m http.server 8000    # then open http://localhost:8000",
+    "npx serve .                    # if you have Node installed",
+    "```",
+    "",
+  ].join("\n");
+
+  const body = [
+    "# Your app",
+    "",
+    "Built by Projectinator.",
+    "",
+    serverNote,
+  ].join("\n");
+
+  try {
+    writeFileSync(join(workspace, "README.md"), body);
+  } catch { /* best-effort; never fail a build over docs */ }
 }

@@ -12,6 +12,7 @@
 import { createServer, type Server } from "node:http";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const TYPES: Record<string, string> = {
   ".html": "text/html", ".htm": "text/html", ".css": "text/css",
@@ -97,15 +98,55 @@ export function startStaticServer(dir: string, opts: { liveReload?: boolean } = 
 }
 
 export interface RenderReport {
-  ok: boolean; // rendered with no JS/console errors
+  ok: boolean; // rendered over http with no JS/console errors
   file: string;
   title: string;
   text: string; // rendered body text (trimmed)
-  errors: string[]; // console errors + uncaught page errors
+  errors: string[]; // console errors + uncaught page errors (http)
   screenshotPath?: string;
+  // The way a non-technical user opens the folder: double-click → file://.
+  // ES modules + relative imports (and fetch of local assets) die here even
+  // though they work over a server — so we render BOTH and compare.
+  fileOk: boolean; // rendered over file:// with no errors AND real content
+  fileText: string; // rendered body text via file://
+  fileErrors: string[]; // errors seen via file://
+  // True when the app clearly works over a server but is broken on double-click
+  // (renders content over http, but blank/erroring over file://). The classic
+  // "AI shipped an app that only runs behind a server the user won't start".
+  doubleClickBroken: boolean;
 }
 
-/** Load a built page in headless Chromium and report what actually happened. */
+interface OneRender { title: string; text: string; errors: string[]; }
+
+/** Render a single URL and capture title, visible text, and errors. */
+async function renderOne(
+  browser: import("playwright").Browser,
+  url: string,
+  opts: { screenshotPath?: string; timeoutMs?: number } = {},
+): Promise<OneRender> {
+  const errors: string[] = [];
+  const page = await browser.newPage();
+  page.on("console", (m) => { if (m.type() === "error") errors.push(`console.error: ${m.text()}`); });
+  page.on("pageerror", (e) => errors.push(`uncaught: ${e.message}`));
+  page.on("requestfailed", (r) => {
+    const u = r.url();
+    if (!u.endsWith("/favicon.ico")) errors.push(`failed request: ${u} (${r.failure()?.errorText ?? "?"})`);
+  });
+  try {
+    await page.goto(url, { waitUntil: "networkidle", timeout: opts.timeoutMs ?? 15_000 });
+    const title = await page.title().catch(() => "");
+    const text = (await page.locator("body").innerText().catch(() => "")).trim().slice(0, 800);
+    if (opts.screenshotPath) {
+      try { await page.screenshot({ path: opts.screenshotPath, fullPage: true }); } catch { /* non-fatal */ }
+    }
+    return { title, text, errors };
+  } finally {
+    await page.close();
+  }
+}
+
+/** Load a built page in headless Chromium and report what actually happened —
+ *  over http (production-like) AND over file:// (how a user double-clicks it). */
 export async function renderCheck(
   dir: string,
   file = "index.html",
@@ -120,23 +161,30 @@ export async function renderCheck(
     await server.close(); // don't leak the port if Chromium can't launch
     throw e;
   }
-  const errors: string[] = [];
   try {
-    const page = await browser.newPage();
-    page.on("console", (m) => { if (m.type() === "error") errors.push(`console.error: ${m.text()}`); });
-    page.on("pageerror", (e) => errors.push(`uncaught: ${e.message}`));
-    page.on("requestfailed", (r) => {
-      const url = r.url();
-      // Ignore favicon noise; flag real missing assets.
-      if (!url.endsWith("/favicon.ico")) errors.push(`failed request: ${url} (${r.failure()?.errorText ?? "?"})`);
-    });
-    await page.goto(`${server.url}/${file}`, { waitUntil: "networkidle", timeout: opts.timeoutMs ?? 15_000 });
-    const title = await page.title().catch(() => "");
-    const text = (await page.locator("body").innerText().catch(() => "")).trim().slice(0, 800);
-    if (opts.screenshotPath) {
-      try { await page.screenshot({ path: opts.screenshotPath, fullPage: true }); } catch { /* non-fatal */ }
-    }
-    return { ok: errors.length === 0, file, title, text, errors, screenshotPath: opts.screenshotPath };
+    const http = await renderOne(browser, `${server.url}/${file}`, opts);
+    // file:// gets no screenshot — the http render is the one we keep.
+    const fileUrl = pathToFileURL(join(dir, file)).href;
+    const fileR = await renderOne(browser, fileUrl, { timeoutMs: opts.timeoutMs });
+
+    const ok = http.errors.length === 0;
+    const fileHasContent = fileR.text.length > 0;
+    const fileOk = fileR.errors.length === 0 && fileHasContent;
+    // Broken-on-double-click = works served, but blank or erroring as a file.
+    const doubleClickBroken = ok && http.text.length > 0 && !fileOk;
+
+    return {
+      ok,
+      file,
+      title: http.title,
+      text: http.text,
+      errors: http.errors,
+      screenshotPath: opts.screenshotPath,
+      fileOk,
+      fileText: fileR.text,
+      fileErrors: fileR.errors,
+      doubleClickBroken,
+    };
   } finally {
     await browser.close();
     await server.close();
