@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tip Calculator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1 class="app-title">Tip Calculator</h1>
+  </header>
+
+  <main class="app-main">
+    <section class="card" id="content">
+      <form class="tip-form" id="tip-form" novalidate>
+        <div class="field">
+          <label class="field-label" for="bill-amount">Bill amount</label>
+          <div class="input-group">
+            <span class="input-prefix">$</span>
+            <input
+              class="input"
+              id="bill-amount"
+              name="bill-amount"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              autocomplete="off">
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="tip-percent">Tip percentage</label>
+          <div class="input-group">
+            <input
+              class="input"
+              id="tip-percent"
+              name="tip-percent"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="1"
+              placeholder="15"
+              autocomplete="off">
+            <span class="input-suffix">%</span>
+          </div>
+        </div>
+
+        <p class="form-error is-hidden" id="form-error"></p>
+
+        <button class="button" id="calculate-btn" type="submit">Calculate</button>
+      </form>
+
+      <div class="results is-hidden" id="results">
+        <div class="result-row">
+          <span class="result-label">Tip</span>
+          <span class="result-value" id="tip-amount">$0.00</span>
+        </div>
+        <div class="result-row result-row--total">
+          <span class="result-label">Total</span>
+          <span class="result-value" id="total-amount">$0.00</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span class="app-status" id="status">Enter a bill amount and tip percentage.</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
