@@ -67,6 +67,15 @@ Each task runs on a real Pi session; Pi reports its own token usage and dollar c
 "actual" cost is authoritative. Estimates live in code (models are bad at guessing their own
 token use) and **self-calibrate** from measured runs.
 
+## Examples
+
+Real, unedited output from a full build, kept in [`examples/`](examples/):
+
+- **[Tip calculator](examples/tip-calculator/)** — PM → design → 3× code → test, $0.46,
+  tester PASS. Three separate files (`index.html`, `styles.css`, `app.js`) that run on
+  double-click (`file://`) *and* over http — the regression artifact for the
+  ["runs on double-click" guarantee](#caveats-read-before-shipping-publicly).
+
 ## CLI (same engine, for scripting/CI)
 
 ```bash
