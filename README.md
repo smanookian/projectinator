@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.svg" alt="Projectinator" width="112" />
+</p>
+
 # Projectinator
 
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
