@@ -4,6 +4,8 @@
   "description": "Multi-LLM app-building pipeline — routes Scrum tasks to the best model per job. Phase 1: registry + router + cost estimator.",
   "type": "module",
   "private": true,
+  "license": "MIT",
+  "author": "Stepan Manookian",
   "scripts": {
     "start": "tsx src/tui.tsx",
     "demo": "tsx src/demo.ts",

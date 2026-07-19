@@ -108,7 +108,7 @@ npm run typecheck
 
 ## License
 
-TODO — pick one before going public (MIT for maximum adoption is a good default).
+MIT — see [LICENSE](LICENSE). © 2026 Stepan Manookian.
 
 ## Roadmap
 
