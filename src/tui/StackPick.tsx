@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { Box, Text } from "ink";
-import { C, Panel, Menu as SelectInput, TextField as TextInput } from "./components.js";
+import { C, Panel, Menu as SelectInput, KeyHint, TextField as TextInput } from "./components.js";
 import { WEB_FRAMEWORKS, type Platform, type StackChoice } from "../stack.js";
 
 const OTHER = "__other__";
@@ -31,7 +31,7 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
             }}
           />
         </Panel>
-        <Text color={C.dim}>Esc cancels the build.</Text>
+        <KeyHint hints={[{ keys: "Esc", label: "cancel the build" }]} />
       </Box>
     );
   }
@@ -49,7 +49,10 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
             onSubmit={() => onDone({ platform: "web", framework: draft.trim() || "ai" })}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Name it (must run with no build step), Enter to continue.</Text>
+        <Box flexDirection="column" marginTop={1}>
+          <Text color={C.dim}>Name it — must run with no build step.</Text>
+          <KeyHint hints={[{ keys: "Enter", label: "continue" }]} />
+        </Box>
       </Box>
     );
   }

@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { Box, Text } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
 import type { Capability, Provider, Tier } from "../types.js";
-import { C, Panel, Menu as SelectInput, GroupedMenu, TextField as TextInput, Password, type MenuGroup } from "./components.js";
+import { C, Panel, Menu as SelectInput, GroupedMenu, KeyHint, TextField as TextInput, Password, type MenuGroup } from "./components.js";
 import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
 import { estimateAccuracy } from "../estimate.js";
@@ -400,7 +400,10 @@ function PrefsEditor({
           )}
         </Box>
       </Box>
-      <Text color={C.dim}>{"\n"}Enter moves to the next field, then saves. Ctrl+C to cancel.</Text>
+      <Box flexDirection="column" marginTop={1}>
+        <Text color={C.dim}>Enter moves to the next field, then saves.</Text>
+        <KeyHint hints={[{ keys: "Enter", label: "next / save" }, { keys: "Ctrl+C", label: "cancel" }]} />
+      </Box>
     </Box>
   );
 }

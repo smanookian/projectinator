@@ -157,6 +157,31 @@ export const C = {
   text: "white",
 };
 
+export interface Hint {
+  /** The key(s), e.g. "Enter", "Esc", "↑↓", "Ctrl+C". */
+  keys: string;
+  /** What it does, e.g. "save", "go back". */
+  label: string;
+}
+
+/** The one place we render keyboard shortcuts. Each key is drawn as a small
+ *  keycap (┌Enter┐) in amber, followed by its dim action label. Use this
+ *  everywhere instead of ad-hoc "Enter to save · Esc to back" prose so hints
+ *  look identical across every screen. */
+export function KeyHint({ hints }: { hints: Hint[] }): React.ReactElement {
+  return (
+    <Text>
+      {hints.map((h, i) => (
+        <Text key={i}>
+          {i ? <Text color={C.dim}>{"   "}</Text> : null}
+          <Text color={C.accent}>{`┌${h.keys}┐`}</Text>
+          <Text color={C.dim}>{` ${h.label}`}</Text>
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
 export function Header(): React.ReactElement {
   return (
     <Box borderStyle="round" borderColor={C.accent} paddingX={1} marginBottom={1} alignSelf="flex-start">

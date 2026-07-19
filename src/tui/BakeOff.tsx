@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import { Box, Text } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
-import { C, Panel, Menu as SelectInput, TextField as TextInput } from "./components.js";
+import { C, Panel, Menu as SelectInput, KeyHint, TextField as TextInput } from "./components.js";
 import { setRoleModel, modelLabel } from "./engine.js";
 import { runBakeoff, bakeoffTask, type BakeoffResult, type Candidate } from "../bakeoff.js";
 import type { Capability } from "../types.js";
@@ -82,7 +82,7 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
     return (
       <Box flexDirection="column">
         <Text bold>Bake-off task ({cap})</Text>
-        <Text color={C.dim}>Edit the task, then Enter to run across Opus / Sonnet / Haiku.</Text>
+        <Text color={C.dim}>Edit the task, then run it across Opus / Sonnet / Haiku.</Text>
         <Box marginTop={1}>
           <Text color={C.accent}>{"› "}</Text>
           <TextInput
@@ -91,7 +91,10 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
             onSubmit={() => { if (task.trim()) start(task.trim()); else setView({ kind: "pickCap" }); }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Enter to run. (Clear the text and Enter to cancel.)</Text>
+        <Box flexDirection="column" marginTop={1}>
+          <KeyHint hints={[{ keys: "Enter", label: "run" }]} />
+          <Text color={C.dim}>Clear the text and press Enter to cancel.</Text>
+        </Box>
       </Box>
     );
   }

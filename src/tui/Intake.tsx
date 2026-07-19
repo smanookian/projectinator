@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import { Box, Text } from "ink";
 import { MultiSelect } from "@inkjs/ui";
-import { C, Panel, Menu as SelectInput, TextField as TextInput } from "./components.js";
+import { C, Panel, Menu as SelectInput, KeyHint, TextField as TextInput } from "./components.js";
 import type { IntakeQuestion } from "../intake.js";
 
 const OTHER = "__other__";
@@ -57,7 +57,10 @@ export function Intake({
             onSubmit={() => advance([typingPrefix, draft].filter((s) => s.trim()).join(", "))}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Type your answer, Enter to continue.</Text>
+        <Box flexDirection="column" marginTop={1}>
+          <Text color={C.dim}>Type your answer.</Text>
+          <KeyHint hints={[{ keys: "Enter", label: "continue" }]} />
+        </Box>
       </Box>
     );
   }
@@ -68,7 +71,10 @@ export function Intake({
       <Box flexDirection="column">
         <Text color={C.dim}>{progress}</Text>
         <Panel title={q.question}>
-          <Text color={C.dim}>Space to toggle, Enter to confirm (pick any that apply).</Text>
+          <Box flexDirection="column">
+            <Text color={C.dim}>Pick any that apply.</Text>
+            <KeyHint hints={[{ keys: "Space", label: "toggle" }, { keys: "Enter", label: "confirm" }]} />
+          </Box>
           <MultiSelect
             options={[...q.options.map((o) => ({ label: o, value: o })), { label: "Something else…", value: OTHER }]}
             onSubmit={(vals: string[]) => {
@@ -101,7 +107,7 @@ export function Intake({
           }}
         />
       </Panel>
-      <Text color={C.dim}>Esc to cancel and go back.</Text>
+      <KeyHint hints={[{ keys: "Esc", label: "cancel & go back" }]} />
     </Box>
   );
 }

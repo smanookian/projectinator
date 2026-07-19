@@ -6,7 +6,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import { Spinner, StatusMessage, Badge } from "@inkjs/ui";
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
-import { C, Header, BudgetBar, Panel, Menu as SelectInput, GroupedMenu, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
+import { C, Header, BudgetBar, Panel, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
 import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
@@ -692,7 +692,7 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Esc to go back.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -733,7 +733,7 @@ export default function App(): React.ReactElement {
             <Text key={t} color={C.dim}>  {DEPLOY_META[t].label}: {DEPLOY_META[t].auth}</Text>
           ))}
         </Box>
-        <Text color={C.dim}>{"\n"}Esc to go back.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -1068,7 +1068,7 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Enter to save · Esc to go back.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -1125,7 +1125,7 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Enter to add · empty Enter or Esc to go back.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "add" }, { keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -1145,7 +1145,7 @@ export default function App(): React.ReactElement {
             placeholder="make the header dark blue and add a footer with a copyright line"
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Enter to continue · Esc to go back.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "continue" }, { keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -1170,7 +1170,7 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Enter to save · Esc to cancel.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "cancel" }]} /></Box>
       </Box>
     );
   }
@@ -1199,7 +1199,7 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Enter to import · Esc to cancel.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "import" }, { keys: "Esc", label: "cancel" }]} /></Box>
       </Box>
     );
   }
@@ -1224,7 +1224,7 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Esc to go back.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -1283,7 +1283,7 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Esc to go back.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -1297,7 +1297,7 @@ export default function App(): React.ReactElement {
           <Text color={C.accent}>{"› "}</Text>
           <TextInput value={idea} onChange={setIdea} onSubmit={() => idea.trim() && setPhase("stack")} placeholder="a landing page for a coffee shop with a menu and contact form" />
         </Box>
-        <Text color={C.dim}>{"\n"}Enter to continue · Esc to go back.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "continue" }, { keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -1375,7 +1375,10 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Deep plan is worth it for bigger/complex builds. Esc to go back.</Text>
+        <Box flexDirection="column" marginTop={1}>
+          <Text color={C.dim}>Deep plan is worth it for bigger/complex builds.</Text>
+          <KeyHint hints={[{ keys: "Esc", label: "go back" }]} />
+        </Box>
       </Box>
     );
   }
@@ -1461,7 +1464,7 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
-        <Text color={C.dim}>{"\n"}Enter to save · Esc to cancel.</Text>
+        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "cancel" }]} /></Box>
       </Box>
     );
   }
