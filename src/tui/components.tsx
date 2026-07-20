@@ -165,23 +165,41 @@ export interface Hint {
 }
 
 /** The one place we render keyboard shortcuts, styled after inkui's KeyHint:
- *  each key in square brackets ([Enter]) with the key amber and the bracket +
- *  action label dim, hints separated by a single space. Use this everywhere
- *  instead of ad-hoc "Enter to save · Esc to back" prose so hints look
- *  identical across every screen. */
-export function KeyHint({ hints }: { hints: Hint[] }): React.ReactElement {
+ *  each key sits in a small bordered keycap (amber) with its dim action label
+ *  beside it, keycaps laid out in a wrapping row. Use this everywhere instead
+ *  of ad-hoc "Enter to save · Esc to back" prose so hints look identical across
+ *  every screen.
+ *
+ *  `compact` renders a single-line inline form ([key] label …) for dense
+ *  command legends (10+ keys) where a wrapping row of 3-line keycaps would eat
+ *  too much vertical space. */
+export function KeyHint({ hints, compact }: { hints: Hint[]; compact?: boolean }): React.ReactElement {
+  if (compact) {
+    return (
+      <Text>
+        {hints.map((h, i) => (
+          <Text key={i}>
+            {i ? " " : ""}
+            <Text color={C.dim}>[</Text>
+            <Text color={C.accent}>{h.keys}</Text>
+            <Text color={C.dim}>]</Text>
+            <Text color={C.dim}>{` ${h.label}`}</Text>
+          </Text>
+        ))}
+      </Text>
+    );
+  }
   return (
-    <Text>
+    <Box flexWrap="wrap">
       {hints.map((h, i) => (
-        <Text key={i}>
-          {i ? " " : ""}
-          <Text color={C.dim}>[</Text>
-          <Text color={C.accent}>{h.keys}</Text>
-          <Text color={C.dim}>]</Text>
+        <Box key={i} marginRight={2} alignItems="center">
+          <Box borderStyle="round" borderColor={C.dim} paddingX={1}>
+            <Text color={C.accent}>{h.keys}</Text>
+          </Box>
           <Text color={C.dim}>{` ${h.label}`}</Text>
-        </Text>
+        </Box>
       ))}
-    </Text>
+    </Box>
   );
 }
 

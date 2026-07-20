@@ -179,7 +179,7 @@ export function BoardEditor({
   return (
     <Box flexDirection="column">
       <Text bold>Plan board <Text color={C.dim}>({backlogCount} in backlog, {readyCount} ready to build)</Text></Text>
-      <KeyHint hints={[
+      <KeyHint compact hints={[
         { keys: "↑↓", label: "pick" },
         { keys: "→/←", label: "col" },
         { keys: "[ ]", label: "reorder" },
