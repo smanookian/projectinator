@@ -6,7 +6,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import { Spinner, StatusMessage, Badge } from "@inkjs/ui";
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
-import { C, BudgetBar, Panel, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
+import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
 import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
@@ -357,40 +357,37 @@ export default function App(): React.ReactElement {
       ? `locked to ${PROVIDER_LABEL[providers[0]!]}`
       : "best model per role";
     return (
-      <Box flexDirection="column">
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
         {ready ? (
-          <>
-            <Text color={C.good} bold>✓ Ready.</Text>
+          <Panel title="Ready to build">
+            <Text color={C.textMuted}>Your team is connected.</Text>
             <Box marginTop={1} gap={1} flexWrap="wrap">
               {providers.map((p) => (
-                <Badge key={p} color="green">{PROVIDER_LABEL[p]}</Badge>
+                <Chip key={p} label={PROVIDER_LABEL[p]} dotColor={C.good} />
               ))}
             </Box>
-            <Text color={C.dim}>{"\n"}Routing: {mode}.</Text>
+            <Text color={C.textSubtle}>{`\nRouting: ${mode}.`}</Text>
             <Box marginTop={1}>
               <SelectInput
                 items={[
-                  { label: "🟢 Start", value: "go" },
-                  { label: "🔧 Settings", value: "settings" },
-                  { label: "🚪 Quit", value: "quit" },
+                  { label: "Start a build", value: "go" },
+                  { label: "Settings", value: "settings" },
+                  { label: "Quit", value: "quit" },
                 ]}
                 onSelect={(i) => (i.value === "go" ? setPhase("home") : i.value === "settings" ? setPhase("settings") : exit())}
               />
             </Box>
-          </>
+          </Panel>
         ) : (
-          <>
-            <Text color={C.bad}>No API key yet.</Text>
-            <Box marginTop={1} flexDirection="column">
-              <Text color={C.dim}>Add one right here in Settings (no file editing needed).</Text>
-            </Box>
+          <Panel title="Connect a provider" borderColor={C.warn}>
+            <Text color={C.textMuted}>No API key yet — add one in Settings (no file editing).</Text>
             <Box marginTop={1}>
               <SelectInput
-                items={[{ label: "🔧 Settings — add a key", value: "settings" }, { label: "🚪 Quit", value: "quit" }]}
+                items={[{ label: "Settings — add a key", value: "settings" }, { label: "Quit", value: "quit" }]}
                 onSelect={(i) => (i.value === "settings" ? setPhase("settings") : exit())}
               />
             </Box>
-          </>
+          </Panel>
         )}
       </Box>
     );

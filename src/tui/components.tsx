@@ -235,9 +235,28 @@ export function Panel({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={borderColor ?? "gray"} paddingX={1} alignSelf="flex-start">
+    <Box flexDirection="column" borderStyle="round" borderColor={borderColor ?? C.border} paddingX={2} paddingY={1} alignSelf="flex-start">
       {title ? <Text bold color={C.accent}>{title}</Text> : null}
       {children}
+    </Box>
+  );
+}
+
+/** A quiet, bordered pill — a small status dot + muted label. Replaces loud
+ *  filled badges for things like connected providers. */
+export function Chip({
+  label,
+  dotColor,
+  active,
+}: {
+  label: string;
+  dotColor?: string;
+  active?: boolean;
+}): React.ReactElement {
+  return (
+    <Box borderStyle="round" borderColor={active ? C.borderActive : C.borderSubtle} paddingX={1}>
+      {dotColor ? <Text color={dotColor}>● </Text> : null}
+      <Text color={active ? C.text : C.textMuted}>{label}</Text>
     </Box>
   );
 }
