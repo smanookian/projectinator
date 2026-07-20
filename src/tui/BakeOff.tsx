@@ -81,20 +81,21 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
   if (view.kind === "enterTask") {
     return (
       <Box flexDirection="column">
-        <Text bold>Bake-off task ({cap})</Text>
-        <Text color={C.dim}>Edit the task, then run it across Opus / Sonnet / Haiku.</Text>
-        <Box marginTop={1}>
-          <Text color={C.accent}>{"› "}</Text>
-          <TextInput
-            value={task}
-            onChange={setTask}
-            onSubmit={() => { if (task.trim()) start(task.trim()); else setView({ kind: "pickCap" }); }}
-          />
-        </Box>
-        <Box flexDirection="column" marginTop={1}>
-          <KeyHint hints={[{ keys: "Enter", label: "run" }]} />
-          <Text color={C.dim}>Clear the text and press Enter to cancel.</Text>
-        </Box>
+        <Panel title={`Bake-off task — ${cap}`}>
+          <Text color={C.textMuted}>Edit the task, then run it across Opus / Sonnet / Haiku.</Text>
+          <Box marginTop={1}>
+            <Text color={C.accent}>{"› "}</Text>
+            <TextInput
+              value={task}
+              onChange={setTask}
+              onSubmit={() => { if (task.trim()) start(task.trim()); else setView({ kind: "pickCap" }); }}
+            />
+          </Box>
+          <Box flexDirection="column" marginTop={1}>
+            <KeyHint hints={[{ keys: "Enter", label: "run" }]} />
+            <Text color={C.textSubtle}>Clear the text and press Enter to cancel.</Text>
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -103,11 +104,12 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
   if (view.kind === "running") {
     return (
       <Box flexDirection="column">
-        <Text bold>Running bake-off ({cap})…</Text>
-        <Box marginTop={1}><Spinner label="Running each model, then judging (real spend)…" /></Box>
-        <Box marginTop={1} flexDirection="column">
-          {log.slice(-8).map((l, i) => <Text key={i} color={C.dim} wrap="truncate-end">{l}</Text>)}
-        </Box>
+        <Panel title={`Running bake-off — ${cap}`}>
+          <Spinner label="Running each model, then judging (real spend)…" />
+          <Box marginTop={1} flexDirection="column">
+            {log.slice(-8).map((l, i) => <Text key={i} color={C.textSubtle} wrap="truncate-end">{l}</Text>)}
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -115,12 +117,13 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
   // ---------- error ----------
   if (view.kind === "error") {
     return (
-      <Box flexDirection="column">
-        <Text bold>Bake-off failed</Text>
-        <Box marginTop={1}><StatusMessage variant="error">{view.msg}</StatusMessage></Box>
-        <Box marginTop={1}>
-          <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => setView({ kind: "pickCap" })} />
-        </Box>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title="Bake-off failed" borderColor={C.bad}>
+          <StatusMessage variant="error">{view.msg}</StatusMessage>
+          <Box marginTop={1}>
+            <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => setView({ kind: "pickCap" })} />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -133,9 +136,9 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
   return (
     <Box flexDirection="column">
       {notice ? <Box marginBottom={1}><StatusMessage variant="success">{notice}</StatusMessage></Box> : null}
-      <Text bold>Bake-off results — {cap}</Text>
-      <Box marginTop={1} flexDirection="column">
-        <Text color={C.dim}>{"model".padEnd(22)}{"score".padEnd(7)}{"cost".padEnd(11)}{"time".padEnd(7)}tok</Text>
+      <Panel title={`Bake-off results — ${cap}`}>
+      <Box flexDirection="column">
+        <Text color={C.textSubtle}>{"model".padEnd(22)}{"score".padEnd(7)}{"cost".padEnd(11)}{"time".padEnd(7)}tok</Text>
         {result.entries.map((e) => {
           const key = `${e.provider}/${e.model}`;
           const sc = scoreOf.get(key);
@@ -181,6 +184,7 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
           }}
         />
       </Box>
+      </Panel>
     </Box>
   );
 }

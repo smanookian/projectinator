@@ -75,29 +75,30 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     const providers: Provider[] = ["anthropic", "openai", "google"];
     return (
       <Box flexDirection="column">
-        <Text bold>API keys</Text>
-        <Text color={C.dim}>Select a provider to add or replace its key. Saved to ~/.projectinator (0600).</Text>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              ...providers.map((p) => ({
-                label: `${have.has(p) ? "✓" : "·"}  ${PROVIDER_LABEL[p]}  ${have.has(p) ? "(set)" : "(not set)"}`,
-                value: p,
-              })),
-              { label: "Back", value: "__back" },
-            ]}
-            onSelect={(i) => {
-              if (i.value === "__back") setSub("menu");
-              else {
-                setKeyProvider(i.value as Provider);
-                setKeyDraft("");
-                setKeyError("");
-                setChecking(false);
-                setSub("keyEntry");
-              }
-            }}
-          />
-        </Box>
+        <Panel title="API keys">
+          <Text color={C.textMuted}>Select a provider to add or replace its key. Saved to ~/.projectinator (0600).</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                ...providers.map((p) => ({
+                  label: `${have.has(p) ? "✓" : "·"}  ${PROVIDER_LABEL[p]}  ${have.has(p) ? "(set)" : "(not set)"}`,
+                  value: p,
+                })),
+                { label: "Back", value: "__back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "__back") setSub("menu");
+                else {
+                  setKeyProvider(i.value as Provider);
+                  setKeyDraft("");
+                  setKeyError("");
+                  setChecking(false);
+                  setSub("keyEntry");
+                }
+              }}
+            />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -106,15 +107,16 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     if (checking) {
       return (
         <Box flexDirection="column">
-          <Text bold>Enter key for {PROVIDER_LABEL[keyProvider]}</Text>
-          <Spinner label={`Verifying key with ${PROVIDER_LABEL[keyProvider]}…`} />
+          <Panel title={`Enter key for ${PROVIDER_LABEL[keyProvider]}`}>
+            <Spinner label={`Verifying key with ${PROVIDER_LABEL[keyProvider]}…`} />
+          </Panel>
         </Box>
       );
     }
     return (
       <Box flexDirection="column">
-        <Text bold>Enter key for {PROVIDER_LABEL[keyProvider]}</Text>
-        <Text color={C.dim}>Sets {ENV_VAR[keyProvider]}. Paste and press Enter — it's verified before saving. (hidden)</Text>
+        <Panel title={`Enter key for ${PROVIDER_LABEL[keyProvider]}`}>
+        <Text color={C.textMuted}>Sets {ENV_VAR[keyProvider]}. Paste and press Enter — it's verified before saving. (hidden)</Text>
         {keyError ? <Box marginTop={1}><StatusMessage variant="error">{keyError}</StatusMessage></Box> : null}
         <Box marginTop={1}>
           <Password
@@ -140,6 +142,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
             }}
           />
         </Box>
+        </Panel>
       </Box>
     );
   }
@@ -150,28 +153,29 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     const lock = loadConfig().preferredProvider;
     return (
       <Box flexDirection="column">
-        <Text bold>Model assignments</Text>
-        <Text color={C.dim}>Which model plays each role. {lock ? `Pinned to ${PROVIDER_LABEL[lock]} — pick from its models.` : "Saved as overrides."}</Text>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              ...rows.map((r) => ({
-                label: `${r.label.padEnd(16)} ${r.model ?? "—"}`,
-                value: `${r.capability}:${r.tier}`,
-              })),
-              { label: "Back", value: "__back" },
-            ]}
-            onSelect={(i) => {
-              if (i.value === "__back") setSub("menu");
-              else {
-                const [capability, tier] = i.value.split(":") as [Capability, Tier];
-                const r = rows.find((x) => x.capability === capability && x.tier === tier)!;
-                setRole({ capability, tier, label: r.label });
-                setSub("modelPick");
-              }
-            }}
-          />
-        </Box>
+        <Panel title="Model assignments">
+          <Text color={C.textMuted}>Which model plays each role. {lock ? `Pinned to ${PROVIDER_LABEL[lock]} — pick from its models.` : "Saved as overrides."}</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                ...rows.map((r) => ({
+                  label: `${r.label.padEnd(16)} ${r.model ?? "—"}`,
+                  value: `${r.capability}:${r.tier}`,
+                })),
+                { label: "Back", value: "__back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "__back") setSub("menu");
+                else {
+                  const [capability, tier] = i.value.split(":") as [Capability, Tier];
+                  const r = rows.find((x) => x.capability === capability && x.tier === tier)!;
+                  setRole({ capability, tier, label: r.label });
+                  setSub("modelPick");
+                }
+              }}
+            />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -181,25 +185,26 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     const models = lock ? allModels().filter((m) => m.provider === lock) : allModels();
     return (
       <Box flexDirection="column">
-        <Text bold>Pick a model for {role.label}</Text>
-        {lock ? <Text color={C.dim}>Showing {PROVIDER_LABEL[lock]} models (you've pinned this provider).</Text> : null}
-        <Box marginTop={1}>
-          <SelectInput
-            limit={10}
-            items={[
-              ...models.map((m) => ({ label: `${m.name}  (${m.provider})`, value: m.id })),
-              { label: "Back", value: "__back" },
-            ]}
-            onSelect={(i) => {
-              if (i.value !== "__back") {
-                setRoleModel(role.capability, role.tier, i.value);
-                setNotice(`${role.label} → ${i.value}`);
-                refresh();
-              }
-              setSub("models");
-            }}
-          />
-        </Box>
+        <Panel title={`Pick a model for ${role.label}`}>
+          {lock ? <Text color={C.textMuted}>Showing {PROVIDER_LABEL[lock]} models (you've pinned this provider).</Text> : null}
+          <Box marginTop={lock ? 1 : 0}>
+            <SelectInput
+              limit={10}
+              items={[
+                ...models.map((m) => ({ label: `${m.name}  (${m.provider})`, value: m.id })),
+                { label: "Back", value: "__back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value !== "__back") {
+                  setRoleModel(role.capability, role.tier, i.value);
+                  setNotice(`${role.label} → ${i.value}`);
+                  refresh();
+                }
+                setSub("models");
+              }}
+            />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -211,30 +216,31 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     const providers: Provider[] = ["anthropic", "openai", "google"];
     return (
       <Box flexDirection="column">
-        <Text bold>Preferred provider</Text>
-        <Text color={C.dim}>Pin one provider for every role, or Auto to use the best available. Current: {current ?? "Auto"}.</Text>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              { label: `Auto (best available)${!current ? "  ✓" : ""}`, value: "__auto" },
-              ...providers.map((p) => ({
-                label: `${PROVIDER_LABEL[p]}${have.has(p) ? "" : " (no key)"}${current === p ? "  ✓" : ""}`,
-                value: p,
-              })),
-              { label: "Back", value: "__back" },
-            ]}
-            onSelect={(i) => {
-              if (i.value === "__back") {
+        <Panel title="Preferred provider">
+          <Text color={C.textMuted}>Pin one provider for every role, or Auto to use the best available. Current: {current ?? "Auto"}.</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                { label: `Auto (best available)${!current ? "  ✓" : ""}`, value: "__auto" },
+                ...providers.map((p) => ({
+                  label: `${PROVIDER_LABEL[p]}${have.has(p) ? "" : " (no key)"}${current === p ? "  ✓" : ""}`,
+                  value: p,
+                })),
+                { label: "Back", value: "__back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "__back") {
+                  setSub("menu");
+                  return;
+                }
+                const choice = i.value === "__auto" ? undefined : (i.value as Provider);
+                setPreferredProvider(choice);
+                setNotice(`Preferred provider: ${choice ?? "Auto"}.`);
                 setSub("menu");
-                return;
-              }
-              const choice = i.value === "__auto" ? undefined : (i.value as Provider);
-              setPreferredProvider(choice);
-              setNotice(`Preferred provider: ${choice ?? "Auto"}.`);
-              setSub("menu");
-            }}
-          />
-        </Box>
+              }}
+            />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -244,24 +250,25 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     const current = getDefaultMode();
     return (
       <Box flexDirection="column">
-        <Text bold>Default workflow for new builds</Text>
-        <Text color={C.dim}>Current: {current === "approval" ? "Approval-gated" : "Auto-run"}.</Text>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              { label: `Auto-run — confirm cost, then build${current === "auto" ? "  ✓" : ""}`, value: "auto" },
-              { label: `Approval-gated — you approve the backlog first${current === "approval" ? "  ✓" : ""}`, value: "approval" },
-              { label: "Back", value: "__back" },
-            ]}
-            onSelect={(i) => {
-              if (i.value !== "__back") {
-                setDefaultMode(i.value as "auto" | "approval");
-                setNotice(`Default workflow: ${i.value === "approval" ? "Approval-gated" : "Auto-run"}.`);
-              }
-              setSub("menu");
-            }}
-          />
-        </Box>
+        <Panel title="Default workflow for new builds">
+          <Text color={C.textMuted}>Current: {current === "approval" ? "Approval-gated" : "Auto-run"}.</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                { label: `Auto-run — confirm cost, then build${current === "auto" ? "  ✓" : ""}`, value: "auto" },
+                { label: `Approval-gated — you approve the backlog first${current === "approval" ? "  ✓" : ""}`, value: "approval" },
+                { label: "Back", value: "__back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value !== "__back") {
+                  setDefaultMode(i.value as "auto" | "approval");
+                  setNotice(`Default workflow: ${i.value === "approval" ? "Approval-gated" : "Auto-run"}.`);
+                }
+                setSub("menu");
+              }}
+            />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -277,9 +284,9 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     const rows = estimateAccuracy();
     return (
       <Box flexDirection="column">
-        <Text bold>Estimate accuracy</Text>
-        <Text color={C.dim}>Measured output tokens vs the static baseline, per role/difficulty. Self-calibration</Text>
-        <Text color={C.dim}>replaces the baseline once a bucket has ≥2 samples (✓ active).</Text>
+        <Panel title="Estimate accuracy">
+        <Text color={C.textMuted}>Measured output tokens vs the static baseline, per role/difficulty. Self-calibration</Text>
+        <Text color={C.textMuted}>replaces the baseline once a bucket has ≥2 samples (✓ active).</Text>
         <Box marginTop={1} flexDirection="column">
           {rows.length === 0 ? (
             <Text color={C.dim}>No data yet — run some builds and this fills in.</Text>
@@ -305,6 +312,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         <Box marginTop={1}>
           <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => setSub("menu")} />
         </Box>
+        </Panel>
       </Box>
     );
   }
@@ -314,26 +322,27 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     const current = getPreferredStack();
     return (
       <Box flexDirection="column">
-        <Text bold>Default stack for new web builds</Text>
-        <Text color={C.dim}>“Ask each time” shows the picker; anything else skips it. Current: {current}.</Text>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              { label: `Ask each time${current === "ask" ? "  ✓" : ""}`, value: "ask" },
-              { label: `Vanilla HTML/CSS/JS${current === "vanilla" ? "  ✓" : ""}`, value: "vanilla" },
-              { label: `React (CDN, no build)${current === "react" ? "  ✓" : ""}`, value: "react" },
-              { label: `Let the AI decide${current === "ai" ? "  ✓" : ""}`, value: "ai" },
-              { label: "Back", value: "__back" },
-            ]}
-            onSelect={(i) => {
-              if (i.value !== "__back") {
-                setPreferredStack(i.value as "ask" | "vanilla" | "react" | "ai");
-                setNotice(`Default stack: ${i.value}.`);
-              }
-              setSub("menu");
-            }}
-          />
-        </Box>
+        <Panel title="Default stack for new web builds">
+          <Text color={C.textMuted}>“Ask each time” shows the picker; anything else skips it. Current: {current}.</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                { label: `Ask each time${current === "ask" ? "  ✓" : ""}`, value: "ask" },
+                { label: `Vanilla HTML/CSS/JS${current === "vanilla" ? "  ✓" : ""}`, value: "vanilla" },
+                { label: `React (CDN, no build)${current === "react" ? "  ✓" : ""}`, value: "react" },
+                { label: `Let the AI decide${current === "ai" ? "  ✓" : ""}`, value: "ai" },
+                { label: "Back", value: "__back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value !== "__back") {
+                  setPreferredStack(i.value as "ask" | "vanilla" | "react" | "ai");
+                  setNotice(`Default stack: ${i.value}.`);
+                }
+                setSub("menu");
+              }}
+            />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -369,8 +378,8 @@ function PrefsEditor({
 
   return (
     <Box flexDirection="column">
-      <Text bold>Preferences</Text>
-      <Box marginTop={1} flexDirection="column">
+      <Panel title="Budget, speed & alerts">
+      <Box flexDirection="column">
         <Box>
           <Box width={22}><Text color={field === "cap" ? C.accent : C.text}>Budget cap (USD)</Text></Box>
           {field === "cap" ? (
@@ -401,9 +410,10 @@ function PrefsEditor({
         </Box>
       </Box>
       <Box flexDirection="column" marginTop={1}>
-        <Text color={C.dim}>Enter moves to the next field, then saves.</Text>
+        <Text color={C.textSubtle}>Enter moves to the next field, then saves.</Text>
         <KeyHint hints={[{ keys: "Enter", label: "next / save" }, { keys: "Ctrl+C", label: "cancel" }]} />
       </Box>
+      </Panel>
     </Box>
   );
 }
