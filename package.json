@@ -1,6 +1,6 @@
 {
   "name": "projectinator",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Your AI build team in the terminal — hand it an app idea, a PM model plans a Scrum backlog, and the best model per role designs, codes, and tests it into working files. Bring your own API key.",
   "type": "module",
   "private": false,
