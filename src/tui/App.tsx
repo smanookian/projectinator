@@ -85,6 +85,7 @@ export default function App(): React.ReactElement {
   const [seed, setSeed] = useState<TaskOutcome[] | undefined>(undefined);
   const [assetPath, setAssetPath] = useState("");
   const [assetMsg, setAssetMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [assetKey, setAssetKey] = useState(0); // bump to remount (clear) the add-asset input
   const [assetReturn, setAssetReturn] = useState<Phase>("projectActions");
   const [renameDraft, setRenameDraft] = useState("");
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
@@ -549,10 +550,9 @@ export default function App(): React.ReactElement {
     ];
     return (
       <Box flexDirection="column">
-        <Box alignItems="center">
-          <Text bold wrap="truncate-end">{selected.idea}</Text>
-          <Text>  </Text>
-          <Chip label={statusChip.label} dotColor={statusChip.dot} />
+        <Box>
+          <Box flexGrow={1} marginRight={2}><Text bold wrap="truncate-end">{selected.idea}</Text></Box>
+          <Text color={statusChip.dot}>● </Text><Text color={C.textMuted}>{statusChip.label}</Text>
         </Box>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
         <Box marginTop={1}><Standup tasks={allBoard} spent={selected.totalCost} /></Box>
@@ -748,30 +748,31 @@ export default function App(): React.ReactElement {
     const meta = DEPLOY_META[ds.target];
     return (
       <Box flexDirection="column">
-        <Text bold>Deploy → {meta.label}</Text>
-        {ds.status === "running" ? <Box marginTop={1}><Spinner label="Deploying… (first run can take a minute)" /></Box> : null}
-        {ds.log.length ? (
-          <Box marginTop={1} flexDirection="column">
-            {ds.log.slice(-8).map((l, idx) => (
-              <Text key={idx} color={C.dim} wrap="truncate-end">{l}</Text>
-            ))}
-          </Box>
-        ) : null}
-        {ds.status === "done" ? (
-          <Box marginTop={1}>
-            {ds.url
-              ? <StatusMessage variant="success">Live at {ds.url}</StatusMessage>
-              : <StatusMessage variant="success">Deployed. (No URL parsed — check the log above.)</StatusMessage>}
-          </Box>
-        ) : null}
-        {ds.status === "error" ? (
-          <Box marginTop={1}><StatusMessage variant="error">{ds.error}</StatusMessage></Box>
-        ) : null}
-        {ds.status !== "running" ? (
-          <Box marginTop={1}>
-            <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => { setDeployState(null); setPhase("projectActions"); }} />
-          </Box>
-        ) : null}
+        <Panel title={`Deploy → ${meta.label}`}>
+          {ds.status === "running" ? <Spinner label="Deploying… (first run can take a minute)" /> : null}
+          {ds.log.length ? (
+            <Box marginTop={1} flexDirection="column">
+              {ds.log.slice(-8).map((l, idx) => (
+                <Text key={idx} color={C.textSubtle} wrap="truncate-end">{l}</Text>
+              ))}
+            </Box>
+          ) : null}
+          {ds.status === "done" ? (
+            <Box marginTop={1}>
+              {ds.url
+                ? <StatusMessage variant="success">Live at {ds.url}</StatusMessage>
+                : <StatusMessage variant="success">Deployed. (No URL parsed — check the log above.)</StatusMessage>}
+            </Box>
+          ) : null}
+          {ds.status === "error" ? (
+            <Box marginTop={1}><StatusMessage variant="error">{ds.error}</StatusMessage></Box>
+          ) : null}
+          {ds.status !== "running" ? (
+            <Box marginTop={1}>
+              <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => { setDeployState(null); setPhase("projectActions"); }} />
+            </Box>
+          ) : null}
+        </Panel>
       </Box>
     );
   }
@@ -785,12 +786,12 @@ export default function App(): React.ReactElement {
     const costBar = (c: number) => "█".repeat(Math.max(0, Math.round((c / maxCost) * W))).padEnd(W, " ");
     return (
       <Box flexDirection="column">
-        <Text bold wrap="truncate-end">Burndown — {selected.idea}</Text>
+        <Panel title={`Burndown — ${selected.idea}`}>
         {!b || b.steps.length === 0 ? (
-          <Box marginTop={1}><Text color={C.dim}>No steps yet — run the build.</Text></Box>
+          <Text color={C.textMuted}>No steps yet — run the build.</Text>
         ) : (
-          <Box flexDirection="column" marginTop={1}>
-            <Text color={C.dim}>Tasks remaining after each step (X = completion order, {b.taskCount} total)</Text>
+          <Box flexDirection="column">
+            <Text color={C.textMuted}>Tasks remaining after each step (X = completion order, {b.taskCount} total)</Text>
             {b.steps.map((s, i) => (
               <Text key={i} wrap="truncate-end">
                 {`${(i + 1).toString().padStart(2)} ${s.taskId}`.padEnd(9)} <Text color={C.accent}>{remBar(s.remaining)}</Text> {String(s.remaining).padStart(2)}{s.retry ? <Text color={C.warn}>  ↻ retry</Text> : null}
@@ -800,7 +801,7 @@ export default function App(): React.ReactElement {
               <Text color={C.dim}>Cumulative spend (total {money(b.totalCost)})</Text>
               {b.steps.map((s, i) => (
                 <Text key={i} wrap="truncate-end">
-                  {`${(i + 1).toString().padStart(2)} ${s.taskId}`.padEnd(9)} <Text color={C.good ?? "green"}>{costBar(s.cumCost)}</Text> {money(s.cumCost)}
+                  {`${(i + 1).toString().padStart(2)} ${s.taskId}`.padEnd(9)} <Text color={C.good}>{costBar(s.cumCost)}</Text> {money(s.cumCost)}
                 </Text>
               ))}
             </Box>
@@ -809,6 +810,7 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
         </Box>
+        </Panel>
       </Box>
     );
   }
@@ -860,16 +862,16 @@ export default function App(): React.ReactElement {
     const bar = (cost: number) => "█".repeat(Math.max(1, Math.round((cost / maxEpic) * 16)));
     return (
       <Box flexDirection="column">
-        <Text bold wrap="truncate-end">Retro — {selected.idea}</Text>
+        <Panel title={`Retro — ${selected.idea}`}>
         {!r ? (
-          <Box marginTop={1}><Text color={C.dim}>No build data yet.</Text></Box>
+          <Text color={C.textMuted}>No build data yet.</Text>
         ) : (
-          <Box flexDirection="column" marginTop={1}>
+          <Box flexDirection="column">
             <Text>
-              <Text color={C.dim}>Status </Text>{r.status}
+              <Text color={C.textMuted}>Status </Text>{r.status}
               <Text color={C.dim}>   ·   Cost </Text><Text color={C.accent}>{money(r.totalCost)}</Text>
               <Text color={C.dim}>   ·   Tasks </Text>{r.doneCount}/{r.taskCount}
-              <Text color={C.dim}>   ·   Tests </Text><Text color={C.good ?? "green"}>{r.tests.passed}✓</Text> <Text color={r.tests.failed ? (C.bad ?? "red") : C.dim}>{r.tests.failed}✗</Text>
+              <Text color={C.dim}>   ·   Tests </Text><Text color={C.good}>{r.tests.passed}✓</Text> <Text color={r.tests.failed ? (C.bad) : C.dim}>{r.tests.failed}✗</Text>
             </Text>
             {r.estCost > 0 ? (() => {
               const delta = r.estCost > 0 ? Math.round(((r.totalCost - r.estCost) / r.estCost) * 100) : 0;
@@ -878,7 +880,7 @@ export default function App(): React.ReactElement {
                 <Text>
                   <Text color={C.dim}>Predicted </Text>{money(r.estCost)}
                   <Text color={C.dim}> → actual </Text><Text color={C.accent}>{money(r.totalCost)}</Text>
-                  <Text color={under ? (C.good ?? "green") : C.warn}>  {delta >= 0 ? "+" : ""}{delta}% {under ? "under" : "over"}</Text>
+                  <Text color={under ? (C.good) : C.warn}>  {delta >= 0 ? "+" : ""}{delta}% {under ? "under" : "over"}</Text>
                 </Text>
               );
             })() : null}
@@ -916,11 +918,11 @@ export default function App(): React.ReactElement {
               <Box flexDirection="column" marginTop={1}>
                 <Text color={C.dim}>Tester flagged {r.bugs.length} issue{r.bugs.length === 1 ? "" : "s"}:</Text>
                 {r.bugs.slice(0, 5).map((b, i) => (
-                  <Text key={i} wrap="truncate-end">  <Text color={b.severity === "high" ? (C.bad ?? "red") : C.warn}>[{b.severity}]</Text> {b.description}</Text>
+                  <Text key={i} wrap="truncate-end">  <Text color={b.severity === "high" ? (C.bad) : C.warn}>[{b.severity}]</Text> {b.description}</Text>
                 ))}
               </Box>
             ) : (
-              <Box marginTop={1}><Text color={C.good ?? "green"}>No open issues flagged by the tester.</Text></Box>
+              <Box marginTop={1}><Text color={C.good}>No open issues flagged by the tester.</Text></Box>
             )}
 
             {narr.loading ? (
@@ -929,7 +931,7 @@ export default function App(): React.ReactElement {
               <Box marginTop={1}><StatusMessage variant="error">{narr.error}</StatusMessage></Box>
             ) : narr.text ? (
               <Box marginTop={1}>
-                <Panel title="🧠 AI narrative">
+                <Panel title="AI narrative">
                   {narr.text.split("\n").map((line, i) => <Text key={i} wrap="wrap">{line}</Text>)}
                 </Panel>
               </Box>
@@ -939,7 +941,7 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              ...(r && !narr.loading ? [{ label: narr.text ? "🧠 Regenerate AI narrative" : "🧠 Generate AI narrative", value: "narrate" }] : []),
+              ...(r && !narr.loading ? [{ label: narr.text ? "Regenerate AI narrative" : "Generate AI narrative", value: "narrate" }] : []),
               { label: "Back", value: "back" },
             ]}
             onSelect={(i) => {
@@ -954,6 +956,7 @@ export default function App(): React.ReactElement {
             }}
           />
         </Box>
+        </Panel>
       </Box>
     );
   }
@@ -964,36 +967,37 @@ export default function App(): React.ReactElement {
     const canUndo = commits.length > 1; // more than the initial commit
     return (
       <Box flexDirection="column">
-        <Text bold>History — {selected.idea}</Text>
-        <Text color={C.dim}>One commit per finished task, newest first. Diff/checkout in the project folder with git.</Text>
-        {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
-        <Box marginTop={1} flexDirection="column">
-          {commits.length ? (
-            commits.slice(0, 20).map((c) => (
-              <Text key={c.hash} wrap="truncate-end"><Text color={C.accent}>{c.hash}</Text>  {c.msg}</Text>
-            ))
-          ) : (
-            <Text color={C.dim}>No history yet (this project predates git-per-build, or git isn't installed).</Text>
-          )}
-        </Box>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              ...(canUndo ? [{ label: "Undo last task (revert files + reopen it to rebuild)", value: "undo" }] : []),
-              { label: "Back", value: "back" },
-            ]}
-            onSelect={(i) => {
-              if (i.value === "undo") {
-                const r = undoLastTask(dir);
-                reselect(dir);
-                setFlash(r.ok ? `Undid ${r.taskId ?? "last task"}. Resume the build to rebuild it.` : (r.error ?? "Undo failed."));
-              } else {
-                setFlash("");
-                setPhase("projectActions");
-              }
-            }}
-          />
-        </Box>
+        <Panel title={`History — ${selected.idea}`}>
+          <Text color={C.textMuted}>One commit per finished task, newest first. Diff/checkout in the project folder with git.</Text>
+          {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
+          <Box marginTop={1} flexDirection="column">
+            {commits.length ? (
+              commits.slice(0, 20).map((c) => (
+                <Text key={c.hash} wrap="truncate-end"><Text color={C.accent}>{c.hash}</Text>  {c.msg}</Text>
+              ))
+            ) : (
+              <Text color={C.textMuted}>No history yet (this project predates git-per-build, or git isn't installed).</Text>
+            )}
+          </Box>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                ...(canUndo ? [{ label: "Undo last task (revert files + reopen it to rebuild)", value: "undo" }] : []),
+                { label: "Back", value: "back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "undo") {
+                  const r = undoLastTask(dir);
+                  reselect(dir);
+                  setFlash(r.ok ? `Undid ${r.taskId ?? "last task"}. Resume the build to rebuild it.` : (r.error ?? "Undo failed."));
+                } else {
+                  setFlash("");
+                  setPhase("projectActions");
+                }
+              }}
+            />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -1008,22 +1012,23 @@ export default function App(): React.ReactElement {
     const err = preview && "error" in preview ? preview.error : null;
     return (
       <Box flexDirection="column">
-        <Text bold>Live preview</Text>
-        <Box marginTop={1} flexDirection="column">
-          {err ? <StatusMessage variant="error">{err}</StatusMessage> : null}
-          {!err && !url ? <Spinner label="Starting local server…" /> : null}
-          {url ? (
-            <>
-              <StatusMessage variant="success">Serving at {url}</StatusMessage>
-              <Text color={C.dim}>Opened in your browser. It auto-reloads when the files change</Text>
-              <Text color={C.dim}>(e.g. after a resume/change build). ES modules + fetch work here,</Text>
-              <Text color={C.dim}>unlike opening the file directly.</Text>
-            </>
-          ) : null}
-        </Box>
-        <Box marginTop={1}>
-          <SelectInput items={[{ label: "Stop preview & go back", value: "stop" }]} onSelect={stop} />
-        </Box>
+        <Panel title="Live preview">
+          <Box flexDirection="column">
+            {err ? <StatusMessage variant="error">{err}</StatusMessage> : null}
+            {!err && !url ? <Spinner label="Starting local server…" /> : null}
+            {url ? (
+              <>
+                <StatusMessage variant="success">Serving at {url}</StatusMessage>
+                <Text color={C.textMuted}>Opened in your browser. It auto-reloads when the files change</Text>
+                <Text color={C.textMuted}>(e.g. after a resume/change build). ES modules + fetch work here,</Text>
+                <Text color={C.textMuted}>unlike opening the file directly.</Text>
+              </>
+            ) : null}
+          </Box>
+          <Box marginTop={1}>
+            <SelectInput items={[{ label: "Stop preview & go back", value: "stop" }]} onSelect={stop} />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -1105,6 +1110,7 @@ export default function App(): React.ReactElement {
           <Box marginTop={1}>
             <Text color={C.accent}>{"› "}</Text>
             <TextInput
+              key={assetKey}
               value={assetPath}
               onChange={setAssetPath}
               placeholder="/Users/you/Pictures/avatar.png"
@@ -1117,7 +1123,7 @@ export default function App(): React.ReactElement {
                   ? addAsset(targetWorkspace, assetPath)
                   : ({ ok: false, error: "No project selected." } as const);
                 setAssetMsg(r.ok ? { ok: true, text: `Added ${r.name}. You can now ask to use it in “Make changes”.` } : { ok: false, text: r.error });
-                if (r.ok) setAssetPath("");
+                if (r.ok) { setAssetPath(""); setAssetKey((k) => k + 1); }
               }}
             />
           </Box>
@@ -1579,11 +1585,10 @@ export default function App(): React.ReactElement {
     }));
     return (
       <Box flexDirection="column">
-        <Box alignItems="center">
+        <Box>
           <Text color="cyan"><Spinner type="dots" /></Text>
           <Text bold>{"  "}Building</Text>
-          <Text>{"  "}</Text>
-          <Chip label={`${running} running`} dotColor={C.info} />
+          <Text color={C.textSubtle}>{`     ${running} running`}</Text>
         </Box>
         {gate ? (
           <Box marginTop={1}>

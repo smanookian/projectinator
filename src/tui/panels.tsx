@@ -3,8 +3,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
-import { Badge } from "@inkjs/ui";
-import { C, ROLE_META, Panel } from "./components.js";
+import { C, ROLE_META, Panel, Chip } from "./components.js";
 import { groupByEpic, type BoardTask } from "./Kanban.js";
 import { effectiveRoster, modelLabel } from "./engine.js";
 
@@ -40,12 +39,12 @@ export function Standup({ tasks, spent }: { tasks: BoardTask[]; spent?: number }
 
   return (
     <Box gap={1} flexWrap="wrap">
-      <Badge color="green">✓ {done} done</Badge>
-      {running > 0 ? <Badge color="yellow">▶ {running} running</Badge> : null}
-      <Badge color="cyan">○ {ready} ready</Badge>
-      <Badge color="gray">{backlog} backlog</Badge>
-      <Badge color={C.accent}>${cost.toFixed(2)}</Badge>
-      {failed > 0 ? <Badge color="red">⚠ {failed} review</Badge> : null}
+      <Chip label={`${done} done`} dotColor={C.good} />
+      {running > 0 ? <Chip label={`${running} running`} dotColor={C.info} /> : null}
+      <Chip label={`${ready} ready`} dotColor="cyan" />
+      <Chip label={`${backlog} backlog`} />
+      <Chip label={`$${cost.toFixed(2)}`} dotColor={C.accent} />
+      {failed > 0 ? <Chip label={`${failed} review`} dotColor={C.bad} active /> : null}
     </Box>
   );
 }

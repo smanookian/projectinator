@@ -130,9 +130,12 @@ export function AppFrame({
 }): React.ReactElement {
   const rows = useTermRows();
   return (
-    <Box flexDirection="column" minHeight={rows}>
+    // Fixed height + overflow hidden so overly-tall content clips at the bottom
+    // instead of pushing the frame past the viewport (which would scroll the top
+    // bar off and unpin the status bar).
+    <Box flexDirection="column" height={rows} overflow="hidden">
       <TopBar projectName={projectName} phase={phase} />
-      <Box flexGrow={1} flexDirection="column" paddingX={1} paddingTop={1}>{children}</Box>
+      <Box flexGrow={1} flexDirection="column" paddingX={1} paddingTop={1} overflow="hidden">{children}</Box>
       <StatusBar />
     </Box>
   );

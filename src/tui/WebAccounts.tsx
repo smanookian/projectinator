@@ -74,7 +74,7 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
           <Box flexDirection="column" marginBottom={1}>
             <Text color={C.dim}>Sign in once to your paid web subscriptions. The app reuses one</Text>
             <Text color={C.dim}>background browser per provider — no window pops up per task.</Text>
-            <Text color={C.warn ?? "#d08770"}>Uses the web UI (not the API): fragile, and against provider ToS.</Text>
+            <Text color={C.warn}>Uses the web UI (not the API): fragile, and against provider ToS.</Text>
           </Box>
           <SelectInput
             items={[
@@ -106,7 +106,7 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
         <Box marginTop={1}>
           <SelectInput
             items={[
-              { label: connected ? "🔗 Reconnect (open login again)" : "🔗 Connect (open login window)", value: "connect" },
+              { label: connected ? "Reconnect (open login again)" : "Connect (open login window)", value: "connect" },
               ...(connected ? [{ label: "Test — send a quick 'hello'", value: "test" }] : []),
               ...(connected ? [{ label: "Disconnect (log out, wipe session)", value: "disconnect" }] : []),
               { label: "Back", value: "__back" },

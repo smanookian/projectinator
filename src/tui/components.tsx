@@ -160,7 +160,7 @@ export const C = {
   text: "white",
   textMuted: "#9aa0a6", // secondary text
   textSubtle: "#6b7178", // faint / metadata
-  dim: "gray", // legacy alias for textMuted-ish
+  dim: "#9aa0a6", // legacy alias — same gray as textMuted so all metadata matches
   // surfaces (for panels / bars)
   bgPanel: "#1b1b1b",
   bgElement: "#242424",

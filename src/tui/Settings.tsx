@@ -302,7 +302,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                     <Text color={C.accent}>{String(r.actualOutput).padEnd(8)}</Text>
                     <Text color={Math.abs(delta) > 40 ? C.warn : C.dim}>{`${delta >= 0 ? "+" : ""}${delta}%`.padEnd(8)}</Text>
                     {String(r.n).padEnd(4)}
-                    {r.active ? <Text color={C.good ?? "green"}>✓</Text> : <Text color={C.dim}>·</Text>}
+                    {r.active ? <Text color={C.good}>✓</Text> : <Text color={C.dim}>·</Text>}
                   </Text>
                 );
               })}

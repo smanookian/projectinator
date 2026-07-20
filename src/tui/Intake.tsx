@@ -69,12 +69,9 @@ export function Intake({
   if (q.multi && q.options.length) {
     return (
       <Box flexDirection="column">
-        <Text color={C.dim}>{progress}</Text>
+        <Text color={C.textSubtle}>{progress}</Text>
         <Panel title={q.question}>
-          <Box flexDirection="column">
-            <Text color={C.dim}>Pick any that apply.</Text>
-            <KeyHint hints={[{ keys: "Space", label: "toggle" }, { keys: "Enter", label: "confirm" }]} />
-          </Box>
+          <Text color={C.textMuted}>Pick any that apply.</Text>
           <MultiSelect
             options={[...q.options.map((o) => ({ label: o, value: o })), { label: "Something else…", value: OTHER }]}
             onSubmit={(vals: string[]) => {
@@ -83,6 +80,7 @@ export function Intake({
               else advance(picked.join(", "));
             }}
           />
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Space", label: "toggle" }, { keys: "Enter", label: "confirm" }]} /></Box>
         </Panel>
       </Box>
     );
@@ -91,8 +89,8 @@ export function Intake({
   // single-choice (or free-text-only when no options)
   const items = [
     ...q.options.map((o) => ({ label: o, value: o })),
-    { label: "📝 Something else…", value: OTHER },
-    { label: "⏭ Skip", value: SKIP },
+    { label: "Something else…", value: OTHER },
+    { label: "Skip", value: SKIP },
   ];
   return (
     <Box flexDirection="column">
