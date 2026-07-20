@@ -179,23 +179,6 @@ export function BoardEditor({
   return (
     <Box flexDirection="column">
       <Text bold>Plan board <Text color={C.dim}>({backlogCount} in backlog, {readyCount} ready to build)</Text></Text>
-      <KeyHint hints={[
-        { keys: "↑↓", label: "pick" },
-        { keys: "→/←", label: "col" },
-        { keys: "[ ]", label: "reorder" },
-        { keys: "a", label: "add" },
-        { keys: "e", label: "edit" },
-        { keys: "g", label: "epic" },
-        { keys: "D", label: "deps" },
-        { keys: "c", label: "cap" },
-        { keys: "f", label: "diff" },
-        { keys: "b", label: "break" },
-        { keys: "d", label: "del" },
-        { keys: "A", label: "all" },
-        { keys: "Z", label: "none" },
-        { keys: "Enter", label: "build" },
-        { keys: "Esc", label: "back" },
-      ]} />
       {warn ? <Text color={C.warn}>{warn}</Text> : null}
       {busy ? <Spinner label={`Breaking down “${busy}”…`} /> : null}
       {editing && editField === "epic" && selected ? (
@@ -241,6 +224,25 @@ export function BoardEditor({
           </Box>
         </Box>
       ))}
+      <Box marginTop={1}>
+        <KeyHint hints={[
+          { keys: "↑↓", label: "pick" },
+          { keys: "→/←", label: "col" },
+          { keys: "[ ]", label: "reorder" },
+          { keys: "a", label: "add" },
+          { keys: "e", label: "edit" },
+          { keys: "g", label: "epic" },
+          { keys: "D", label: "deps" },
+          { keys: "c", label: "cap" },
+          { keys: "f", label: "diff" },
+          { keys: "b", label: "break" },
+          { keys: "d", label: "del" },
+          { keys: "A", label: "all" },
+          { keys: "Z", label: "none" },
+          { keys: "Enter", label: "build" },
+          { keys: "Esc", label: "back" },
+        ]} />
+      </Box>
     </Box>
   );
 }

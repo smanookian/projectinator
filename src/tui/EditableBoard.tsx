@@ -103,19 +103,6 @@ export function EditableBoard({
   return (
     <Box flexDirection="column">
       <Text bold>Edit board <Text color={C.dim}>({items.length} tasks)</Text></Text>
-      <KeyHint hints={[
-        { keys: "↑↓", label: "pick" },
-        { keys: "[ ]", label: "reorder" },
-        { keys: "g", label: "epic" },
-        { keys: "D", label: "deps" },
-        { keys: "e", label: "rename" },
-        { keys: "c", label: "cap" },
-        { keys: "f", label: "diff" },
-        { keys: "a", label: "add" },
-        { keys: "d", label: "delete" },
-        { keys: "Enter", label: "save" },
-        { keys: "Esc", label: "back" },
-      ]} />
       {warn ? <Text color={C.warn}>{warn}</Text> : null}
       {editing && field === "epic" && selected ? (
         <Box><Text color={C.accent}>Epic for {selected.id}: </Text>
@@ -162,6 +149,21 @@ export function EditableBoard({
           })}
         </Box>
       ))}
+      <Box marginTop={1}>
+        <KeyHint hints={[
+          { keys: "↑↓", label: "pick" },
+          { keys: "[ ]", label: "reorder" },
+          { keys: "g", label: "epic" },
+          { keys: "D", label: "deps" },
+          { keys: "e", label: "rename" },
+          { keys: "c", label: "cap" },
+          { keys: "f", label: "diff" },
+          { keys: "a", label: "add" },
+          { keys: "d", label: "delete" },
+          { keys: "Enter", label: "save" },
+          { keys: "Esc", label: "back" },
+        ]} />
+      </Box>
     </Box>
   );
 }
