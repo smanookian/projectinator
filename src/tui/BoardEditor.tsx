@@ -6,7 +6,7 @@ import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { Spinner } from "@inkjs/ui";
 import type { Capability, Difficulty, Task } from "../types.js";
-import { C, TextField as TextInput } from "./components.js";
+import { C, KeyHint, TextField as TextInput } from "./components.js";
 import { cleanDeps } from "./engine.js";
 import { estimateTokens } from "../estimate.js";
 import { groupByEpic } from "./Kanban.js";
@@ -179,7 +179,23 @@ export function BoardEditor({
   return (
     <Box flexDirection="column">
       <Text bold>Plan board <Text color={C.dim}>({backlogCount} in backlog, {readyCount} ready to build)</Text></Text>
-      <Text color={C.dim}>↑↓ pick · →/← col · [ ] reorder · a add · e edit · g epic · D deps · c cap · f diff · b break · d del · A all · Z none · enter build · esc</Text>
+      <KeyHint hints={[
+        { keys: "↑↓", label: "pick" },
+        { keys: "→/←", label: "col" },
+        { keys: "[ ]", label: "reorder" },
+        { keys: "a", label: "add" },
+        { keys: "e", label: "edit" },
+        { keys: "g", label: "epic" },
+        { keys: "D", label: "deps" },
+        { keys: "c", label: "cap" },
+        { keys: "f", label: "diff" },
+        { keys: "b", label: "break" },
+        { keys: "d", label: "del" },
+        { keys: "A", label: "all" },
+        { keys: "Z", label: "none" },
+        { keys: "Enter", label: "build" },
+        { keys: "Esc", label: "back" },
+      ]} />
       {warn ? <Text color={C.warn}>{warn}</Text> : null}
       {busy ? <Spinner label={`Breaking down “${busy}”…`} /> : null}
       {editing && editField === "epic" && selected ? (

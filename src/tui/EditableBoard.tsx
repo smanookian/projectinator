@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { Capability, Difficulty, Task } from "../types.js";
-import { C, ROLE_META, TextField as TextInput } from "./components.js";
+import { C, ROLE_META, KeyHint, TextField as TextInput } from "./components.js";
 import { estimateTokens } from "../estimate.js";
 import { groupByEpic } from "./Kanban.js";
 
@@ -103,7 +103,19 @@ export function EditableBoard({
   return (
     <Box flexDirection="column">
       <Text bold>Edit board <Text color={C.dim}>({items.length} tasks)</Text></Text>
-      <Text color={C.dim}>↑↓ pick · [ ] reorder · g epic · D deps · e rename · c cap · f diff · a add · d delete · enter save · esc</Text>
+      <KeyHint hints={[
+        { keys: "↑↓", label: "pick" },
+        { keys: "[ ]", label: "reorder" },
+        { keys: "g", label: "epic" },
+        { keys: "D", label: "deps" },
+        { keys: "e", label: "rename" },
+        { keys: "c", label: "cap" },
+        { keys: "f", label: "diff" },
+        { keys: "a", label: "add" },
+        { keys: "d", label: "delete" },
+        { keys: "Enter", label: "save" },
+        { keys: "Esc", label: "back" },
+      ]} />
       {warn ? <Text color={C.warn}>{warn}</Text> : null}
       {editing && field === "epic" && selected ? (
         <Box><Text color={C.accent}>Epic for {selected.id}: </Text>
