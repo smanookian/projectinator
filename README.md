@@ -16,12 +16,27 @@ watch it happen from a terminal cockpit: a live board, budget bar, and a standup
 
 Built on the [Pi](https://pi.dev) agent harness (Node/TypeScript). Bring your own API key.
 
+**Run it — no clone needed** (Node ≥ 20):
+
 ```bash
+npx github:smanookian/projectinator
+```
+
+Then, inside the app: **Settings → API keys** and paste an Anthropic, OpenAI, or Gemini key
+(stored at `~/.projectinator`, never in the repo). That's it — pick **New build** and go.
+
+<details>
+<summary>Run from source instead</summary>
+
+```bash
+git clone https://github.com/smanookian/projectinator && cd projectinator
 npm install
-npx playwright install chromium     # for the tester to actually run web apps
-export ANTHROPIC_API_KEY=sk-ant-... # or OPENAI_API_KEY / GEMINI_API_KEY
 npm start
 ```
+</details>
+
+> **Optional:** `npx playwright install chromium` lets the tester actually run web apps in a
+> headless browser and enables live preview. Everything else works without it.
 
 > Projectinator spends **your** API money. Every screen shows the running cost; you set a
 > budget cap and it halts before crossing it. A tiny landing page is cents; a full app is

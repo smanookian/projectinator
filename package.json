@@ -6,6 +6,16 @@
   "private": true,
   "license": "MIT",
   "author": "Stepan Manookian",
+  "bin": {
+    "projectinator": "bin/projectinator.mjs"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "tsx src/tui.tsx",
     "demo": "tsx src/demo.ts",
@@ -24,7 +34,6 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.2.17",
     "ink-testing-library": "^4.0.0",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
@@ -35,6 +44,7 @@
     "ink-spinner": "^5.0.0",
     "playwright": "^1.61.1",
     "react": "^19.2.7",
+    "tsx": "^4.19.2",
     "typebox": "^1.1.38"
   }
 }
