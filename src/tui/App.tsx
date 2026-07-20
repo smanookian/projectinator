@@ -357,7 +357,7 @@ export default function App(): React.ReactElement {
       ? `locked to ${PROVIDER_LABEL[providers[0]!]}`
       : "best model per role";
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         {ready ? (
           <Panel title="Ready to build">
             <Text color={C.textMuted}>Your team is connected.</Text>
@@ -404,7 +404,7 @@ export default function App(): React.ReactElement {
       { label: "Quit", value: "quit" },
     ];
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="What would you like to do?">
           <SelectInput
             items={items}
@@ -1031,7 +1031,7 @@ export default function App(): React.ReactElement {
   if (phase === "filterEpic" && selected) {
     const epics = [...new Set(selected.state.tasks.map((t) => t.epic || "General"))];
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="Filter by epic">
           <SelectInput
             items={[
@@ -1050,7 +1050,7 @@ export default function App(): React.ReactElement {
 
   if (phase === "rename" && selected) {
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="Rename project">
           <Box>
             <Text color={C.accent}>{"› "}</Text>
@@ -1072,7 +1072,7 @@ export default function App(): React.ReactElement {
 
   if (phase === "confirmDelete" && selected) {
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="Delete this project?" borderColor={C.bad}>
           <Text color={C.textMuted} wrap="truncate-end">{selected.idea}</Text>
           <Text color={C.textSubtle}>This permanently removes its folder and files. Can't be undone.</Text>
@@ -1149,7 +1149,7 @@ export default function App(): React.ReactElement {
 
   if (phase === "saveTemplate" && selected) {
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="Save as template">
           <Text color={C.textMuted}>Reuse this project's brief as a starting point for future builds.</Text>
           <Box marginTop={1}>
@@ -1174,7 +1174,7 @@ export default function App(): React.ReactElement {
 
   if (phase === "importTemplate") {
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="Import a shared template">
           <Text color={C.textMuted}>Paste the path to a .pitemplate.json file someone shared.</Text>
           {flash ? <Box marginTop={1}><StatusMessage variant="error">{flash}</StatusMessage></Box> : null}
@@ -1226,7 +1226,7 @@ export default function App(): React.ReactElement {
 
   if (phase === "tplActions" && tplSel) {
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title={tplSel.name}>
           {flash ? <Box marginBottom={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
           <SelectInput
@@ -1283,7 +1283,7 @@ export default function App(): React.ReactElement {
 
   if (phase === "idea") {
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="What do you want to build?">
           <Box>
             <Text color={C.accent}>{"› "}</Text>
@@ -1349,7 +1349,7 @@ export default function App(): React.ReactElement {
 
   if (phase === "planMode") {
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="How should the team plan this?">
           <SelectInput
             items={[
@@ -1422,7 +1422,7 @@ export default function App(): React.ReactElement {
   if (phase === "setCap") {
     const globalCap = getPrefs().budgetCapUSD;
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="Budget cap for this project">
           <Text color={C.textMuted}>The build halts if spend passes this. Leave blank to use the global default (${globalCap}).</Text>
           <Box marginTop={1}>

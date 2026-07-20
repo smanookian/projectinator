@@ -117,7 +117,7 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
   // ---------- error ----------
   if (view.kind === "error") {
     return (
-      <Box flexGrow={1} alignItems="center" justifyContent="center">
+      <Box flexDirection="column">
         <Panel title="Bake-off failed" borderColor={C.bad}>
           <StatusMessage variant="error">{view.msg}</StatusMessage>
           <Box marginTop={1}>
