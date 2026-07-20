@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Box, Text, useApp, useInput } from "ink";
-import { Spinner, StatusMessage, Badge } from "@inkjs/ui";
+import { Spinner, StatusMessage } from "@inkjs/ui";
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
 import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
@@ -1349,9 +1349,8 @@ export default function App(): React.ReactElement {
 
   if (phase === "planMode") {
     return (
-      <Box flexDirection="column">
-        <Text bold>How should the team plan this?</Text>
-        <Box marginTop={1}>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title="How should the team plan this?">
           <SelectInput
             items={[
               { label: "Quick plan — one PM breaks it into tasks", value: "quick" },
@@ -1362,11 +1361,11 @@ export default function App(): React.ReactElement {
               else { setApprovedEpics(null); setPhase("planning"); }
             }}
           />
-        </Box>
-        <Box flexDirection="column" marginTop={1}>
-          <Text color={C.dim}>Deep plan is worth it for bigger/complex builds.</Text>
-          <KeyHint hints={[{ keys: "Esc", label: "go back" }]} />
-        </Box>
+          <Box flexDirection="column" marginTop={1}>
+            <Text color={C.textSubtle}>Deep plan is worth it for bigger/complex builds.</Text>
+            <KeyHint hints={[{ keys: "Esc", label: "go back" }]} />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -1384,17 +1383,16 @@ export default function App(): React.ReactElement {
     const epics = council.result.epics;
     return (
       <Box flexDirection="column">
-        <Text bold>Proposed epics ({epics.length})</Text>
-        <Text color={C.dim}>The council merged the architect / product / risk views. Approve to expand into tasks.</Text>
-        <Box marginTop={1} flexDirection="column">
-          {epics.map((e, i) => (
-            <Box key={i} flexDirection="column" marginBottom={1}>
-              <Text><Text color={C.accent}>{i + 1}. {e.name}</Text></Text>
-              <Text color={C.dim} wrap="wrap">   {e.rationale}</Text>
-            </Box>
-          ))}
-        </Box>
-        <Box marginTop={1}>
+        <Panel title={`Proposed epics (${epics.length})`}>
+          <Text color={C.textMuted}>The council merged the architect / product / risk views. Approve to expand into tasks.</Text>
+          <Box marginTop={1} flexDirection="column">
+            {epics.map((e, i) => (
+              <Box key={i} flexDirection="column" marginBottom={1}>
+                <Text><Text color={C.accent}>{i + 1}. {e.name}</Text></Text>
+                <Text color={C.textSubtle} wrap="wrap">   {e.rationale}</Text>
+              </Box>
+            ))}
+          </Box>
           <SelectInput
             items={[
               { label: "Approve — expand these epics into tasks", value: "approve" },
@@ -1407,7 +1405,7 @@ export default function App(): React.ReactElement {
               else setPhase("planMode");
             }}
           />
-        </Box>
+        </Panel>
       </Box>
     );
   }
@@ -1424,31 +1422,32 @@ export default function App(): React.ReactElement {
   if (phase === "setCap") {
     const globalCap = getPrefs().budgetCapUSD;
     return (
-      <Box flexDirection="column">
-        <Text bold>Budget cap for this project</Text>
-        <Text color={C.dim}>The build halts if spend passes this. Leave blank to use the global default (${globalCap}).</Text>
-        <Box marginTop={1}>
-          <Text color={C.accent}>{"$ "}</Text>
-          <TextInput
-            value={capDraft}
-            onChange={setCapDraft}
-            onSubmit={() => {
-              const v = capDraft.trim();
-              const parsed = v === "" ? null : parseFloat(v);
-              const cap = parsed != null && parsed > 0 ? parsed : null;
-              if (capReturn === "projectActions" && selected) {
-                setProjectBudget(selected.dir, cap ?? undefined);
-                setProjectCap(cap);
-                reselect(selected.dir);
-                setPhase("projectActions");
-              } else {
-                setProjectCap(cap);
-                setPhase("plan");
-              }
-            }}
-          />
-        </Box>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "cancel" }]} /></Box>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title="Budget cap for this project">
+          <Text color={C.textMuted}>The build halts if spend passes this. Leave blank to use the global default (${globalCap}).</Text>
+          <Box marginTop={1}>
+            <Text color={C.accent}>{"$ "}</Text>
+            <TextInput
+              value={capDraft}
+              onChange={setCapDraft}
+              onSubmit={() => {
+                const v = capDraft.trim();
+                const parsed = v === "" ? null : parseFloat(v);
+                const cap = parsed != null && parsed > 0 ? parsed : null;
+                if (capReturn === "projectActions" && selected) {
+                  setProjectBudget(selected.dir, cap ?? undefined);
+                  setProjectCap(cap);
+                  reselect(selected.dir);
+                  setPhase("projectActions");
+                } else {
+                  setProjectCap(cap);
+                  setPhase("plan");
+                }
+              }}
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "cancel" }]} /></Box>
+        </Panel>
       </Box>
     );
   }
@@ -1459,20 +1458,17 @@ export default function App(): React.ReactElement {
     const overCap = plan.estCost > effCap;
     return (
       <Box flexDirection="column">
-        <Text bold>Plan ready.</Text>
+        <Text bold color={C.good}>✓ Plan ready</Text>
         <Box marginTop={1}><Team /></Box>
-        <Box marginTop={1} flexDirection="column">
-          <Text>
-            {"  "}Tasks: <Text color={C.accent} bold>{plan.tasks.length}</Text>
-            {"   "}Estimated cost: <Badge color={overCap ? "red" : C.accent}>${plan.estCost.toFixed(2)}</Badge>
-            <Text color={C.dim}> (cap ${effCap}{projectCap != null ? " · this project" : ""})</Text>
-          </Text>
-          <Text color={C.dim}>
-            {"  "}Runs {prefs.concurrency} tasks at once. {targetWorkspace ? "Edits this project's files." : "Output goes to a fresh folder."}
-          </Text>
+        <Box marginTop={1} gap={1} flexWrap="wrap">
+          <Chip label={`${plan.tasks.length} tasks`} dotColor={C.accent} />
+          <Chip label={`est $${plan.estCost.toFixed(2)}`} dotColor={overCap ? C.bad : C.good} active={overCap} />
+          <Chip label={`cap $${effCap}${projectCap != null ? " · project" : ""}`} />
         </Box>
+        <Text color={C.textSubtle}>
+          {"  "}Runs {prefs.concurrency} at once · {targetWorkspace ? "edits this project's files" : "output to a fresh folder"} · {mode === "approval" ? "approval-gated" : "auto-run"}
+        </Text>
         {overCap && <Text color={C.bad}>{"\n"}Estimate exceeds the ${effCap} cap — it may halt partway.</Text>}
-        <Text color={C.dim}>{"\n"}Workflow: {mode === "approval" ? "approval-gated (approve the backlog, then again after design before dev)" : "auto-run"}.</Text>
         <Box marginTop={1}>
           <Panel title="Ready?">
           <SelectInput
@@ -1639,7 +1635,7 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Text bold color={buildResult.halted ? C.warn : C.good}>
-          {buildResult.halted ? "⚠ Build halted (budget cap)." : "✓ Build complete."}
+          {buildResult.halted ? "⚠ Build halted (budget cap)" : "✓ Build complete"}
         </Text>
         <Box marginTop={1}>
           <Standup
@@ -1647,13 +1643,15 @@ export default function App(): React.ReactElement {
             spent={spent}
           />
         </Box>
-        <Box marginTop={1} flexDirection="column">
-          <Text>
-            {"  "}Total cost: <Text color={C.accent}>${spent.toFixed(2)}</Text>
-          </Text>
-          <Text color={C.dim}>{"  "}Files: {buildResult.files.join(", ") || "(none)"}</Text>
-          <Text color={C.dim}>{"  "}Location: {buildResult.workspace}</Text>
-          {buildResult.halted && <Text color={C.dim}>{"  "}Choose “Resume build” from your projects to continue.</Text>}
+        <Box marginTop={1}>
+          <Panel title="Result">
+            <Box gap={1} flexWrap="wrap" marginBottom={1}>
+              <Chip label={`$${spent.toFixed(2)} total`} dotColor={C.accent} />
+              <Chip label={`${buildResult.files.length} file${buildResult.files.length === 1 ? "" : "s"}`} dotColor={C.good} />
+            </Box>
+            <Text color={C.textSubtle} wrap="truncate-end">Location: {buildResult.workspace}</Text>
+            {buildResult.halted && <Text color={C.textMuted}>Choose “Resume build” from your projects to continue.</Text>}
+          </Panel>
         </Box>
         <Box marginTop={1}>
           <SelectInput
