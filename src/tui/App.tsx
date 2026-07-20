@@ -1205,9 +1205,8 @@ export default function App(): React.ReactElement {
     const mine = allTemplates().filter((t) => !t.builtin);
     return (
       <Box flexDirection="column">
-        <Text bold>My templates</Text>
-        {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
-        <Box marginTop={1}>
+        <Panel title="My templates">
+          {flash ? <Box marginBottom={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
           <SelectInput
             items={[
               ...mine.map((t) => ({ label: `${t.name}  —  ${t.blurb}`, value: t.name })),
@@ -1219,18 +1218,17 @@ export default function App(): React.ReactElement {
               setPhase("tplActions");
             }}
           />
-        </Box>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
+        </Panel>
       </Box>
     );
   }
 
   if (phase === "tplActions" && tplSel) {
     return (
-      <Box flexDirection="column">
-        <Text bold>{tplSel.name}</Text>
-        {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
-        <Box marginTop={1}>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title={tplSel.name}>
+          {flash ? <Box marginBottom={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
           <SelectInput
             items={[
               { label: "Share — export to a file", value: "export" },
@@ -1243,7 +1241,7 @@ export default function App(): React.ReactElement {
               else setPhase("myTemplates");
             }}
           />
-        </Box>
+        </Panel>
       </Box>
     );
   }
@@ -1253,44 +1251,46 @@ export default function App(): React.ReactElement {
     const hasUser = tpls.some((t) => !t.builtin);
     return (
       <Box flexDirection="column">
-        <Text bold>Start from a template</Text>
-        <Text color={C.dim}>Pick one — you can edit the tasks on the board after. ★ = yours.</Text>
-        {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              ...tpls.map((t) => ({ label: `${t.builtin ? "  " : "★ "}${t.name}  —  ${t.blurb}`, value: `t:${t.name}` })),
-              { label: "Import a shared template…", value: "__import" },
-              ...(hasUser ? [{ label: "Manage my templates", value: "__manage" }] : []),
-              { label: "Back", value: "__back" },
-            ]}
-            onSelect={(i) => {
-              if (i.value === "__back") { setFlash(""); setPhase("home"); return; }
-              if (i.value === "__import") { setFlash(""); setTplPath(""); setPhase("importTemplate"); return; }
-              if (i.value === "__manage") { setFlash(""); setPhase("myTemplates"); return; }
-              const name = i.value.slice(2);
-              const tpl = tpls.find((t) => t.name === name)!;
-              resetBuildContext();
-              setScope("full");
-              setIdea(tpl.idea);
-              setPhase("stack");
-            }}
-          />
-        </Box>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
+        <Panel title="Start from a template">
+          <Text color={C.textMuted}>Pick one — you can edit the tasks on the board after. ★ = yours.</Text>
+          {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                ...tpls.map((t) => ({ label: `${t.builtin ? "  " : "★ "}${t.name}  —  ${t.blurb}`, value: `t:${t.name}` })),
+                { label: "Import a shared template…", value: "__import" },
+                ...(hasUser ? [{ label: "Manage my templates", value: "__manage" }] : []),
+                { label: "Back", value: "__back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "__back") { setFlash(""); setPhase("home"); return; }
+                if (i.value === "__import") { setFlash(""); setTplPath(""); setPhase("importTemplate"); return; }
+                if (i.value === "__manage") { setFlash(""); setPhase("myTemplates"); return; }
+                const name = i.value.slice(2);
+                const tpl = tpls.find((t) => t.name === name)!;
+                resetBuildContext();
+                setScope("full");
+                setIdea(tpl.idea);
+                setPhase("stack");
+              }}
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
+        </Panel>
       </Box>
     );
   }
 
   if (phase === "idea") {
     return (
-      <Box flexDirection="column">
-        <Text bold>What do you want to build?</Text>
-        <Box marginTop={1}>
-          <Text color={C.accent}>{"› "}</Text>
-          <TextInput value={idea} onChange={setIdea} onSubmit={() => idea.trim() && setPhase("stack")} placeholder="a landing page for a coffee shop with a menu and contact form" />
-        </Box>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "continue" }, { keys: "Esc", label: "go back" }]} /></Box>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title="What do you want to build?">
+          <Box>
+            <Text color={C.accent}>{"› "}</Text>
+            <TextInput value={idea} onChange={setIdea} onSubmit={() => idea.trim() && setPhase("stack")} placeholder="a landing page for a coffee shop with a menu and contact form" />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "continue" }, { keys: "Esc", label: "go back" }]} /></Box>
+        </Panel>
       </Box>
     );
   }
