@@ -1,11 +1,33 @@
 {
   "name": "projectinator",
   "version": "0.1.0",
-  "description": "Multi-LLM app-building pipeline — routes Scrum tasks to the best model per job. Phase 1: registry + router + cost estimator.",
+  "description": "Your AI build team in the terminal — hand it an app idea, a PM model plans a Scrum backlog, and the best model per role designs, codes, and tests it into working files. Bring your own API key.",
   "type": "module",
-  "private": true,
+  "private": false,
   "license": "MIT",
   "author": "Stepan Manookian",
+  "homepage": "https://github.com/smanookian/projectinator#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smanookian/projectinator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/smanookian/projectinator/issues"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "cli",
+    "tui",
+    "ink",
+    "agent",
+    "scrum",
+    "code-generation",
+    "app-builder",
+    "anthropic",
+    "openai",
+    "gemini"
+  ],
   "bin": {
     "projectinator": "bin/projectinator.mjs"
   },
@@ -18,6 +40,7 @@
   },
   "scripts": {
     "start": "tsx src/tui.tsx",
+    "prepublishOnly": "npm run typecheck && npm test",
     "demo": "tsx src/demo.ts",
     "dev:task": "tsx src/run-dev.ts",
     "pm": "tsx src/run-pm.ts",
