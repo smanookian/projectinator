@@ -672,30 +672,31 @@ export default function App(): React.ReactElement {
     };
     return (
       <Box flexDirection="column">
-        <Text bold>Export backlog</Text>
-        <Text color={C.dim}>Writes files into the project folder. Import them into your tool of choice.</Text>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              { label: "Markdown + CSV (readable + spreadsheet)", value: "md" },
-              { label: "Jira CSV (Jira → External System Import → CSV)", value: "jira" },
-              { label: "Trello CSV (Trello CSV-import Power-Up)", value: "trello" },
-              { label: "All formats", value: "all" },
-              { label: "Back", value: "back" },
-            ]}
-            onSelect={(i) => {
-              const back = () => setPhase("projectActions");
-              if (i.value === "back") return back();
-              if (i.value === "md") return run(() => { const { md, csv } = exportProject(dir); return [md, csv]; }, back);
-              if (i.value === "jira") return run(() => exportJira(dir), back);
-              if (i.value === "trello") return run(() => exportTrello(dir), back);
-              if (i.value === "all") return run(() => {
-                const { md, csv } = exportProject(dir);
-                return [md, csv, exportJira(dir), exportTrello(dir)];
-              }, back);
-            }}
-          />
-        </Box>
+        <Panel title="Export backlog">
+          <Text color={C.textMuted}>Writes files into the project folder. Import them into your tool of choice.</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                { label: "Markdown + CSV (readable + spreadsheet)", value: "md" },
+                { label: "Jira CSV (Jira → External System Import → CSV)", value: "jira" },
+                { label: "Trello CSV (Trello CSV-import Power-Up)", value: "trello" },
+                { label: "All formats", value: "all" },
+                { label: "Back", value: "back" },
+              ]}
+              onSelect={(i) => {
+                const back = () => setPhase("projectActions");
+                if (i.value === "back") return back();
+                if (i.value === "md") return run(() => { const { md, csv } = exportProject(dir); return [md, csv]; }, back);
+                if (i.value === "jira") return run(() => exportJira(dir), back);
+                if (i.value === "trello") return run(() => exportTrello(dir), back);
+                if (i.value === "all") return run(() => {
+                  const { md, csv } = exportProject(dir);
+                  return [md, csv, exportJira(dir), exportTrello(dir)];
+                }, back);
+              }}
+            />
+          </Box>
+        </Panel>
         <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
@@ -716,26 +717,27 @@ export default function App(): React.ReactElement {
     const targets: DeployTarget[] = ["cloudflare", "vercel", "netlify"];
     return (
       <Box flexDirection="column">
-        <Text bold>Deploy</Text>
-        <Text color={C.dim}>Publishes the built site publicly. Each target needs its CLI installed and signed in.</Text>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              ...targets.map((t) => ({ label: `${DEPLOY_META[t].label}   (${DEPLOY_META[t].cli})`, value: t })),
-              { label: "Back", value: "back" },
-            ]}
-            onSelect={(i) => {
-              if (i.value === "back") return setPhase("projectActions");
-              start(i.value as DeployTarget);
-            }}
-          />
-        </Box>
-        <Box marginTop={1} flexDirection="column">
-          <Text color={C.dim}>Sign-in per target (one-time):</Text>
-          {targets.map((t) => (
-            <Text key={t} color={C.dim}>  {DEPLOY_META[t].label}: {DEPLOY_META[t].auth}</Text>
-          ))}
-        </Box>
+        <Panel title="Deploy">
+          <Text color={C.textMuted}>Publishes the built site publicly. Each target needs its CLI installed and signed in.</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                ...targets.map((t) => ({ label: `${DEPLOY_META[t].label}   (${DEPLOY_META[t].cli})`, value: t })),
+                { label: "Back", value: "back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "back") return setPhase("projectActions");
+                start(i.value as DeployTarget);
+              }}
+            />
+          </Box>
+          <Box marginTop={1} flexDirection="column">
+            <Text color={C.textSubtle}>Sign-in per target (one-time):</Text>
+            {targets.map((t) => (
+              <Text key={t} color={C.textSubtle}>  {DEPLOY_META[t].label}: {DEPLOY_META[t].auth}</Text>
+            ))}
+          </Box>
+        </Panel>
         <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
@@ -1029,9 +1031,8 @@ export default function App(): React.ReactElement {
   if (phase === "filterEpic" && selected) {
     const epics = [...new Set(selected.state.tasks.map((t) => t.epic || "General"))];
     return (
-      <Box flexDirection="column">
-        <Text bold>Filter by epic</Text>
-        <Box marginTop={1}>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title="Filter by epic">
           <SelectInput
             items={[
               { label: "All epics", value: "__all" },
@@ -1042,53 +1043,55 @@ export default function App(): React.ReactElement {
               setPhase("projectActions");
             }}
           />
-        </Box>
+        </Panel>
       </Box>
     );
   }
 
   if (phase === "rename" && selected) {
     return (
-      <Box flexDirection="column">
-        <Text bold>Rename project</Text>
-        <Box marginTop={1}>
-          <Text color={C.accent}>{"› "}</Text>
-          <TextInput
-            value={renameDraft}
-            onChange={setRenameDraft}
-            onSubmit={() => {
-              if (renameDraft.trim()) renameProject(selected.dir, renameDraft.trim());
-              reselect(selected.dir);
-              setPhase("projectActions");
-            }}
-          />
-        </Box>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "go back" }]} /></Box>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title="Rename project">
+          <Box>
+            <Text color={C.accent}>{"› "}</Text>
+            <TextInput
+              value={renameDraft}
+              onChange={setRenameDraft}
+              onSubmit={() => {
+                if (renameDraft.trim()) renameProject(selected.dir, renameDraft.trim());
+                reselect(selected.dir);
+                setPhase("projectActions");
+              }}
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "go back" }]} /></Box>
+        </Panel>
       </Box>
     );
   }
 
   if (phase === "confirmDelete" && selected) {
     return (
-      <Box flexDirection="column">
-        <Text bold color={C.bad}>Delete this project?</Text>
-        <Text color={C.dim} wrap="truncate-end">{"  "}{selected.idea}</Text>
-        <Text color={C.dim}>{"  "}This permanently removes its folder and files. Can't be undone.</Text>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              { label: "No, keep it", value: "no" },
-              { label: "Yes, delete", value: "yes" },
-            ]}
-            onSelect={(i) => {
-              if (i.value === "yes") {
-                deleteProject(selected.dir);
-                const list = reselect(null);
-                setPhase(list.length ? "projects" : "home");
-              } else setPhase("projectActions");
-            }}
-          />
-        </Box>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title="Delete this project?" borderColor={C.bad}>
+          <Text color={C.textMuted} wrap="truncate-end">{selected.idea}</Text>
+          <Text color={C.textSubtle}>This permanently removes its folder and files. Can't be undone.</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                { label: "No, keep it", value: "no" },
+                { label: "Yes, delete", value: "yes" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "yes") {
+                  deleteProject(selected.dir);
+                  const list = reselect(null);
+                  setPhase(list.length ? "projects" : "home");
+                } else setPhase("projectActions");
+              }}
+            />
+          </Box>
+        </Panel>
       </Box>
     );
   }
@@ -1096,29 +1099,30 @@ export default function App(): React.ReactElement {
   if (phase === "addAsset") {
     return (
       <Box flexDirection="column">
-        <Text bold>Add a file to this project</Text>
-        <Text color={C.dim}>Paste the full path to an image or file. Tip: drag the file into the terminal to paste its path. ~ works.</Text>
-        {assetMsg ? <Text color={assetMsg.ok ? C.good : C.bad}>{"\n"}{assetMsg.ok ? "✓ " : "✗ "}{assetMsg.text}</Text> : null}
-        <Box marginTop={1}>
-          <Text color={C.accent}>{"› "}</Text>
-          <TextInput
-            value={assetPath}
-            onChange={setAssetPath}
-            placeholder="/Users/you/Pictures/avatar.png"
-            onSubmit={() => {
-              if (!assetPath.trim()) {
-                setPhase(assetReturn);
-                return;
-              }
-              const r = targetWorkspace
-                ? addAsset(targetWorkspace, assetPath)
-                : ({ ok: false, error: "No project selected." } as const);
-              setAssetMsg(r.ok ? { ok: true, text: `Added ${r.name}. You can now ask to use it in “Make changes”.` } : { ok: false, text: r.error });
-              if (r.ok) setAssetPath("");
-            }}
-          />
-        </Box>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "add" }, { keys: "Esc", label: "go back" }]} /></Box>
+        <Panel title="Add a file to this project">
+          <Text color={C.textMuted}>Paste the full path to an image or file. Tip: drag the file into the terminal to paste its path. ~ works.</Text>
+          {assetMsg ? <Text color={assetMsg.ok ? C.good : C.bad}>{"\n"}{assetMsg.ok ? "✓ " : "✗ "}{assetMsg.text}</Text> : null}
+          <Box marginTop={1}>
+            <Text color={C.accent}>{"› "}</Text>
+            <TextInput
+              value={assetPath}
+              onChange={setAssetPath}
+              placeholder="/Users/you/Pictures/avatar.png"
+              onSubmit={() => {
+                if (!assetPath.trim()) {
+                  setPhase(assetReturn);
+                  return;
+                }
+                const r = targetWorkspace
+                  ? addAsset(targetWorkspace, assetPath)
+                  : ({ ok: false, error: "No project selected." } as const);
+                setAssetMsg(r.ok ? { ok: true, text: `Added ${r.name}. You can now ask to use it in “Make changes”.` } : { ok: false, text: r.error });
+                if (r.ok) setAssetPath("");
+              }}
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "add" }, { keys: "Esc", label: "go back" }]} /></Box>
+        </Panel>
       </Box>
     );
   }
@@ -1126,70 +1130,73 @@ export default function App(): React.ReactElement {
   if (phase === "change") {
     return (
       <Box flexDirection="column">
-        <Text bold>Add to the backlog</Text>
-        <Text color={C.dim}>Describe what to add or change — the PM plans it into new tasks against this project's files.</Text>
-        <Box marginTop={1}>
-          <Text color={C.accent}>{"› "}</Text>
-          <TextInput
-            value={idea}
-            onChange={setIdea}
-            onSubmit={() => idea.trim() && setPhase("assessing")}
-            placeholder="make the header dark blue and add a footer with a copyright line"
-          />
-        </Box>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "continue" }, { keys: "Esc", label: "go back" }]} /></Box>
+        <Panel title="Add to the backlog">
+          <Text color={C.textMuted}>Describe what to add or change — the PM plans it into new tasks against this project's files.</Text>
+          <Box marginTop={1}>
+            <Text color={C.accent}>{"› "}</Text>
+            <TextInput
+              value={idea}
+              onChange={setIdea}
+              onSubmit={() => idea.trim() && setPhase("assessing")}
+              placeholder="make the header dark blue and add a footer with a copyright line"
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "continue" }, { keys: "Esc", label: "go back" }]} /></Box>
+        </Panel>
       </Box>
     );
   }
 
   if (phase === "saveTemplate" && selected) {
     return (
-      <Box flexDirection="column">
-        <Text bold>Save as template</Text>
-        <Text color={C.dim}>Reuse this project's brief as a starting point for future builds.</Text>
-        <Box marginTop={1}>
-          <Text color={C.accent}>{"name › "}</Text>
-          <TextInput
-            value={tplName}
-            onChange={setTplName}
-            onSubmit={() => {
-              const name = tplName.trim();
-              if (!name) { setPhase("projectActions"); return; }
-              saveUserTemplate({ name, blurb: selected.idea.slice(0, 48), idea: selected.state.idea ?? selected.idea });
-              setFlash(`Saved template “${name}”.`);
-              setPhase("projectActions");
-            }}
-          />
-        </Box>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "cancel" }]} /></Box>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title="Save as template">
+          <Text color={C.textMuted}>Reuse this project's brief as a starting point for future builds.</Text>
+          <Box marginTop={1}>
+            <Text color={C.accent}>{"name › "}</Text>
+            <TextInput
+              value={tplName}
+              onChange={setTplName}
+              onSubmit={() => {
+                const name = tplName.trim();
+                if (!name) { setPhase("projectActions"); return; }
+                saveUserTemplate({ name, blurb: selected.idea.slice(0, 48), idea: selected.state.idea ?? selected.idea });
+                setFlash(`Saved template “${name}”.`);
+                setPhase("projectActions");
+              }}
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "cancel" }]} /></Box>
+        </Panel>
       </Box>
     );
   }
 
   if (phase === "importTemplate") {
     return (
-      <Box flexDirection="column">
-        <Text bold>Import a shared template</Text>
-        <Text color={C.dim}>Paste the path to a .pitemplate.json file someone shared.</Text>
-        {flash ? <Box marginTop={1}><StatusMessage variant="error">{flash}</StatusMessage></Box> : null}
-        <Box marginTop={1}>
-          <Text color={C.accent}>{"› "}</Text>
-          <TextInput
-            value={tplPath}
-            onChange={setTplPath}
-            onSubmit={() => {
-              if (!tplPath.trim()) { setPhase("templates"); return; }
-              try {
-                const t = importTemplate(tplPath);
-                setFlash(`Imported “${t.name}”.`);
-                setPhase("templates");
-              } catch (e) {
-                setFlash(e instanceof Error ? e.message : "Import failed.");
-              }
-            }}
-          />
-        </Box>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "import" }, { keys: "Esc", label: "cancel" }]} /></Box>
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
+        <Panel title="Import a shared template">
+          <Text color={C.textMuted}>Paste the path to a .pitemplate.json file someone shared.</Text>
+          {flash ? <Box marginTop={1}><StatusMessage variant="error">{flash}</StatusMessage></Box> : null}
+          <Box marginTop={1}>
+            <Text color={C.accent}>{"› "}</Text>
+            <TextInput
+              value={tplPath}
+              onChange={setTplPath}
+              onSubmit={() => {
+                if (!tplPath.trim()) { setPhase("templates"); return; }
+                try {
+                  const t = importTemplate(tplPath);
+                  setFlash(`Imported “${t.name}”.`);
+                  setPhase("templates");
+                } catch (e) {
+                  setFlash(e instanceof Error ? e.message : "Import failed.");
+                }
+              }}
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "import" }, { keys: "Esc", label: "cancel" }]} /></Box>
+        </Panel>
       </Box>
     );
   }
