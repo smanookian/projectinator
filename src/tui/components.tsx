@@ -215,15 +215,6 @@ export function KeyHint({ hints }: { hints: Hint[] }): React.ReactElement {
   );
 }
 
-export function Header(): React.ReactElement {
-  return (
-    <Box borderStyle="round" borderColor={C.accent} paddingX={1} marginBottom={1} alignSelf="flex-start">
-      <Text color={C.accent} bold>PROJECTINATOR</Text>
-      <Text color={C.dim}>  ·  your AI build team</Text>
-    </Box>
-  );
-}
-
 /** A rounded-border panel with an optional amber title. Frames content sections. */
 export function Panel({
   title,
