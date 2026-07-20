@@ -6,7 +6,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import { Spinner, StatusMessage, Badge } from "@inkjs/ui";
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
-import { C, Header, BudgetBar, Panel, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
+import { C, BudgetBar, Panel, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
 import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
@@ -358,7 +358,6 @@ export default function App(): React.ReactElement {
       : "best model per role";
     return (
       <Box flexDirection="column">
-        <Header />
         {ready ? (
           <>
             <Text color={C.good} bold>✓ Ready.</Text>
@@ -409,7 +408,6 @@ export default function App(): React.ReactElement {
     ];
     return (
       <Box flexDirection="column">
-        <Header />
         <Panel title="What would you like to do?">
           <SelectInput
             items={items}
@@ -438,7 +436,6 @@ export default function App(): React.ReactElement {
   if (phase === "settings") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Settings
           onExit={() => {
             const next = availableProviders();
@@ -453,7 +450,6 @@ export default function App(): React.ReactElement {
   if (phase === "bakeoff") {
     return (
       <Box flexDirection="column">
-        <Header />
         <BakeOff onExit={() => setPhase("home")} />
       </Box>
     );
@@ -474,7 +470,6 @@ export default function App(): React.ReactElement {
     const nRunning = projects.filter((p) => p.status === "running").length;
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Your projects <Text color={C.dim}>(newest first)</Text></Text>
         <Text>
           <Text color={C.dim}>{projects.length} projects · spent </Text><Text color={C.accent}>${total.toFixed(2)}</Text>
@@ -550,7 +545,6 @@ export default function App(): React.ReactElement {
     ];
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold wrap="truncate-end">{selected.idea}</Text>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
         <Box marginTop={1}><Standup tasks={allBoard} spent={selected.totalCost} /></Box>
@@ -641,7 +635,6 @@ export default function App(): React.ReactElement {
     const doneIds = new Set(selected.state.outcomes.map((o) => o.taskId));
     return (
       <Box flexDirection="column">
-        <Header />
         <EditableBoard
           tasks={selected.state.tasks}
           doneIds={doneIds}
@@ -671,7 +664,6 @@ export default function App(): React.ReactElement {
     };
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Export backlog</Text>
         <Text color={C.dim}>Writes files into the project folder. Import them into your tool of choice.</Text>
         <Box marginTop={1}>
@@ -716,7 +708,6 @@ export default function App(): React.ReactElement {
     const targets: DeployTarget[] = ["cloudflare", "vercel", "netlify"];
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Deploy</Text>
         <Text color={C.dim}>Publishes the built site publicly. Each target needs its CLI installed and signed in.</Text>
         <Box marginTop={1}>
@@ -747,7 +738,6 @@ export default function App(): React.ReactElement {
     const meta = DEPLOY_META[ds.target];
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Deploy → {meta.label}</Text>
         {ds.status === "running" ? <Box marginTop={1}><Spinner label="Deploying… (first run can take a minute)" /></Box> : null}
         {ds.log.length ? (
@@ -785,7 +775,6 @@ export default function App(): React.ReactElement {
     const costBar = (c: number) => "█".repeat(Math.max(0, Math.round((c / maxCost) * W))).padEnd(W, " ");
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold wrap="truncate-end">Burndown — {selected.idea}</Text>
         {!b || b.steps.length === 0 ? (
           <Box marginTop={1}><Text color={C.dim}>No steps yet — run the build.</Text></Box>
@@ -834,7 +823,6 @@ export default function App(): React.ReactElement {
     }));
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold wrap="truncate-end">{selected.idea}</Text>
         <Box marginTop={1}><Standup tasks={tasks} spent={selected.totalCost} /></Box>
         <Box marginTop={1}>
@@ -862,7 +850,6 @@ export default function App(): React.ReactElement {
     const bar = (cost: number) => "█".repeat(Math.max(1, Math.round((cost / maxEpic) * 16)));
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold wrap="truncate-end">Retro — {selected.idea}</Text>
         {!r ? (
           <Box marginTop={1}><Text color={C.dim}>No build data yet.</Text></Box>
@@ -967,7 +954,6 @@ export default function App(): React.ReactElement {
     const canUndo = commits.length > 1; // more than the initial commit
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>History — {selected.idea}</Text>
         <Text color={C.dim}>One commit per finished task, newest first. Diff/checkout in the project folder with git.</Text>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
@@ -1012,7 +998,6 @@ export default function App(): React.ReactElement {
     const err = preview && "error" in preview ? preview.error : null;
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Live preview</Text>
         <Box marginTop={1} flexDirection="column">
           {err ? <StatusMessage variant="error">{err}</StatusMessage> : null}
@@ -1037,7 +1022,6 @@ export default function App(): React.ReactElement {
     const epics = [...new Set(selected.state.tasks.map((t) => t.epic || "General"))];
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Filter by epic</Text>
         <Box marginTop={1}>
           <SelectInput
@@ -1058,7 +1042,6 @@ export default function App(): React.ReactElement {
   if (phase === "rename" && selected) {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Rename project</Text>
         <Box marginTop={1}>
           <Text color={C.accent}>{"› "}</Text>
@@ -1080,7 +1063,6 @@ export default function App(): React.ReactElement {
   if (phase === "confirmDelete" && selected) {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold color={C.bad}>Delete this project?</Text>
         <Text color={C.dim} wrap="truncate-end">{"  "}{selected.idea}</Text>
         <Text color={C.dim}>{"  "}This permanently removes its folder and files. Can't be undone.</Text>
@@ -1106,7 +1088,6 @@ export default function App(): React.ReactElement {
   if (phase === "addAsset") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Add a file to this project</Text>
         <Text color={C.dim}>Paste the full path to an image or file. Tip: drag the file into the terminal to paste its path. ~ works.</Text>
         {assetMsg ? <Text color={assetMsg.ok ? C.good : C.bad}>{"\n"}{assetMsg.ok ? "✓ " : "✗ "}{assetMsg.text}</Text> : null}
@@ -1137,7 +1118,6 @@ export default function App(): React.ReactElement {
   if (phase === "change") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Add to the backlog</Text>
         <Text color={C.dim}>Describe what to add or change — the PM plans it into new tasks against this project's files.</Text>
         <Box marginTop={1}>
@@ -1157,7 +1137,6 @@ export default function App(): React.ReactElement {
   if (phase === "saveTemplate" && selected) {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Save as template</Text>
         <Text color={C.dim}>Reuse this project's brief as a starting point for future builds.</Text>
         <Box marginTop={1}>
@@ -1182,7 +1161,6 @@ export default function App(): React.ReactElement {
   if (phase === "importTemplate") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Import a shared template</Text>
         <Text color={C.dim}>Paste the path to a .pitemplate.json file someone shared.</Text>
         {flash ? <Box marginTop={1}><StatusMessage variant="error">{flash}</StatusMessage></Box> : null}
@@ -1212,7 +1190,6 @@ export default function App(): React.ReactElement {
     const mine = allTemplates().filter((t) => !t.builtin);
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>My templates</Text>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
         <Box marginTop={1}>
@@ -1236,7 +1213,6 @@ export default function App(): React.ReactElement {
   if (phase === "tplActions" && tplSel) {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>{tplSel.name}</Text>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
         <Box marginTop={1}>
@@ -1262,7 +1238,6 @@ export default function App(): React.ReactElement {
     const hasUser = tpls.some((t) => !t.builtin);
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Start from a template</Text>
         <Text color={C.dim}>Pick one — you can edit the tasks on the board after. ★ = yours.</Text>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
@@ -1295,7 +1270,6 @@ export default function App(): React.ReactElement {
   if (phase === "idea") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>What do you want to build?</Text>
         <Box marginTop={1}>
           <Text color={C.accent}>{"› "}</Text>
@@ -1311,14 +1285,12 @@ export default function App(): React.ReactElement {
     if (getPreferredStack() !== "ask") {
       return (
         <Box flexDirection="column">
-          <Header />
           <Spinner label="Preparing…" />
         </Box>
       );
     }
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>What should I build it with?</Text>
         <Box marginTop={1}>
           <StackPick
@@ -1335,7 +1307,6 @@ export default function App(): React.ReactElement {
   if (phase === "assessing") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Spinner label="Reading your request…" />
         <Text color={C.dim}>{"\n"}“{idea}”</Text>
       </Box>
@@ -1345,7 +1316,6 @@ export default function App(): React.ReactElement {
   if (phase === "intake") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>A few quick questions</Text>
         <Text color={C.dim}>The PM needs a little more to build the right thing.</Text>
         <Box marginTop={1}>
@@ -1365,7 +1335,6 @@ export default function App(): React.ReactElement {
   if (phase === "planMode") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>How should the team plan this?</Text>
         <Box marginTop={1}>
           <SelectInput
@@ -1390,7 +1359,6 @@ export default function App(): React.ReactElement {
   if (phase === "council") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Planning council in session…</Text>
         <Box marginTop={1}><Spinner label="Architect, product, and risk leads are proposing epics, then synthesizing…" /></Box>
       </Box>
@@ -1401,7 +1369,6 @@ export default function App(): React.ReactElement {
     const epics = council.result.epics;
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Proposed epics ({epics.length})</Text>
         <Text color={C.dim}>The council merged the architect / product / risk views. Approve to expand into tasks.</Text>
         <Box marginTop={1} flexDirection="column">
@@ -1433,7 +1400,6 @@ export default function App(): React.ReactElement {
   if (phase === "planning") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Spinner label={approvedEpics ? "Expanding the approved epics into tasks…" : "Breaking your idea into a plan…"} />
         <Text color={C.dim}>{"\n"}“{idea}”</Text>
       </Box>
@@ -1444,7 +1410,6 @@ export default function App(): React.ReactElement {
     const globalCap = getPrefs().budgetCapUSD;
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Budget cap for this project</Text>
         <Text color={C.dim}>The build halts if spend passes this. Leave blank to use the global default (${globalCap}).</Text>
         <Box marginTop={1}>
@@ -1479,7 +1444,6 @@ export default function App(): React.ReactElement {
     const overCap = plan.estCost > effCap;
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>Plan ready.</Text>
         <Box marginTop={1}><Team /></Box>
         <Box marginTop={1} flexDirection="column">
@@ -1578,7 +1542,6 @@ export default function App(): React.ReactElement {
     };
     return (
       <Box flexDirection="column">
-        <Header />
         <BoardEditor
           tasks={plan.tasks}
           onDone={commit}
@@ -1605,7 +1568,6 @@ export default function App(): React.ReactElement {
     }));
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold>
           Building… <Text color={C.dim}>({running} running)</Text>
         </Text>
@@ -1658,7 +1620,6 @@ export default function App(): React.ReactElement {
   if (phase === "done" && buildResult) {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text bold color={buildResult.halted ? C.warn : C.good}>
           {buildResult.halted ? "⚠ Build halted (budget cap)." : "✓ Build complete."}
         </Text>
@@ -1718,7 +1679,6 @@ export default function App(): React.ReactElement {
   if (phase === "error") {
     return (
       <Box flexDirection="column">
-        <Header />
         <Text color={C.bad}>Something went wrong:</Text>
         <Text color={C.dim}>{"  "}{error}</Text>
         <Box marginTop={1}>

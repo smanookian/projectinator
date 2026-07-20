@@ -51,8 +51,9 @@ const PHASE_LABEL: Record<string, string> = {
   history: "History",
 };
 
-/** Bottom status bar: brand · project · phase  —  session cost · budget cap. */
-export function StatusBar({
+/** Slim top bar (OpenCode-style header): brand ▌ + project · phase on the left,
+ *  a faint tagline on the right, with a subtle rule underneath. Full width. */
+export function TopBar({
   projectName,
   phase,
 }: {
@@ -60,11 +61,36 @@ export function StatusBar({
   phase?: string;
 }): React.ReactElement {
   const cols = useTermCols();
+  const label = phase ? PHASE_LABEL[phase] ?? phase : undefined;
+  return (
+    <Box
+      width={cols}
+      borderStyle="single"
+      borderColor={C.borderSubtle}
+      borderBottom
+      borderTop={false}
+      borderLeft={false}
+      borderRight={false}
+      paddingX={1}
+      justifyContent="space-between"
+    >
+      <Box>
+        <Text color={C.accent} bold>▌ PROJECTINATOR</Text>
+        {projectName ? <Text color={C.textMuted}>{`   ${truncate(projectName, Math.max(12, Math.floor(cols * 0.4)))}`}</Text> : null}
+        {label ? <Text color={C.textSubtle}>{`   ·  ${label}`}</Text> : null}
+      </Box>
+      <Box><Text color={C.textSubtle}>your AI build team</Text></Box>
+    </Box>
+  );
+}
+
+/** Bottom status bar: a global shortcut hint on the left, session cost + budget
+ *  cap on the right, with a subtle rule on top. Full width. */
+export function StatusBar(): React.ReactElement {
+  const cols = useTermCols();
   const spent = sessionCost();
   const cap = getPrefs().budgetCapUSD;
   const overHalf = spent >= cap / 2;
-  const label = phase ? PHASE_LABEL[phase] ?? phase : undefined;
-
   return (
     <Box
       width={cols}
@@ -78,9 +104,8 @@ export function StatusBar({
       justifyContent="space-between"
     >
       <Box>
-        <Text color={C.accent} bold>PROJECTINATOR</Text>
-        {projectName ? <Text color={C.textMuted}>{`  ·  ${truncate(projectName, Math.max(12, Math.floor(cols * 0.4)))}`}</Text> : null}
-        {label ? <Text color={C.textSubtle}>{`  ·  ${label}`}</Text> : null}
+        <Text color={C.textSubtle}>q</Text>
+        <Text color={C.textSubtle}> quit</Text>
       </Box>
       <Box>
         <Text color={C.textSubtle}>session </Text>
@@ -91,8 +116,9 @@ export function StatusBar({
   );
 }
 
-/** Wraps a screen: its content grows to fill the viewport, the status bar sits
- *  pinned at the bottom edge. Header still renders at the top of each screen. */
+/** Wraps every screen in the persistent frame: slim top bar, the screen content
+ *  (padded, growing to fill the viewport), and the status bar pinned at the
+ *  bottom edge. Replaces the old per-screen boxed Header. */
 export function AppFrame({
   children,
   projectName,
@@ -105,8 +131,9 @@ export function AppFrame({
   const rows = useTermRows();
   return (
     <Box flexDirection="column" minHeight={rows}>
-      <Box flexGrow={1} flexDirection="column">{children}</Box>
-      <StatusBar projectName={projectName} phase={phase} />
+      <TopBar projectName={projectName} phase={phase} />
+      <Box flexGrow={1} flexDirection="column" paddingX={1} paddingTop={1}>{children}</Box>
+      <StatusBar />
     </Box>
   );
 }
