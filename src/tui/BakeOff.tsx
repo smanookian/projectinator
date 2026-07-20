@@ -11,9 +11,9 @@ import { runBakeoff, bakeoffTask, type BakeoffResult, type Candidate } from "../
 import type { Capability } from "../types.js";
 
 const CAPS: { label: string; value: Capability }[] = [
-  { label: "🎨 Design — spec / UI", value: "design" },
-  { label: "🧭 Plan — decompose / decide", value: "plan" },
-  { label: "🧪 Test — review reasoning", value: "test" },
+  { label: "Design — spec / UI", value: "design" },
+  { label: "Plan — decompose / decide", value: "plan" },
+  { label: "Test — review reasoning", value: "test" },
 ];
 
 const SAMPLE: Record<string, string> = {
@@ -64,7 +64,7 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
             <Text color={C.dim}>and compare cost + speed. Save the winner as that role's model.</Text>
           </Box>
           <SelectInput
-            items={[...CAPS, { label: "🔙 Back", value: "__back" }]}
+            items={[...CAPS, { label: "Back", value: "__back" }]}
             onSelect={(i) => {
               if (i.value === "__back") return onExit();
               setCap(i.value as Capability);
@@ -119,7 +119,7 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
         <Text bold>Bake-off failed</Text>
         <Box marginTop={1}><StatusMessage variant="error">{view.msg}</StatusMessage></Box>
         <Box marginTop={1}>
-          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setView({ kind: "pickCap" })} />
+          <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => setView({ kind: "pickCap" })} />
         </Box>
       </Box>
     );
@@ -165,9 +165,9 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
       <Box marginTop={1}>
         <SelectInput
           items={[
-            ...(winnerModel ? [{ label: `✅ Use ${modelLabel(winnerModel)} for all ${cap} tasks`, value: "save" }] : []),
-            { label: "🔁 Run another", value: "again" },
-            { label: "🔙 Back", value: "back" },
+            ...(winnerModel ? [{ label: `Use ${modelLabel(winnerModel)} for all ${cap} tasks`, value: "save" }] : []),
+            { label: "Run another", value: "again" },
+            { label: "Back", value: "back" },
           ]}
           onSelect={(i) => {
             if (i.value === "save" && winnerModel) {

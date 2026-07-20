@@ -30,23 +30,23 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   if (sub === "menu") {
     const groups: MenuGroup[] = [
       { title: "Models & providers", items: [
-        { label: "🔑 API keys", value: "keys" },
-        { label: "🎯 Preferred provider", value: "provider" },
-        { label: "🧠 Model assignments", value: "models" },
-        { label: "📈 Estimate accuracy", value: "accuracy" },
+        { label: "API keys", value: "keys" },
+        { label: "Preferred provider", value: "provider" },
+        { label: "Model assignments", value: "models" },
+        { label: "Estimate accuracy", value: "accuracy" },
       ] },
       { title: "Build defaults", items: [
-        { label: "🚦 Default workflow", value: "workflow" },
-        { label: `🧱 Default stack: ${getPreferredStack()}`, value: "stack" },
-        { label: "🔩 Budget, speed & alerts", value: "prefs" },
-        { label: `🔔 Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
+        { label: "Default workflow", value: "workflow" },
+        { label: `Default stack: ${getPreferredStack()}`, value: "stack" },
+        { label: "Budget, speed & alerts", value: "prefs" },
+        { label: `Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
       ] },
       // Web-login (browser automation / OAuth) is parked — vendors closed
       // third-party subscription auth in 2026. Hidden unless PROJECTINATOR_WEB=1.
       ...(process.env.PROJECTINATOR_WEB === "1"
-        ? [{ title: "Experimental", items: [{ label: `🌐 Connect accounts${connectedProviders().length ? `  (${connectedProviders().length})` : ""}`, value: "weblogin" }] }]
+        ? [{ title: "Experimental", items: [{ label: `Connect accounts${connectedProviders().length ? `  (${connectedProviders().length})` : ""}`, value: "weblogin" }] }]
         : []),
-      { title: "", items: [{ label: "🔙 Back", value: "back" }] },
+      { title: "", items: [{ label: "Back", value: "back" }] },
     ];
     return (
       <Box flexDirection="column">
@@ -84,7 +84,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                 label: `${have.has(p) ? "✓" : "·"}  ${PROVIDER_LABEL[p]}  ${have.has(p) ? "(set)" : "(not set)"}`,
                 value: p,
               })),
-              { label: "🔙 Back", value: "__back" },
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               if (i.value === "__back") setSub("menu");
@@ -159,7 +159,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                 label: `${r.label.padEnd(16)} ${r.model ?? "—"}`,
                 value: `${r.capability}:${r.tier}`,
               })),
-              { label: "🔙 Back", value: "__back" },
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               if (i.value === "__back") setSub("menu");
@@ -188,7 +188,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
             limit={10}
             items={[
               ...models.map((m) => ({ label: `${m.name}  (${m.provider})`, value: m.id })),
-              { label: "🔙 Back", value: "__back" },
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               if (i.value !== "__back") {
@@ -221,7 +221,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                 label: `${PROVIDER_LABEL[p]}${have.has(p) ? "" : " (no key)"}${current === p ? "  ✓" : ""}`,
                 value: p,
               })),
-              { label: "🔙 Back", value: "__back" },
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               if (i.value === "__back") {
@@ -251,7 +251,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
             items={[
               { label: `Auto-run — confirm cost, then build${current === "auto" ? "  ✓" : ""}`, value: "auto" },
               { label: `Approval-gated — you approve the backlog first${current === "approval" ? "  ✓" : ""}`, value: "approval" },
-              { label: "🔙 Back", value: "__back" },
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               if (i.value !== "__back") {
@@ -303,7 +303,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
           )}
         </Box>
         <Box marginTop={1}>
-          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setSub("menu")} />
+          <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => setSub("menu")} />
         </Box>
       </Box>
     );
@@ -323,7 +323,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
               { label: `Vanilla HTML/CSS/JS${current === "vanilla" ? "  ✓" : ""}`, value: "vanilla" },
               { label: `React (CDN, no build)${current === "react" ? "  ✓" : ""}`, value: "react" },
               { label: `Let the AI decide${current === "ai" ? "  ✓" : ""}`, value: "ai" },
-              { label: "🔙 Back", value: "__back" },
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               if (i.value !== "__back") {

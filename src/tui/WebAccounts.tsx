@@ -82,7 +82,7 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
                 label: `${isConnected(p) ? "🟢" : "⚪"}  ${PROVIDERS[p].label}  ${isConnected(p) ? "(connected)" : "(not connected)"}`,
                 value: p,
               })),
-              { label: "🔙 Back", value: "__back" },
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               setNotice("");
@@ -107,9 +107,9 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
           <SelectInput
             items={[
               { label: connected ? "🔗 Reconnect (open login again)" : "🔗 Connect (open login window)", value: "connect" },
-              ...(connected ? [{ label: "🧪 Test — send a quick 'hello'", value: "test" }] : []),
-              ...(connected ? [{ label: "❌ Disconnect (log out, wipe session)", value: "disconnect" }] : []),
-              { label: "🔙 Back", value: "__back" },
+              ...(connected ? [{ label: "Test — send a quick 'hello'", value: "test" }] : []),
+              ...(connected ? [{ label: "Disconnect (log out, wipe session)", value: "disconnect" }] : []),
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               if (i.value === "__back") setView({ kind: "list" });
@@ -143,8 +143,8 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
         <Box marginTop={1}>
           <SelectInput
             items={[
-              { label: "✅ I'm logged in — save the session", value: "done" },
-              { label: "❌ Cancel", value: "cancel" },
+              { label: "I'm logged in — save the session", value: "done" },
+              { label: "Cancel", value: "cancel" },
             ]}
             onSelect={(i) => {
               const h = loginRef.current;
@@ -187,7 +187,7 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
             : <StatusMessage variant="error">{view.text}</StatusMessage>}
         </Box>
         <Box marginTop={1}>
-          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setView({ kind: "list" })} />
+          <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => setView({ kind: "list" })} />
         </Box>
       </Box>
     );

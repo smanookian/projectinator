@@ -677,11 +677,11 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              { label: "📝 Markdown + CSV (readable + spreadsheet)", value: "md" },
-              { label: "🟦 Jira CSV (Jira → External System Import → CSV)", value: "jira" },
-              { label: "🟩 Trello CSV (Trello CSV-import Power-Up)", value: "trello" },
-              { label: "📦 All formats", value: "all" },
-              { label: "🔙 Back", value: "back" },
+              { label: "Markdown + CSV (readable + spreadsheet)", value: "md" },
+              { label: "Jira CSV (Jira → External System Import → CSV)", value: "jira" },
+              { label: "Trello CSV (Trello CSV-import Power-Up)", value: "trello" },
+              { label: "All formats", value: "all" },
+              { label: "Back", value: "back" },
             ]}
             onSelect={(i) => {
               const back = () => setPhase("projectActions");
@@ -721,8 +721,8 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              ...targets.map((t) => ({ label: `🚀 ${DEPLOY_META[t].label}   (${DEPLOY_META[t].cli})`, value: t })),
-              { label: "🔙 Back", value: "back" },
+              ...targets.map((t) => ({ label: `${DEPLOY_META[t].label}   (${DEPLOY_META[t].cli})`, value: t })),
+              { label: "Back", value: "back" },
             ]}
             onSelect={(i) => {
               if (i.value === "back") return setPhase("projectActions");
@@ -767,7 +767,7 @@ export default function App(): React.ReactElement {
         ) : null}
         {ds.status !== "running" ? (
           <Box marginTop={1}>
-            <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => { setDeployState(null); setPhase("projectActions"); }} />
+            <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => { setDeployState(null); setPhase("projectActions"); }} />
           </Box>
         ) : null}
       </Box>
@@ -805,7 +805,7 @@ export default function App(): React.ReactElement {
           </Box>
         )}
         <Box marginTop={1}>
-          <SelectInput items={[{ label: "🔙 Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
+          <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
         </Box>
       </Box>
     );
@@ -841,8 +841,8 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              { label: "📝 Edit board (add · reorder · deps · rename)", value: "edit" },
-              { label: "🔙 Back", value: "back" },
+              { label: "Edit board (add · reorder · deps · rename)", value: "edit" },
+              { label: "Back", value: "back" },
             ]}
             onSelect={(i) => setPhase(i.value === "edit" ? "editBoard" : "projectActions")}
           />
@@ -938,7 +938,7 @@ export default function App(): React.ReactElement {
           <SelectInput
             items={[
               ...(r && !narr.loading ? [{ label: narr.text ? "🧠 Regenerate AI narrative" : "🧠 Generate AI narrative", value: "narrate" }] : []),
-              { label: "🔙 Back", value: "back" },
+              { label: "Back", value: "back" },
             ]}
             onSelect={(i) => {
               if (i.value === "narrate") {
@@ -977,8 +977,8 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              ...(canUndo ? [{ label: "⏪ Undo last task (revert files + reopen it to rebuild)", value: "undo" }] : []),
-              { label: "🔙 Back", value: "back" },
+              ...(canUndo ? [{ label: "Undo last task (revert files + reopen it to rebuild)", value: "undo" }] : []),
+              { label: "Back", value: "back" },
             ]}
             onSelect={(i) => {
               if (i.value === "undo") {
@@ -1020,7 +1020,7 @@ export default function App(): React.ReactElement {
           ) : null}
         </Box>
         <Box marginTop={1}>
-          <SelectInput items={[{ label: "⏹ Stop preview & go back", value: "stop" }]} onSelect={stop} />
+          <SelectInput items={[{ label: "Stop preview & go back", value: "stop" }]} onSelect={stop} />
         </Box>
       </Box>
     );
@@ -1203,8 +1203,8 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              ...mine.map((t) => ({ label: `★ ${t.name}  —  ${t.blurb}`, value: t.name })),
-              { label: "🔙 Back", value: "__back" },
+              ...mine.map((t) => ({ label: `${t.name}  —  ${t.blurb}`, value: t.name })),
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               if (i.value === "__back") { setFlash(""); setPhase("templates"); return; }
@@ -1226,9 +1226,9 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              { label: "📤 Share — export to a file", value: "export" },
-              { label: "❌ Delete", value: "delete" },
-              { label: "🔙 Back", value: "back" },
+              { label: "Share — export to a file", value: "export" },
+              { label: "Delete", value: "delete" },
+              { label: "Back", value: "back" },
             ]}
             onSelect={(i) => {
               if (i.value === "export") { const p = exportTemplate(tplSel); setFlash(`Shared → ${p}`); setPhase("myTemplates"); }
@@ -1253,9 +1253,9 @@ export default function App(): React.ReactElement {
           <SelectInput
             items={[
               ...tpls.map((t) => ({ label: `${t.builtin ? "  " : "★ "}${t.name}  —  ${t.blurb}`, value: `t:${t.name}` })),
-              { label: "📥 Import a shared template…", value: "__import" },
-              ...(hasUser ? [{ label: "📇 Manage my templates", value: "__manage" }] : []),
-              { label: "🔙 Back", value: "__back" },
+              { label: "Import a shared template…", value: "__import" },
+              ...(hasUser ? [{ label: "Manage my templates", value: "__manage" }] : []),
+              { label: "Back", value: "__back" },
             ]}
             onSelect={(i) => {
               if (i.value === "__back") { setFlash(""); setPhase("home"); return; }
@@ -1347,8 +1347,8 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              { label: "⚡ Quick plan — one PM breaks it into tasks", value: "quick" },
-              { label: "🏛 Deep plan — a council debates epics first, you approve (costs more)", value: "deep" },
+              { label: "Quick plan — one PM breaks it into tasks", value: "quick" },
+              { label: "Deep plan — a council debates epics first, you approve (costs more)", value: "deep" },
             ]}
             onSelect={(i) => {
               if (i.value === "deep") setPhase("council");
@@ -1390,9 +1390,9 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              { label: "✅ Approve — expand these epics into tasks", value: "approve" },
-              { label: "⚡ Skip epics — quick plan instead", value: "quick" },
-              { label: "🔙 Back", value: "back" },
+              { label: "Approve — expand these epics into tasks", value: "approve" },
+              { label: "Skip epics — quick plan instead", value: "quick" },
+              { label: "Back", value: "back" },
             ]}
             onSelect={(i) => {
               if (i.value === "approve") { setApprovedEpics(epics); setPhase("planning"); }
@@ -1473,23 +1473,23 @@ export default function App(): React.ReactElement {
               // When adding to an existing project, let the user just queue the
               // new tasks without building them right now.
               ...(scope === "change" && selected
-                ? [{ label: `➕ Add ${plan.tasks.length} task${plan.tasks.length === 1 ? "" : "s"} to the backlog (don't build yet)`, value: "backlog" }]
+                ? [{ label: `Add ${plan.tasks.length} task${plan.tasks.length === 1 ? "" : "s"} to the backlog (don't build yet)`, value: "backlog" }]
                 : []),
               ...(mode === "approval"
                 ? [
                     { label: `Open the board & approve (${plan.tasks.length}) →`, value: "board" },
-                    { label: `💰 Budget cap: $${effCap}`, value: "cap" },
+                    { label: `Budget cap: $${effCap}`, value: "cap" },
                     { label: "Change idea", value: "idea" },
                     { label: "Switch to auto-run", value: "auto" },
-                    { label: "🚪 Quit", value: "quit" },
+                    { label: "Quit", value: "quit" },
                   ]
                 : [
                     { label: `Plan the sprint on the board (${plan.tasks.length} in backlog) →`, value: "board" },
                     { label: `Build everything now  ($${plan.estCost.toFixed(2)})`, value: "build" },
-                    { label: `💰 Budget cap: $${effCap}`, value: "cap" },
+                    { label: `Budget cap: $${effCap}`, value: "cap" },
                     { label: "Change idea", value: "idea" },
                     { label: "Switch to approval-gated", value: "approval" },
-                    { label: "🚪 Quit", value: "quit" },
+                    { label: "Quit", value: "quit" },
                   ]),
             ]}
             onSelect={(i) => {
@@ -1576,19 +1576,22 @@ export default function App(): React.ReactElement {
     }));
     return (
       <Box flexDirection="column">
-        <Text bold>
-          Building… <Text color={C.dim}>({running} running)</Text>
-        </Text>
+        <Box alignItems="center">
+          <Text color="cyan"><Spinner type="dots" /></Text>
+          <Text bold>{"  "}Building</Text>
+          <Text>{"  "}</Text>
+          <Chip label={`${running} running`} dotColor={C.info} />
+        </Box>
         {gate ? (
           <Box marginTop={1}>
-            <Panel title="⏸  Review gate — design done" borderColor={C.accent}>
+            <Panel title="Review gate — design done" borderColor={C.accent}>
               <Text>Design is complete. Approve to start development, or stop here.</Text>
               <Text color={C.dim}>Spent so far: ${spent.toFixed(2)}. Open the files to review before deciding.</Text>
               <Box marginTop={1}>
                 <SelectInput
                   items={[
-                    { label: "✅ Approve — start development", value: "continue" },
-                    { label: "🛑 Stop here", value: "stop" },
+                    { label: "Approve — start development", value: "continue" },
+                    { label: "Stop here", value: "stop" },
                   ]}
                   onSelect={(i) => {
                     gate.resolve(i.value as "continue" | "stop");
@@ -1648,12 +1651,12 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              ...(buildResult.files.some((f) => f.endsWith(".html")) ? [{ label: "🌐 Open in browser", value: "open" }] : []),
-              { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
-              { label: "📎 Add a file / image", value: "asset" },
-              { label: "🆕 New build", value: "new" },
-              { label: "🏠 Home", value: "home" },
-              { label: "🚪 Quit", value: "quit" },
+              ...(buildResult.files.some((f) => f.endsWith(".html")) ? [{ label: "Open in browser", value: "open" }] : []),
+              { label: "Add to backlog (describe it, the PM plans it)", value: "change" },
+              { label: "Add a file / image", value: "asset" },
+              { label: "New build", value: "new" },
+              { label: "Home", value: "home" },
+              { label: "Quit", value: "quit" },
             ]}
             onSelect={(i) => {
               if (i.value === "open") openInBrowser(mainFileOf(buildResult.workspace));
@@ -1692,9 +1695,9 @@ export default function App(): React.ReactElement {
         <Box marginTop={1}>
           <SelectInput
             items={[
-              { label: "🔄 Try again", value: "retry" },
-              { label: "🏠 Home", value: "home" },
-              { label: "🚪 Quit", value: "quit" },
+              { label: "Try again", value: "retry" },
+              { label: "Home", value: "home" },
+              { label: "Quit", value: "quit" },
             ]}
             onSelect={(i) => {
               if (i.value === "retry") setPhase(scope === "change" ? "change" : "idea");

@@ -20,9 +20,9 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
         <Panel title="Target platform">
           <SelectInput
             items={[
-              { label: "🌐 Web", value: "web" },
-              { label: "📱 Mobile  (builds as a web app for now)", value: "mobile" },
-              { label: "🖥 Desktop  (builds as a web app for now)", value: "desktop" },
+              { label: "Web", value: "web" },
+              { label: "Mobile  (builds as a web app for now)", value: "mobile" },
+              { label: "Desktop  (builds as a web app for now)", value: "desktop" },
             ]}
             onSelect={(i) => {
               const p = i.value as Platform;
@@ -63,8 +63,8 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
         <SelectInput
           items={[
             ...WEB_FRAMEWORKS.map((f) => ({ label: f.label, value: String(f.id) })),
-            { label: "📝 Something else…", value: OTHER },
-            { label: "🔙 Platform", value: "__platform" },
+            { label: "Something else…", value: OTHER },
+            { label: "Platform", value: "__platform" },
           ]}
           onSelect={(i) => {
             if (i.value === "__platform") setPlatform(null);
