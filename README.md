@@ -4,7 +4,9 @@
 
 # Projectinator
 
+[![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)
 ![tests: 134 passing](https://img.shields.io/badge/tests-134%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
@@ -16,14 +18,16 @@ watch it happen from a terminal cockpit: a live board, budget bar, and a standup
 
 Built on the [Pi](https://pi.dev) agent harness (Node/TypeScript). Bring your own API key.
 
-**Run it — no clone needed** (Node ≥ 20):
+**Install & run** (Node ≥ 20):
 
 ```bash
-npx github:smanookian/projectinator
+npx projectinator                 # run without installing
+# or
+npm install -g projectinator      # then just: projectinator
 ```
 
 Then, inside the app: **Settings → API keys** and paste an Anthropic, OpenAI, or Gemini key
-(stored at `~/.projectinator`, never in the repo). That's it — pick **New build** and go.
+(stored under `~/.projectinator`, never in the repo). That's it — pick **New build** and go.
 
 <details>
 <summary>Run from source instead</summary>
@@ -71,7 +75,7 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
 | 🚀 **Deploy** | One click to Cloudflare Pages, Vercel, or Netlify (their CLI + your login). |
 | 📤 **Export** | Backlog → Markdown, CSV, **Jira** CSV, **Trello** CSV. |
 | 📜 **Git per build** | The workspace is a git repo; one commit per task. History view + **undo a task**. |
-| 📊 **Analytics** | Retro (with optional AI narrative), burndown, cost-by-epic/model, estimate accuracy, portfolio dashboard. |
+| 📊 **Analytics** | Retro (with optional AI narrative), burndown, cost by epic/model, and estimate accuracy that self-calibrates from real runs. |
 | 💾 **Templates** | Save a project's brief as a reusable template; import/share as a file. |
 
 ## How it works
@@ -98,7 +102,7 @@ Real, unedited output from a full build, kept in [`examples/`](examples/):
 - **[Tip calculator](examples/tip-calculator/)** — PM → design → 3× code → test, $0.46,
   tester PASS. Three separate files (`index.html`, `styles.css`, `app.js`) that run on
   double-click (`file://`) *and* over http — the regression artifact for the
-  ["runs on double-click" guarantee](#caveats-read-before-shipping-publicly).
+  ["runs on double-click" guarantee](#good-to-know).
 
 ## CLI (same engine, for scripting/CI)
 
@@ -118,9 +122,9 @@ npm run typecheck
 - **Settings** (in the app): API keys, preferred provider, default workflow, default stack,
   model assignments, budget cap + alert %, estimate accuracy.
 - **User data** lives under `~/.projectinator/` (config, calibration, templates, exports).
-  Builds go to `.workspace/` in the repo.
+  Each build gets its own git-versioned workspace folder (one commit per finished task).
 
-## Caveats (read before shipping publicly)
+## Good to know
 
 - **It spends your API money.** The cost tracking is honest; keep it visible.
 - **Web-login is experimental and parked.** Driving your paid ChatGPT/Claude/Gemini *web*
