@@ -11,6 +11,7 @@ import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
 import { EditableBoard } from "./EditableBoard.js";
+import { AppFrame } from "./Frame.js";
 import { Settings } from "./Settings.js";
 import { BakeOff } from "./BakeOff.js";
 import { Intake, type Answer } from "./Intake.js";
@@ -346,6 +347,9 @@ export default function App(): React.ReactElement {
   }, [phase, plan, idea]);
 
   // ================= screens =================
+  // Each phase renders its own content; AppFrame (below) wraps the result in the
+  // persistent frame (status bar pinned to the bottom on every screen).
+  const screen: React.ReactElement = (() => {
 
   if (phase === "setup") {
     const ready = providers.length > 0;
@@ -1742,5 +1746,13 @@ export default function App(): React.ReactElement {
     <Box>
       <Spinner label="Loading…" />
     </Box>
+  );
+
+  })();
+
+  return (
+    <AppFrame projectName={selected?.idea} phase={phase}>
+      {screen}
+    </AppFrame>
   );
 }

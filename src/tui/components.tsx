@@ -148,14 +148,45 @@ export function Password({
   return <PasswordInput placeholder={placeholder} onSubmit={onSubmit} />;
 }
 
+// Semantic theme tokens (OpenCode-style roles). Old keys (accent/dim/good/warn/
+// bad/text) are kept as aliases so every existing call site still works; new
+// screens should prefer the richer roles (textMuted, border, borderActive, …).
 export const C = {
+  // brand / primary
   accent: "#e0a72d", // signal amber
-  dim: "gray",
+  primary: "#e0a72d",
+  accentMuted: "#a67c1f", // dimmed amber — secondary emphasis
+  // text
+  text: "white",
+  textMuted: "#9aa0a6", // secondary text
+  textSubtle: "#6b7178", // faint / metadata
+  dim: "gray", // legacy alias for textMuted-ish
+  // surfaces (for panels / bars)
+  bgPanel: "#1b1b1b",
+  bgElement: "#242424",
+  // borders
+  border: "#3a3a3a",
+  borderSubtle: "#2a2a2a",
+  borderActive: "#e0a72d",
+  // status
   good: "green",
   warn: "yellow",
   bad: "red",
-  text: "white",
+  info: "cyan",
 };
+
+/** Current terminal width (columns), updated on resize. */
+export function useTermCols(): number {
+  const { stdout } = useStdout();
+  const [cols, setCols] = useState(stdout?.columns ?? 80);
+  useEffect(() => {
+    if (!stdout) return;
+    const onResize = () => setCols(stdout.columns ?? 80);
+    stdout.on("resize", onResize);
+    return () => { stdout.off("resize", onResize); };
+  }, [stdout]);
+  return cols;
+}
 
 export interface Hint {
   /** The key(s), e.g. "Enter", "Esc", "↑↓", "Ctrl+C". */
