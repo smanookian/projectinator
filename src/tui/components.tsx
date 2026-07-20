@@ -164,17 +164,20 @@ export interface Hint {
   label: string;
 }
 
-/** The one place we render keyboard shortcuts. Each key is drawn as a small
- *  keycap (┌Enter┐) in amber, followed by its dim action label. Use this
- *  everywhere instead of ad-hoc "Enter to save · Esc to back" prose so hints
- *  look identical across every screen. */
+/** The one place we render keyboard shortcuts, styled after inkui's KeyHint:
+ *  each key in square brackets ([Enter]) with the key amber and the bracket +
+ *  action label dim, hints separated by a single space. Use this everywhere
+ *  instead of ad-hoc "Enter to save · Esc to back" prose so hints look
+ *  identical across every screen. */
 export function KeyHint({ hints }: { hints: Hint[] }): React.ReactElement {
   return (
     <Text>
       {hints.map((h, i) => (
         <Text key={i}>
-          {i ? <Text color={C.dim}>{"   "}</Text> : null}
-          <Text color={C.accent}>{`┌${h.keys}┐`}</Text>
+          {i ? " " : ""}
+          <Text color={C.dim}>[</Text>
+          <Text color={C.accent}>{h.keys}</Text>
+          <Text color={C.dim}>]</Text>
           <Text color={C.dim}>{` ${h.label}`}</Text>
         </Text>
       ))}
