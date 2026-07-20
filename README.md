@@ -16,11 +16,6 @@ watch it happen from a terminal cockpit: a live board, budget bar, and a standup
 
 Built on the [Pi](https://pi.dev) agent harness (Node/TypeScript). Bring your own API key.
 
-<!-- DEMO: record the cockpit (plan → build → test) and save it as docs/cockpit.gif.
-     Then this line renders it. Recommended: `vhs` or `asciinema`+`agg` for a crisp
-     terminal GIF; or screen-record `npm start` and convert to GIF. -->
-![Projectinator cockpit — plan, build, and test an app from the terminal](docs/cockpit.gif)
-
 ```bash
 npm install
 npx playwright install chromium     # for the tester to actually run web apps
