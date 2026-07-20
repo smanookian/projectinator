@@ -396,15 +396,15 @@ export default function App(): React.ReactElement {
   if (phase === "home") {
     const projs = listProjects();
     const items = [
-      { label: "🆕 New build", value: "new" },
-      { label: "📄 Start from a template", value: "templates" },
-      ...(projs.length ? [{ label: `📂 Projects (${projs.length}) — open, spend, status`, value: "open" }] : []),
-      { label: "🆚 Compare models (bake-off)", value: "bakeoff" },
-      { label: "🔧 Settings", value: "settings" },
-      { label: "🚪 Quit", value: "quit" },
+      { label: "New build", value: "new" },
+      { label: "Start from a template", value: "templates" },
+      ...(projs.length ? [{ label: `Projects (${projs.length})`, value: "open" }] : []),
+      { label: "Compare models (bake-off)", value: "bakeoff" },
+      { label: "Settings", value: "settings" },
+      { label: "Quit", value: "quit" },
     ];
     return (
-      <Box flexDirection="column">
+      <Box flexGrow={1} alignItems="center" justifyContent="center">
         <Panel title="What would you like to do?">
           <SelectInput
             items={items}
@@ -459,7 +459,7 @@ export default function App(): React.ReactElement {
         label: `${mark(p.status)}  ${p.idea.slice(0, 46)}${p.idea.length > 46 ? "…" : ""}   $${p.totalCost.toFixed(2)}`,
         value: p.slug,
       })),
-      { label: "🔙 Back", value: "__back" },
+      { label: "Back", value: "__back" },
     ];
     const total = projects.reduce((a, p) => a + p.totalCost, 0);
     const nComplete = projects.filter((p) => p.status === "complete").length;
@@ -467,12 +467,14 @@ export default function App(): React.ReactElement {
     const nRunning = projects.filter((p) => p.status === "running").length;
     return (
       <Box flexDirection="column">
-        <Text bold>Your projects <Text color={C.dim}>(newest first)</Text></Text>
-        <Text>
-          <Text color={C.dim}>{projects.length} projects · spent </Text><Text color={C.accent}>${total.toFixed(2)}</Text>
-          <Text color={C.dim}> · </Text><Text color={C.good ?? "green"}>{nComplete}✓</Text> <Text color={nHalted ? C.warn : C.dim}>{nHalted}⚠</Text> <Text color={C.dim}>{nRunning}·</Text>
-        </Text>
-        <Box marginTop={1}>
+        <Panel title="Your projects">
+          <Box gap={1} flexWrap="wrap" marginBottom={1}>
+            <Chip label={`${projects.length} projects`} />
+            <Chip label={`$${total.toFixed(2)} spent`} dotColor={C.accent} />
+            {nComplete ? <Chip label={`${nComplete} done`} dotColor={C.good} /> : null}
+            {nHalted ? <Chip label={`${nHalted} halted`} dotColor={C.warn} active /> : null}
+            {nRunning ? <Chip label={`${nRunning} running`} dotColor={C.info} /> : null}
+          </Box>
           <SelectInput
             items={items}
             onSelect={(i) => {
@@ -486,7 +488,7 @@ export default function App(): React.ReactElement {
               }
             }}
           />
-        </Box>
+        </Panel>
       </Box>
     );
   }
@@ -512,37 +514,46 @@ export default function App(): React.ReactElement {
       cost: costById.get(t.id),
       assignee: modelById.has(t.id) ? modelLabel(modelById.get(t.id)!) : undefined,
     }));
+    const statusChip = selected.status === "complete"
+      ? { label: "complete", dot: C.good }
+      : selected.status === "halted"
+        ? { label: "halted", dot: C.warn }
+        : { label: "running", dot: C.info };
     const menuGroups: MenuGroup[] = [
       { title: "Work", items: [
-        { label: "➕ Add to backlog (describe it, the PM plans it)", value: "change" },
-        { label: "📋 Board (view columns · add · reorder · edit)", value: "kanban" },
-        { label: "📎 Add a file / image", value: "asset" },
-        ...(canResume ? [{ label: selected.status === "halted" ? "⏩ Resume build" : `🔨 Build the backlog (${selected.state.tasks.filter((t) => !doneIds.has(t.id)).length} to do)`, value: "resume" }] : []),
+        { label: "Add to backlog (describe it, the PM plans it)", value: "change" },
+        { label: "Board (view · add · reorder · edit)", value: "kanban" },
+        { label: "Add a file / image", value: "asset" },
+        ...(canResume ? [{ label: selected.status === "halted" ? "Resume build" : `Build the backlog (${selected.state.tasks.filter((t) => !doneIds.has(t.id)).length} to do)`, value: "resume" }] : []),
       ] },
       { title: "See it", items: [
-        { label: "👀 Preview in browser (live server, auto-reload)", value: "preview" },
+        { label: "Preview in browser (live server, auto-reload)", value: "preview" },
       ] },
       { title: "Reports", items: [
-        { label: "📊 Retro (build summary)", value: "retro" },
-        { label: "📉 Burndown (progress + spend)", value: "burndown" },
-        { label: "📜 History (per-task commits)", value: "history" },
+        { label: "Retro (build summary)", value: "retro" },
+        { label: "Burndown (progress + spend)", value: "burndown" },
+        { label: "History (per-task commits)", value: "history" },
       ] },
       { title: "Ship", items: [
-        { label: "🚀 Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
-        { label: "📤 Export (Markdown, CSV, Jira, Trello)", value: "export" },
+        { label: "Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
+        { label: "Export (Markdown, CSV, Jira, Trello)", value: "export" },
       ] },
       { title: "Manage", items: [
-        { label: `💰 Budget cap: ${selected.state.budgetCapUSD != null ? `$${selected.state.budgetCapUSD}` : "global default"}`, value: "cap" },
-        { label: "💾 Save as template", value: "saveTpl" },
-        { label: "📛 Rename", value: "rename" },
-        { label: "📑 Duplicate", value: "duplicate" },
-        { label: "❌ Delete", value: "delete" },
-        { label: "🔙 Back", value: "back" },
+        { label: `Budget cap: ${selected.state.budgetCapUSD != null ? `$${selected.state.budgetCapUSD}` : "global default"}`, value: "cap" },
+        { label: "Save as template", value: "saveTpl" },
+        { label: "Rename", value: "rename" },
+        { label: "Duplicate", value: "duplicate" },
+        { label: "Delete", value: "delete" },
+        { label: "Back", value: "back" },
       ] },
     ];
     return (
       <Box flexDirection="column">
-        <Text bold wrap="truncate-end">{selected.idea}</Text>
+        <Box alignItems="center">
+          <Text bold wrap="truncate-end">{selected.idea}</Text>
+          <Text>  </Text>
+          <Chip label={statusChip.label} dotColor={statusChip.dot} />
+        </Box>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
         <Box marginTop={1}><Standup tasks={allBoard} spent={selected.totalCost} /></Box>
         <Box marginTop={1}><Team /></Box>
