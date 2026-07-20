@@ -26,6 +26,11 @@ npx projectinator                 # run without installing
 npm install -g projectinator      # then just: projectinator
 ```
 
+> **It's a CLI, not a library.** `npm install projectinator` (without `-g`) only drops it into a
+> project's `node_modules` — it won't create a runnable command. Use `npx projectinator` or
+> `npm install -g projectinator`. (If `-g` installs but the command isn't found, npm's global
+> bin dir isn't on your `PATH` — run `npm prefix -g` to locate it, or just use `npx`.)
+
 Then, inside the app: **Settings → API keys** and paste an Anthropic, OpenAI, or Gemini key
 (stored under `~/.projectinator`, never in the repo). That's it — pick **New build** and go.
 
