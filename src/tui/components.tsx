@@ -168,27 +168,8 @@ export interface Hint {
  *  each key sits in a small bordered keycap (amber) with its dim action label
  *  beside it, keycaps laid out in a wrapping row. Use this everywhere instead
  *  of ad-hoc "Enter to save · Esc to back" prose so hints look identical across
- *  every screen.
- *
- *  `compact` renders a single-line inline form ([key] label …) for dense
- *  command legends (10+ keys) where a wrapping row of 3-line keycaps would eat
- *  too much vertical space. */
-export function KeyHint({ hints, compact }: { hints: Hint[]; compact?: boolean }): React.ReactElement {
-  if (compact) {
-    return (
-      <Text>
-        {hints.map((h, i) => (
-          <Text key={i}>
-            {i ? " " : ""}
-            <Text color={C.dim}>[</Text>
-            <Text color={C.accent}>{h.keys}</Text>
-            <Text color={C.dim}>]</Text>
-            <Text color={C.dim}>{` ${h.label}`}</Text>
-          </Text>
-        ))}
-      </Text>
-    );
-  }
+ *  every screen. */
+export function KeyHint({ hints }: { hints: Hint[] }): React.ReactElement {
   return (
     <Box flexWrap="wrap">
       {hints.map((h, i) => (

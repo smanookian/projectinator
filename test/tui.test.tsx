@@ -313,7 +313,7 @@ describe("BoardEditor (interactive)", () => {
     const { lastFrame, unmount } = render(<BoardEditor tasks={tasks} onDone={() => {}} onCancel={() => {}} />);
     const frame = lastFrame() ?? "";
     expect(frame).toContain("2 in backlog, 0 ready to build");
-    expect(frame).toContain("[A] all"); // KeyHint compact legend
+    expect(frame).toContain("all"); // KeyHint keycap legend: the "A → pull all into Ready" hint
     unmount();
   });
   it("A pulls the whole backlog into Ready", async () => {

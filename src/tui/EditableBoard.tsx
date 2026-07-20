@@ -103,7 +103,7 @@ export function EditableBoard({
   return (
     <Box flexDirection="column">
       <Text bold>Edit board <Text color={C.dim}>({items.length} tasks)</Text></Text>
-      <KeyHint compact hints={[
+      <KeyHint hints={[
         { keys: "↑↓", label: "pick" },
         { keys: "[ ]", label: "reorder" },
         { keys: "g", label: "epic" },
