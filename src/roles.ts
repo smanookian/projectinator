@@ -340,7 +340,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
           if (i > 0) opts.onFallback?.({ taskId: task.id, from: decision.provider, to: cand.provider, model: cand.model });
           return att.result;
         }
-        lastErr = new Error(`${cand.provider}/${cand.model} returned 0 tokens (key likely can't access this model)`);
+        lastErr = new Error(`${cand.provider}/${cand.model} returned 0 tokens (invalid key, no account credit/balance, or no access to this model)`);
       } catch (e) {
         lastErr = e;
       }

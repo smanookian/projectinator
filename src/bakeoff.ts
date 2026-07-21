@@ -95,7 +95,7 @@ async function runCandidate(task: Task, cand: Candidate): Promise<BakeoffEntry> 
         ms,
         outputTokens: stats.tokens.output,
       };
-      if (stats.tokens.total === 0) out.error = "returned 0 tokens (key likely can't access this model)";
+      if (stats.tokens.total === 0) out.error = "returned 0 tokens (invalid key, no credit/balance, or no model access)";
       return out;
     } finally {
       session.dispose(); // dispose even when prompt() throws (expected for inaccessible models)

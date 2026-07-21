@@ -273,10 +273,12 @@ export async function decomposeIdea(idea: string, opts: DecomposeOptions): Promi
     if (!raw || !raw.tasks?.length) {
       const stats = session.getSessionStats();
       if (stats.tokens.total === 0) {
-        // The provider call returned nothing — almost always a bad/inaccessible key.
+        // The provider call returned nothing — bad/inaccessible key, OR (very common)
+        // the account has no credit/balance so the API rejects the request.
         throw new Error(
-          `The ${pick.provider} model returned nothing (0 tokens). Its API key is likely invalid or ` +
-            `lacks access to ${pick.model}. Set a working key, or pick a different provider in Settings → Preferred provider.`,
+          `The ${pick.provider} model returned nothing (0 tokens). Likely causes: the API key is invalid, ` +
+            `the account has no credit/balance, or the key lacks access to ${pick.model}. Add credit or set a ` +
+            `working key, or pick a different provider in Settings → Preferred provider.`,
         );
       }
       const said = lastAssistantText(session).slice(0, 200).replace(/\s+/g, " ").trim();
