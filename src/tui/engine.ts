@@ -27,12 +27,14 @@ const PROVIDER_KEYS: Record<Provider, string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
   openai: ["OPENAI_API_KEY"],
   google: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
+  openrouter: ["OPENROUTER_API_KEY"],
 };
 
 export const PROVIDER_LABEL: Record<Provider, string> = {
   anthropic: "Anthropic (Claude)",
   openai: "OpenAI (GPT)",
   google: "Google (Gemini)",
+  openrouter: "OpenRouter",
 };
 
 /** Which providers have a usable API key right now (presence only). */

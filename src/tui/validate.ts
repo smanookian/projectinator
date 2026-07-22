@@ -31,6 +31,11 @@ export async function validateKey(provider: Provider, key: string): Promise<KeyC
       res = await withTimeout("https://api.openai.com/v1/models", {
         headers: { Authorization: `Bearer ${key}` },
       });
+    } else if (provider === "openrouter") {
+      // Returns the key's rate-limit/usage info; 401 if the key is bad.
+      res = await withTimeout("https://openrouter.ai/api/v1/key", {
+        headers: { Authorization: `Bearer ${key}` },
+      });
     } else {
       res = await withTimeout(
         `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`,

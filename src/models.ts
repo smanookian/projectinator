@@ -83,6 +83,31 @@ export const MODELS: Record<string, Model> = {
     contextWindow: 1_000_000,
     cost: { input: 0.5, output: 3, cacheRead: 0.05, cacheWrite: 0.625 },
   },
+
+  // ---- OpenRouter (one key → frontier models). ids are Pi's OpenRouter-catalog
+  // slugs (vendor/model). Pricing mirrors the underlying model (OpenRouter passes
+  // it through, ~small margin); ACTUAL cost still comes from Pi per run.
+  "anthropic/claude-opus-4.8": {
+    id: "anthropic/claude-opus-4.8",
+    provider: "openrouter",
+    name: "Claude Opus 4.8 (OpenRouter)",
+    contextWindow: 1_000_000,
+    cost: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+  },
+  "anthropic/claude-sonnet-4.6": {
+    id: "anthropic/claude-sonnet-4.6",
+    provider: "openrouter",
+    name: "Claude Sonnet 4.6 (OpenRouter)",
+    contextWindow: 1_000_000,
+    cost: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 },
+  },
+  "openai/gpt-5.6-luna": {
+    id: "openai/gpt-5.6-luna",
+    provider: "openrouter",
+    name: "GPT-5.6 Luna (OpenRouter)",
+    contextWindow: 272_000,
+    cost: { input: 1, output: 6, cacheRead: 0.1, cacheWrite: 1.25 },
+  },
 };
 
 export function getModel(id: string): Model {

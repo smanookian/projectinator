@@ -147,6 +147,7 @@ const PROVIDER_MODELS: Record<Provider, { strong: string; mid: string; cheap: st
   anthropic: { strong: "claude-opus-4-8", mid: "claude-sonnet-4-6", cheap: "claude-haiku-4-5" },
   openai: { strong: "gpt-5.6-sol", mid: "gpt-5.6-terra", cheap: "gpt-5.6-luna" },
   google: { strong: "gemini-3.1-pro-preview", mid: "gemini-3.1-pro-preview", cheap: "gemini-3-flash-preview" },
+  openrouter: { strong: "anthropic/claude-opus-4.8", mid: "anthropic/claude-sonnet-4.6", cheap: "openai/gpt-5.6-luna" },
 };
 
 const CAP_STRENGTH: Record<Capability, "strong" | "mid" | "cheap"> = {
@@ -194,6 +195,7 @@ const ENV_KEYS: Record<Provider, string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
   openai: ["OPENAI_API_KEY"],
   google: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
+  openrouter: ["OPENROUTER_API_KEY"],
 };
 
 function providersWithKeys(): Provider[] {

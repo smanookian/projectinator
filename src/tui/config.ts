@@ -29,6 +29,7 @@ export const ENV_VAR: Record<Provider, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   google: "GEMINI_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
 };
 
 function dir(): string {

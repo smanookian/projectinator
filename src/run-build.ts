@@ -114,6 +114,7 @@ const envKey: Record<Provider, string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
   openai: ["OPENAI_API_KEY"],
   google: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
+  openrouter: ["OPENROUTER_API_KEY"],
 };
 if (!(envKey[lockProvider] ?? []).some((k) => process.env[k])) {
   console.error(`  No API key for ${lockProvider}. Set: ${(envKey[lockProvider] ?? []).join(", ")}\n`);

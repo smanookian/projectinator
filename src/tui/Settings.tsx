@@ -72,7 +72,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   // ---------- API keys ----------
   if (sub === "keys") {
     const have = new Set(availableProviders());
-    const providers: Provider[] = ["anthropic", "openai", "google"];
+    const providers: Provider[] = ["anthropic", "openai", "google", "openrouter"];
     return (
       <Box flexDirection="column">
         <Panel title="API keys">
@@ -213,7 +213,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   if (sub === "provider") {
     const have = new Set(availableProviders());
     const current = loadConfig().preferredProvider;
-    const providers: Provider[] = ["anthropic", "openai", "google"];
+    const providers: Provider[] = ["anthropic", "openai", "google", "openrouter"];
     return (
       <Box flexDirection="column">
         <Panel title="Preferred provider">

@@ -14,7 +14,7 @@ export type Difficulty = "trivial" | "low" | "medium" | "high";
 /** Capability tier — the abstract "how strong a model" axis. */
 export type Tier = "fast" | "mid" | "high";
 
-export type Provider = "anthropic" | "openai" | "google";
+export type Provider = "anthropic" | "openai" | "google" | "openrouter";
 
 // ---------------------------------------------------------------------------
 // Model pricing — mirrors Pi's models.json `cost` shape so it ports 1:1 later.
