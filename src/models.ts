@@ -4,6 +4,7 @@
 // for models whose exact cache rates we haven't pinned — refine against provider docs).
 
 import type { Model } from "./types.js";
+import { findOpenRouterModel } from "./openrouter.js";
 
 export const MODELS: Record<string, Model> = {
   // ---- OpenAI: GPT-5.6 family ----
@@ -112,6 +113,15 @@ export const MODELS: Record<string, Model> = {
 
 export function getModel(id: string): Model {
   const m = MODELS[id];
-  if (!m) throw new Error(`Unknown model id: "${id}". Add it to src/models.ts.`);
-  return m;
+  if (m) return m;
+  // OpenRouter slugs (vendor/model) aren't in the static table — price them from
+  // the OpenRouter catalog (live cache or Pi's built-in list). Fall back to a
+  // rough estimate so a build never crashes on an unpriced model (actual cost
+  // still comes from Pi per run).
+  if (id.includes("/")) {
+    const or = findOpenRouterModel(id);
+    if (or) return { ...or, provider: "openrouter" };
+    return { id, provider: "openrouter", name: id, contextWindow: 200_000, cost: { input: 1, output: 3, cacheRead: 0.1, cacheWrite: 1.25 } };
+  }
+  throw new Error(`Unknown model id: "${id}". Add it to src/models.ts.`);
 }

@@ -12,8 +12,9 @@ import { estimateAccuracy } from "../estimate.js";
 import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
 import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getPreferredStack, setPreferredStack, ENV_VAR } from "./config.js";
 import { validateKey } from "./validate.js";
+import { openRouterModels, refreshOpenRouterModels } from "../openrouter.js";
 
-type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack";
+type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack";
 
 export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
   const [sub, setSub] = useState<Sub>("menu");
@@ -23,6 +24,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   const [keyError, setKeyError] = useState("");
   const [role, setRole] = useState<{ capability: Capability; tier: Tier; label: string } | null>(null);
   const [notice, setNotice] = useState("");
+  const [orQuery, setOrQuery] = useState(""); // OpenRouter model-browser filter
   const [, force] = useState(0);
   const refresh = () => force((n) => n + 1);
 
@@ -170,7 +172,11 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                   const [capability, tier] = i.value.split(":") as [Capability, Tier];
                   const r = rows.find((x) => x.capability === capability && x.tier === tier)!;
                   setRole({ capability, tier, label: r.label });
-                  setSub("modelPick");
+                  if (lock === "openrouter") {
+                    setOrQuery("");
+                    void refreshOpenRouterModels().then(() => refresh()); // freshen catalog in the background
+                    setSub("orBrowse");
+                  } else setSub("modelPick");
                 }
               }}
             />
@@ -204,6 +210,68 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
               }}
             />
           </Box>
+        </Panel>
+      </Box>
+    );
+  }
+
+  // ---------- OpenRouter model browser: filter the whole catalog by name ----------
+  if ((sub === "orBrowse" || sub === "orPick") && role) {
+    const all = openRouterModels();
+    const q = orQuery.trim().toLowerCase();
+    const matches = q ? all.filter((m) => m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) : all;
+    const price = (m: (typeof all)[number]) => `$${m.cost.input}/$${m.cost.output}`;
+
+    if (sub === "orBrowse") {
+      return (
+        <Box flexDirection="column">
+          <Panel title={`OpenRouter model for ${role.label}`}>
+            <Text color={C.textMuted}>Type to filter {all.length} models by name or slug — e.g. “kimi”, “deepseek”, “coder”.</Text>
+            <Box marginTop={1}>
+              <Text color={C.accent}>{"filter › "}</Text>
+              <TextInput
+                value={orQuery}
+                onChange={setOrQuery}
+                placeholder="kimi"
+                onSubmit={() => {
+                  if (!orQuery.trim()) { setSub("models"); return; }
+                  if (matches.length) setSub("orPick");
+                }}
+              />
+            </Box>
+            <Box marginTop={1} flexDirection="column">
+              <Text color={C.textSubtle}>{matches.length} match{matches.length === 1 ? "" : "es"}{matches.length ? " — Enter to choose:" : ""}</Text>
+              {matches.slice(0, 6).map((m) => (
+                <Text key={m.id} wrap="truncate-end"><Text color={C.textMuted}>{m.name}</Text>  <Text color={C.textSubtle}>{m.id}  {price(m)}</Text></Text>
+              ))}
+              {matches.length > 6 ? <Text color={C.textSubtle}>  …refine to narrow</Text> : null}
+            </Box>
+            <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "choose" }, { keys: "empty Enter", label: "back" }]} /></Box>
+          </Panel>
+        </Box>
+      );
+    }
+
+    // orPick — select from the filtered matches
+    return (
+      <Box flexDirection="column">
+        <Panel title={`Pick a model  ·  “${orQuery}”  (${matches.length})`}>
+          <SelectInput
+            limit={12}
+            items={[
+              ...matches.slice(0, 50).map((m) => ({ label: `${m.name}   ${m.id}   ${price(m)}`, value: m.id })),
+              { label: "← Refine filter", value: "__refine" },
+              { label: "Back", value: "__back" },
+            ]}
+            onSelect={(i) => {
+              if (i.value === "__refine") { setSub("orBrowse"); return; }
+              if (i.value === "__back") { setSub("models"); return; }
+              setRoleModel(role.capability, role.tier, i.value);
+              setNotice(`${role.label} → ${i.value}`);
+              refresh();
+              setSub("models");
+            }}
+          />
         </Panel>
       </Box>
     );
