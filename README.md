@@ -35,7 +35,7 @@ npm install -g projectinator      # then just: projectinator
 > `npm install -g projectinator`. (If `-g` installs but the command isn't found, npm's global
 > bin dir isn't on your `PATH` — run `npm prefix -g` to locate it, or just use `npx`.)
 
-Then, inside the app: **Settings → API keys** and paste an Anthropic, OpenAI, or Gemini key
+Then, inside the app: **Settings → API keys** and paste an Anthropic, OpenAI, Gemini, or OpenRouter key
 (stored under `~/.projectinator`, never in the repo). That's it — pick **New build** and go.
 
 <details>
@@ -121,7 +121,7 @@ npm run build -- --live --mini                    # cheap end-to-end proof (~$0.
 npm run build -- --live --lock anthropic "idea"   # full pipeline on one provider
 npm run build -- --live --mini --resume           # resume a halted/finished build (skips done tasks)
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 134 tests
+npm test                                          # 140 tests
 npm run typecheck
 ```
 
