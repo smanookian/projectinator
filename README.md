@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)
-![tests: 134 passing](https://img.shields.io/badge/tests-134%20passing-brightgreen.svg)
+![tests: 137 passing](https://img.shields.io/badge/tests-137%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -15,6 +15,10 @@
 project-manager model breaks it into a Scrum backlog, and each task is dispatched to the
 model that's best — and cheapest — for that exact job (planning, design, code, test). You
 watch it happen from a terminal cockpit: a live board, budget bar, and a standup.
+
+<p align="center">
+  <img src="docs/cockpit.png" alt="Projectinator cockpit — the live Scrum board mid-build" width="860" />
+</p>
 
 Built on the [Pi](https://pi.dev) agent harness (Node/TypeScript). Bring your own API key.
 
