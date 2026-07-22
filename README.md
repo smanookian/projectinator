@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)
-![tests: 137 passing](https://img.shields.io/badge/tests-137%20passing-brightgreen.svg)
+![tests: 140 passing](https://img.shields.io/badge/tests-140%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 

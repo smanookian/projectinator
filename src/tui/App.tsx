@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
+import InkSpinner from "ink-spinner"; // a Text-based spinner, safe as an inline glyph inside <Text>
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
 import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
@@ -1586,7 +1587,7 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Box>
-          <Text color="cyan"><Spinner type="dots" /></Text>
+          <Text color="cyan"><InkSpinner type="dots" /></Text>
           <Text bold>{"  "}Building</Text>
           <Text color={C.textSubtle}>{`     ${running} running`}</Text>
         </Box>
