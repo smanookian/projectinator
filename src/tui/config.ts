@@ -15,6 +15,9 @@ export interface AppConfig {
   concurrency?: number;
   /** Warn (not halt) once spend crosses this % of the cap. Default 80. */
   budgetAlertPct?: number;
+  /** Per-task limits; 0 = unlimited. Defaults: 10 min, $3. */
+  taskTimeoutMin?: number;
+  taskCostCapUSD?: number;
   /** If set, always route to this provider (when it has a key), ignoring the others. */
   preferredProvider?: Provider;
   /** Default workflow for new builds: auto-run, or require PM approval before building. */
@@ -117,19 +120,31 @@ export function setKey(provider: Provider, key: string): void {
   process.env[ENV_VAR[provider]] = key;
 }
 
-export function getPrefs(): { budgetCapUSD: number; concurrency: number; budgetAlertPct: number } {
+export interface Prefs {
+  budgetCapUSD: number;
+  concurrency: number;
+  budgetAlertPct: number;
+  taskTimeoutMin: number;
+  taskCostCapUSD: number;
+}
+
+export function getPrefs(): Prefs {
   const cfg = loadConfig();
   return {
     budgetCapUSD: cfg.budgetCapUSD ?? 25,
     concurrency: cfg.concurrency ?? 3,
     budgetAlertPct: cfg.budgetAlertPct ?? 80,
+    taskTimeoutMin: cfg.taskTimeoutMin ?? 10,
+    taskCostCapUSD: cfg.taskCostCapUSD ?? 3,
   };
 }
 
-export function setPrefs(prefs: { budgetCapUSD?: number; concurrency?: number; budgetAlertPct?: number }): void {
+export function setPrefs(prefs: Partial<Prefs>): void {
   const cfg = loadConfig();
   if (prefs.budgetCapUSD !== undefined) cfg.budgetCapUSD = prefs.budgetCapUSD;
   if (prefs.concurrency !== undefined) cfg.concurrency = prefs.concurrency;
   if (prefs.budgetAlertPct !== undefined) cfg.budgetAlertPct = prefs.budgetAlertPct;
+  if (prefs.taskTimeoutMin !== undefined) cfg.taskTimeoutMin = prefs.taskTimeoutMin;
+  if (prefs.taskCostCapUSD !== undefined) cfg.taskCostCapUSD = prefs.taskCostCapUSD;
   saveConfig(cfg);
 }

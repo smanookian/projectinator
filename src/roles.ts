@@ -12,18 +12,20 @@ import {
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
-import type {
-  Backend,
-  Capability,
-  Provider,
-  RegistryEntry,
-  RoleExecutor,
-  RoleResult,
-  Task,
-  Verdict,
+import {
+  TaskLimitError,
+  type Backend,
+  type Capability,
+  type Provider,
+  type RegistryEntry,
+  type RoleExecutor,
+  type RoleResult,
+  type Task,
+  type TaskLimits,
+  type Verdict,
 } from "./types.js";
 import { resolvePiModel } from "./executor.js";
-import { renderCheck } from "./preview.js";
+import { renderCheck, chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
 import { addSessionCost } from "./session-cost.js";
@@ -45,6 +47,11 @@ const ROLE_INTRO: Record<Capability, string> = {
     "reuse and extend existing files, follow the file structure the design spec defines, and make sure files reference each other with correct paths " +
     "(imports/requires, <script src> and <link href>, relative paths). Create only the files this task needs; never delete or clobber files unrelated to your task. " +
     "MUST-RUN-ON-DOUBLE-CLICK: for a plain static site with no bundler/build step, the app has to work when the user just opens index.html as a file (file://). Do NOT use `<script type=\"module\">` with relative `import`s, and do not `fetch()` local files — browsers block both on file://, leaving a blank page. Split code with several plain `<script src>` tags in dependency order (globals), not ES modules. If the app genuinely needs a server (a real backend, bundler, or framework), write a short README.md with the exact run command.",
+  review:
+    "You are the REVIEWER. Do NOT edit files and do NOT run the app. Read the task, the design context, and the files in the working directory. " +
+    "Check: every file the design named exists; every <script src> / <link href> / import resolves to a real file; nothing is referenced but never defined " +
+    "(functions, element ids, CSS classes the JS relies on); a plain static site uses no ES modules or fetch() of local files (both break on double-click / file://); " +
+    "and the task's stated deliverable is actually present. Report only real defects a developer must fix — not style. Then call submit_verdict exactly once.",
   test: "You are the TESTER. For a web app, FIRST call check_app to actually run it in a headless browser — it reports how the app renders BOTH served over http AND opened directly as a file (double-click / file://). Confirm it renders, shows the expected content, and has no JavaScript/console errors. The app MUST also work on double-click (file://) UNLESS a README documents how to run it — if check_app says double-click is BROKEN and there is no README with a run command, that is a HIGH-severity bug (report it, describe the file:// failure). Then inspect the files against the task and check multi-file wiring (referenced files exist, paths/imports resolve). Then call submit_verdict with pass/fail and any bugs. A blank render or a JS error is a high-severity bug. Do not fix anything yourself.",
   ops: "You are OPS. Perform the operational task (build, config, deploy prep) using your tools. Report what you did as text.",
 };
@@ -56,7 +63,7 @@ export function buildRolePrompt(task: Task, contextText: string): string {
     `Task ${task.id}: ${task.title}`,
     contextText ? `\n${contextText}` : "",
     "",
-    task.capability === "test"
+    task.capability === "test" || task.capability === "review"
       ? "When finished, call submit_verdict exactly once."
       : "Complete the task, then stop. Do not explain at length.",
   ];
@@ -80,8 +87,10 @@ type VerdictRaw = Static<typeof VerdictSchema>;
 
 // ---- tester "run the app" tool: headless render + error capture ----
 
-function buildCheckTool(workspace: string) {
-  return defineTool({
+/** check_app + a flag telling whether a render actually happened this task. */
+function buildCheckTool(workspace: string, chromium: boolean) {
+  let rendered = false;
+  const tool = defineTool({
     name: "check_app",
     label: "Run the app",
     description:
@@ -93,8 +102,15 @@ function buildCheckTool(workspace: string) {
       { additionalProperties: true },
     ),
     execute: async (_id, params: { file?: string }) => {
+      if (!chromium) {
+        return {
+          content: [{ type: "text", text: `check_app is UNAVAILABLE: headless Chromium is not installed (${CHROMIUM_INSTALL_HINT}). You cannot run the app. Review the files by reading them, say so in your verdict, and do not claim the app was executed.` }],
+          details: {},
+        };
+      }
       try {
         const r = await renderCheck(workspace, params.file || "index.html");
+        rendered = true;
         const doubleClick = r.doubleClickBroken
           ? "BROKEN — renders behind a server but is blank/erroring when opened directly as a file (double-click). "
             + "Most likely ES modules + relative imports (or fetch of local files), which browsers block on file://. "
@@ -119,9 +135,10 @@ function buildCheckTool(workspace: string) {
       }
     },
   });
+  return { tool, rendered: () => rendered };
 }
 
-function buildVerdictTool() {
+function buildVerdictTool(runtimeChecked: () => boolean) {
   let captured: Verdict | undefined;
   const tool = defineTool({
     name: "submit_verdict",
@@ -129,7 +146,7 @@ function buildVerdictTool() {
     description: "Submit your pass/fail judgement and any bugs found.",
     parameters: VerdictSchema,
     execute: async (_id, params: VerdictRaw) => {
-      captured = { passed: params.passed, bugs: params.bugs };
+      captured = { passed: params.passed, bugs: params.bugs, runtimeChecked: runtimeChecked() };
       return {
         content: [{ type: "text", text: `Verdict: ${params.passed ? "PASS" : "FAIL"} (${params.bugs.length} bugs)` }],
         details: {},
@@ -154,6 +171,7 @@ const CAP_STRENGTH: Record<Capability, "strong" | "mid" | "cheap"> = {
   plan: "mid",
   design: "strong",
   code: "strong",
+  review: "cheap",
   test: "cheap",
   ops: "strong",
 };
@@ -161,7 +179,7 @@ const CAP_STRENGTH: Record<Capability, "strong" | "mid" | "cheap"> = {
 /** A registry where every capability routes to one provider's models. */
 export function lockRegistryToProvider(provider: Provider): RegistryEntry[] {
   const m = PROVIDER_MODELS[provider];
-  const caps: Capability[] = ["plan", "design", "code", "test", "ops"];
+  const caps: Capability[] = ["plan", "design", "code", "review", "test", "ops"];
   const tiers = ["fast", "mid", "high"] as const;
   const out: RegistryEntry[] = [];
   for (const capability of caps) {
@@ -271,13 +289,16 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     contextText: string,
     provider: Provider,
     modelId: string,
+    limits: TaskLimits,
   ): Promise<{ result: RoleResult; tokensTotal: number }> => {
     const registry = ModelRegistry.create(authStorage);
     const model = resolvePiModel(registry, provider, modelId);
 
     const isTest = task.capability === "test";
-    const verdictTool = isTest ? buildVerdictTool() : undefined;
-    const checkTool = isTest ? buildCheckTool(opts.workspace) : undefined;
+    const isReview = task.capability === "review";
+    const checkTool = isTest ? buildCheckTool(opts.workspace, await chromiumAvailable()) : undefined;
+    // A review never runs the app, so its verdict is never "runtime checked".
+    const verdictTool = isTest || isReview ? buildVerdictTool(checkTool ? checkTool.rendered : () => false) : undefined;
 
     const { session } = await createAgentSession({
       model,
@@ -286,16 +307,37 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
       modelRegistry: registry,
       thinkingLevel: opts.thinkingLevel ?? "medium",
       ...(isTest
-        ? { customTools: [verdictTool!.tool, checkTool!], tools: ["read", "bash", "ls", "grep", "find", "check_app", "submit_verdict"] }
-        : { tools: ["read", "write", "edit", "bash", "ls", "grep", "find"] }),
+        ? { customTools: [verdictTool!.tool, checkTool!.tool], tools: ["read", "bash", "ls", "grep", "find", "check_app", "submit_verdict"] }
+        : isReview
+          ? { customTools: [verdictTool!.tool], tools: ["read", "ls", "grep", "find", "submit_verdict"] }
+          : { tools: ["read", "write", "edit", "bash", "ls", "grep", "find"] }),
     });
 
     const unsub = opts.onEvent ? session.subscribe(opts.onEvent) : undefined;
+
+    // Per-task limits. Cost is checked on every session event (Pi updates its stats as
+    // each assistant turn lands); time by a timer. On breach the session is aborted and
+    // the awaited prompt settles; we then throw so the orchestrator halts the build.
+    let breach: TaskLimitError | undefined;
+    const trip = (e: TaskLimitError) => {
+      if (breach) return;
+      breach = e;
+      void session.abort();
+    };
+    const unsubCost = limits.costCapUSD > 0
+      ? session.subscribe(() => {
+          const spent = session.getSessionStats().cost;
+          if (spent > limits.costCapUSD) trip(new TaskLimitError("cost", task.id, round2(spent), `spent $${spent.toFixed(2)} > per-task cap $${limits.costCapUSD}`));
+        })
+      : undefined;
+    const timer = limits.timeoutMs > 0
+      ? setTimeout(() => trip(new TaskLimitError("timeout", task.id, round2(session.getSessionStats().cost), `ran longer than ${Math.round(limits.timeoutMs / 60_000)} min`)), limits.timeoutMs)
+      : undefined;
     try {
-      // Give code/test the WHOLE current file tree (not just direct-dep files), so a
+      // Give code/review/test the WHOLE current file tree (not just direct-dep files), so a
       // dev building one file knows every other file that already exists to wire into.
       let fullContext = contextText;
-      if (task.capability === "code" || task.capability === "test") {
+      if (task.capability === "code" || task.capability === "review" || task.capability === "test") {
         const existing = listFiles(opts.workspace);
         if (existing.length) {
           fullContext = [contextText, `Files already in the working directory:\n${existing.map((f) => `  ${f}`).join("\n")}`]
@@ -303,16 +345,18 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
             .join("\n\n");
         }
       }
-      await session.prompt(buildRolePrompt(task, fullContext));
+      // An aborted prompt may reject with Pi's own error; the breach is the real cause.
+      await session.prompt(buildRolePrompt(task, fullContext)).catch((e: unknown) => { if (!breach) throw e; });
+      if (breach) throw breach;
 
       let verdict = verdictTool?.get();
-      if (isTest && !verdict) {
-        await session.followUp("Call submit_verdict now with your judgement.");
+      if (verdictTool && !verdict) {
+        await session.followUp("Call submit_verdict now with your judgement.").catch((e: unknown) => { if (!breach) throw e; });
         verdict = verdictTool?.get();
       }
+      if (breach) throw breach;
 
       const stats = session.getSessionStats();
-      addSessionCost(stats.cost);
       // Feed real usage back to sharpen estimates — but only for a real run.
       if (stats.tokens.total > 0) {
         const inputTotal = stats.tokens.input + stats.tokens.cacheRead;
@@ -326,24 +370,28 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
       };
       return { result, tokensTotal: stats.tokens.total };
     } finally {
+      clearTimeout(timer);
+      unsubCost?.();
+      addSessionCost(session.getSessionStats().cost); // bill every attempt, aborted or not
       unsub?.();
       session.dispose();
     }
   };
 
-  return async ({ task, decision, contextText }) => {
+  return async ({ task, decision, contextText, limits }) => {
     const chain = fallbackChain(decision.provider, decision.model.id, task.capability);
     let lastErr: unknown;
     for (let i = 0; i < chain.length; i++) {
       const cand = chain[i]!;
       try {
-        const att = await runOnce(task, contextText, cand.provider, cand.model);
+        const att = await runOnce(task, contextText, cand.provider, cand.model, limits);
         if (att.tokensTotal > 0) {
           if (i > 0) opts.onFallback?.({ taskId: task.id, from: decision.provider, to: cand.provider, model: cand.model });
           return att.result;
         }
         lastErr = new Error(`${cand.provider}/${cand.model} returned 0 tokens (invalid key, no account credit/balance, or no access to this model)`);
       } catch (e) {
+        if (e instanceof TaskLimitError) throw e; // a limit breach is final — never retry elsewhere
         lastErr = e;
       }
     }
@@ -356,4 +404,4 @@ function round2(n: number): number {
 }
 
 // exported for tests
-export { buildVerdictTool, VerdictSchema, estimateCost, getModel };
+export { buildCheckTool, buildVerdictTool, VerdictSchema, estimateCost, getModel };

@@ -19,7 +19,7 @@ idea (raw string, kept raw)
         Deep:   councilEpics() [architect|product|risk ∥] → synth → approve
   → planning    decomposeIdea(brief, {epics?}) → routed Task[] + estimate
   → plan        approve / board / build
-  → building    runBacklog(): toposort → design→code→test, Tester→Dev feedback, budget halt
+  → building    runBacklog(): toposort → design→code→review→test, Reviewer/Tester→Dev feedback, budget halt
   → done        files + retro + deploy/export/preview
 ```
 
@@ -39,11 +39,11 @@ The brief the planner sees is composed **purely** from state:
 | `cost.ts` / `estimate.ts` / `calibration.ts` | token estimate × price → USD; buckets self-calibrate from real runs |
 | `router.ts` | task → backend → model → cost → budget check |
 | `executor.ts` | resolve a Pi model; run a session |
-| `roles.ts` | per-role prompts, Tester verdict + `check_app` tools, provider-lock, **the real Pi executor + provider-fallback chain** |
+| `roles.ts` | per-role prompts, Tester verdict + `check_app` tools, provider-lock, **the real Pi executor + provider-fallback chain**, per-task timeout/cost abort (`TaskLimitError`) |
 | `pm.ts` | `decomposeIdea` — forced-tool backlog; accepts approved `epics` |
 | `intake.ts` | `assessIntake` (clarifying questions) + `enrichBrief` |
 | `council.ts` | `councilEpics` — 3 lenses ∥ → synthesize epics |
-| `orchestrator.ts` | toposort + run backlog + Tester→Dev loop + parallel scheduler + budget halt |
+| `orchestrator.ts` | toposort + run backlog + Tester→Dev loop + parallel scheduler + budget halt + limit-breach → failed outcome & halt |
 | `build-state.ts` | checkpoint/restore (save & resume) |
 | `preview.ts` | static server (+live-reload) and `renderCheck` (headless test-execution) |
 | `bakeoff.ts` | run one task across models + LLM judge |
@@ -73,11 +73,11 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (134)
+npm test                  # vitest (157)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 
-- **Node 22+** (dev on 24). TypeScript via `tsx` (no build step for the app itself).
+- **Node ≥ 20** (dev on 24). TypeScript via `tsx` (no build step for the app itself).
 - **`npx playwright install chromium`** is required for `renderCheck` (the tester) + web-login.
 - The executor is **injected** into the orchestrator, so all control-flow logic is unit-tested
   offline with a fake — no spend. Live runs are behind `--live` and key-gated.
@@ -100,7 +100,7 @@ npm run typecheck         # tsc --noEmit — run this after every change
 - **Add/retune a model** → `models.ts` + `registry.ts` (or run a bake-off and save the winner).
 - **Add a template** → `TEMPLATES` in `tui/templates.ts` (or save one in-app).
 - **Add a deploy target** → `DEPLOY_META` + `buildArgs()` in `tui/deploy.ts`.
-- **Add a role/capability** → `Capability` in `types.ts`, prompt in `roles.ts`, registry rows.
+- **Add a role/capability** → `Capability` in `types.ts`, then let `tsc` list every `Record<Capability, …>` table (`estimate.ts`, `roles.ts` ×2, `components.tsx` ×2); plus the string lists it can't see: `pm.ts` `CAPS`, `roles.ts` `lockRegistryToProvider`, both board editors' `CAPS`, `engine.ts` `ROLE_TIERS`, and a registry row. The Reviewer (2026-09) is the worked example.
 - **Add a TUI screen** → new `phase`, a render branch, a `goBack` case, and (if it has an input)
   add it to the `typing` guard.
 - **Tune estimates** → buckets in `estimate.ts`; they self-calibrate, view accuracy in Settings.

@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)
-![tests: 140 passing](https://img.shields.io/badge/tests-140%20passing-brightgreen.svg)
+![tests: 157 passing](https://img.shields.io/badge/tests-157%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -49,7 +49,8 @@ npm start
 </details>
 
 > **Optional:** `npx playwright install chromium` lets the tester actually run web apps in a
-> headless browser and enables live preview. Everything else works without it.
+> headless browser and enables live preview. Without it the tester can only read the code —
+> such passes show as **PASS\*** with a warning. Everything else works without it.
 
 > Projectinator spends **your** API money. Every screen shows the running cost; you set a
 > budget cap and it halts before crossing it. A tiny landing page is cents; a full app is
@@ -64,13 +65,15 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
 - **Best model per role.** Roles bind to a *capability + tier*, never a model name. A
   swappable registry maps capabilities to models — new frontier model next month, edit one
   place, every route updates. Run a **bake-off** to pick empirically.
-- **A real pipeline.** PM decomposes → Designer specs → Developer writes files → Tester
-  **runs the app headless and catches real bugs** → feedback loop re-runs the dev on failure.
+- **A real pipeline.** PM decomposes → Designer specs → Developer writes files → **Reviewer**
+  (cheap, read-only) checks the wiring → Tester **runs the app headless and catches real
+  bugs** → feedback loop re-runs the dev on failure.
 - **Multi-file apps.** Vanilla HTML/CSS/JS or **React (CDN, no build)** — your choice.
 - **The cockpit.** A polished terminal UI: editable board, Kanban, standup, per-task cost,
   live budget bar, desktop notification when done.
 - **Honest cost.** Live spend tracking, per-project budget cap + an alert before the cap,
-  and predicted-vs-actual reporting that sharpens itself over real runs.
+  **per-task timeout and cost ceiling**, and predicted-vs-actual reporting that sharpens
+  itself over real runs.
 
 ## Highlights
 
@@ -79,13 +82,16 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
 | 🧠 **PM intake** | Vague request? The PM asks 2–4 clarifying questions (with pickable options) before planning. Specific requests skip straight through. |
 | 🏛 **Deep plan (council)** | Opt-in: architect + product + risk leads propose epics in parallel, a synthesizer merges them, you approve, then they expand into the backlog. |
 | 🆚 **Model bake-off** | Run one task across models, an LLM judge scores the outputs, compare cost/latency/quality — save the winner to the registry. |
-| 🧪 **Real test execution** | The tester loads the built app in headless Chromium and fails on JS/console errors — not just by reading the code. |
+| 🔍 **Reviewer** | A cheap read-only model checks each code task's wiring (missing files, unresolved `<script src>`, undefined functions, ES modules on a static site) before the Tester spends a browser run. Fails feed the same Developer fix loop. |
+| 🧪 **Real test execution** | The tester loads the built app in headless Chromium and fails on JS/console errors — not just by reading the code. Without Chromium, passes are marked **PASS\*** so you know the app was never run. |
 | 👁 **Live preview** | Local server + auto-reload; ES modules and fetch resolve like production. |
 | 🚀 **Deploy** | One click to Cloudflare Pages, Vercel, or Netlify (their CLI + your login). |
 | 📤 **Export** | Backlog → Markdown, CSV, **Jira** CSV, **Trello** CSV. |
 | 📜 **Git per build** | The workspace is a git repo; one commit per task. History view + **undo a task**. |
 | 📊 **Analytics** | Retro (with optional AI narrative), burndown, cost by epic/model, and estimate accuracy that self-calibrates from real runs. |
 | 💾 **Templates** | Save a project's brief as a reusable template; import/share as a file. |
+| ⛔ **Task limits** | Per-task timeout and cost ceiling (Settings → Preferences). A runaway task is aborted, billed for what it spent, and the build halts — resumable. |
+| ✎ **Task notes** | Annotate any task on the board (`n`). Yours only — never sent to a model; included in exports. |
 
 ## How it works
 
@@ -95,8 +101,7 @@ idea
  └─ intake?     PM asks clarifying questions if the request is vague
  └─ plan mode?  Quick (one PM) or Deep (planning council → approve epics)
  └─ decompose   → a routed, epic-tagged backlog with a cost estimate
- └─ approve     → auto-run, or gate the backlog / gate again before dev
- └─ build       toposort deps · design → code → test · Tester→Dev feedback loop
+ └─ build       toposort deps · design → code → review → test · Reviewer/Tester→Dev feedback loop
  └─ done        working files + retro + deploy/export/preview
 ```
 
@@ -120,8 +125,9 @@ npm start                                         # the cockpit (the normal way 
 npm run build -- --live --mini                    # cheap end-to-end proof (~$0.10)
 npm run build -- --live --lock anthropic "idea"   # full pipeline on one provider
 npm run build -- --live --mini --resume           # resume a halted/finished build (skips done tasks)
+npm run build -- --live --mini --task-cap 0.5 --task-timeout 5   # per-task limits (USD / minutes)
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 140 tests
+npm test                                          # 157 tests
 npm run typecheck
 ```
 
@@ -129,7 +135,8 @@ npm run typecheck
 
 - **Keys** are stored at `~/.projectinator/config.json` (chmod 0600) — never in the repo.
 - **Settings** (in the app): API keys, preferred provider, default workflow, default stack,
-  model assignments, budget cap + alert %, estimate accuracy.
+  model assignments (incl. the Reviewer), budget cap + alert %, per-task timeout + cost cap,
+  estimate accuracy.
 - **User data** lives under `~/.projectinator/` (config, calibration, templates, exports).
   Each build gets its own git-versioned workspace folder (one commit per finished task).
 

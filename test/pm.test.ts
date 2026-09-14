@@ -10,7 +10,7 @@ import { route, DEFAULT_POLICY } from "../src/router.js";
 
 describe("estimateTokens buckets", () => {
   it("returns positive input/output for every capability+difficulty", () => {
-    for (const cap of ["plan", "design", "code", "test", "ops"] as const) {
+    for (const cap of ["plan", "design", "code", "review", "test", "ops"] as const) {
       for (const diff of ["trivial", "low", "medium", "high"] as const) {
         const e = estimateTokens(cap, diff);
         expect(e.input).toBeGreaterThan(0);
@@ -69,6 +69,12 @@ describe("flattenBacklog", () => {
       expect(d.model.id).toBeTruthy();
       expect(d.cost).toBeGreaterThan(0);
     }
+  });
+  it("review tasks are kept (not coerced away) and route to the cheap tier at any difficulty", () => {
+    const tasks = flattenBacklog({ tasks: [{ id: "R", title: "review", capability: "REVIEW", difficulty: "high" }] });
+    expect(tasks[0]!.capability).toBe("review");
+    const d = route(tasks[0]!, { policy: { ...DEFAULT_POLICY, backendMode: "api" } });
+    expect(d.tier).toBe("fast");
   });
 });
 

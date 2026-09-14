@@ -48,3 +48,39 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 
 ### Deferred / low-value
 - [ ] Git-worktree isolation per task
+
+## Backlog (brainstorm 2026-09-14)
+
+Direction: all audiences (solo builders, devs with real repos, model evaluators, teams). Non-static stacks run directly on the host (no Docker). Ship many small robustness/polish items first; one medium feature designed at a time.
+
+### Next batch (decided)
+- [x] **Per-task timeout + cost ceiling** — Settings → Preferences: "Task timeout (min)" + "Task cost cap (USD)" (defaults 10 / $3, 0 = unlimited). The Pi executor aborts the session on breach and throws `TaskLimitError`; the orchestrator bills the attempt, records a failed outcome (`error`), emits `task_failed`, and halts with the reason. Failed outcomes never count as done — `completedIds` excludes them so Resume rebuilds the task. A breach never falls back to another provider.
+- [x] **Playwright-missing warning** — `chromiumAvailable()` probe (`preview.ts`); `check_app` refuses with the install hint instead of failing opaquely; `Verdict.runtimeChecked` is true only after a real render. Board/Kanban/Standup show **PASS\*** (amber) for un-executed passes; build + done screens carry a banner; CLI prints `PASS* (app not executed — no Chromium)`. Read-only testing still runs.
+- [x] **Task notes** — `Task.notes`; `n` in the plan board and the project board editor (allowed on built tasks too — it changes nothing that ran). Shown as `✎ …` on both editors and the Kanban; included in the Markdown/CSV export. Never sent to a model (`buildRolePrompt` only reads id/title; test pins it).
+
+### Small (independently shippable; reuse existing seams)
+- [ ] Per-task transcript view — `RoleResult.finalText` is already stored; History → task → text
+- [ ] Per-commit diff viewer — `git.ts` history + `git show --stat` / paged diff
+- [ ] Per-model calibration — bucket key `cap/diff/model`, fallback to today's `cap/diff`
+- [ ] Webhook notify on done/halt (URL in prefs; alongside desktop notify)
+- [ ] Headless JSON CLI mode — `run-build --json` emits orchestrator events as NDJSON (CI)
+- [ ] Model-choice cost matrix on the plan screen — the backlog priced per provider/tier lock
+- [ ] Tier-bump escalation — on a failed test round, re-run the **Dev only, one tier up**; tester stays on its routed model
+- [ ] "Stuck task" indicator — elapsed vs bucket median (needs per-task timing from the timeout work)
+- [ ] Compiled `dist` — drop runtime `tsx`; `bin` switches entry
+- [ ] Import an existing folder as a project — copy-in + `git init`; `buildProjectContext` already summarizes
+
+### Medium (design doc before code)
+- [x] **Reviewer role** — sixth capability `review`: PM plans one after every code task (test depends on the review); cheap read-only session (no `bash`, no `check_app`) ending in `submit_verdict`; a FAIL re-runs the code via the same Tester→Dev loop; the Tester's fix round resolves code deps *through* review tasks. Settings → Models has a Reviewer slot; registry holds one `fast` row so every difficulty routes cheap. Design: [`docs/REVIEWER.md`](docs/REVIEWER.md).
+- [ ] Richer tester — Lighthouse/a11y, screenshots at 3 viewports, generated Playwright spec kept in the repo; visual diff per rebuild in History
+- [ ] Vite/npm stack on host, then Node/Express and Python backend targets
+- [ ] Worktree-parallel code tasks (today code tasks serialize even in parallel mode)
+- [ ] Mid-build steering — pause, inject/edit a task, resume without losing in-flight work
+- [ ] Escalation ladder beyond tier-bump — Designer re-spec, then bounded PM re-plan
+- [ ] Sprints — group tasks, velocity, burndown per sprint
+- [ ] Auto-scout from an OpenRouter rankings/pricing feed → proposed registry diff (scout is already pure; it lacks a source)
+- [ ] Bake-off upgrades — cross-provider, code bake-off scored by the real tester, quality/$ Pareto
+- [ ] GitHub push + PR per build; export backlog to GitHub Issues
+- [ ] MCP server exposing Projectinator
+- [ ] Local models (Ollama/LM Studio) — **unverified** whether Pi's registry supports them
+- [ ] Homebrew / Docker packaging

@@ -23,7 +23,7 @@ function counter(): { exec: RoleExecutor; ran: string[] } {
   const ran: string[] = [];
   const exec: RoleExecutor = async ({ task }) => {
     ran.push(task.id);
-    return { finalText: `did ${task.id}`, files: [`${task.id}.txt`], cost: 0.5, verdict: task.capability === "test" ? { passed: true, bugs: [] } : undefined };
+    return { finalText: `did ${task.id}`, files: [`${task.id}.txt`], cost: 0.5, verdict: task.capability === "test" ? { passed: true, bugs: [], runtimeChecked: true } : undefined };
   };
   return { exec, ran };
 }
@@ -63,6 +63,27 @@ describe("resume via seedOutcomes", () => {
     const onCheckpoint = vi.fn();
     await runBacklog(tasks, { policy: policy(), execute: exec, registry: anthropic, onCheckpoint });
     expect(onCheckpoint).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("resume after a per-task abort", () => {
+  it("rebuilds the failed task, keeps its sunk cost, still skips real finishes", async () => {
+    const tasks = [t("A", "design"), t("B", "code", ["A"])];
+    const seed: TaskOutcome[] = [
+      { taskId: "A", capability: "design", provider: "anthropic", modelId: "claude-opus-4-8", finalText: "a", files: [], cost: 0.5, round: 0 },
+      { taskId: "B", capability: "code", provider: "anthropic", modelId: "claude-opus-4-8", finalText: "", files: [], cost: 1.25, round: 0, error: "aborted" },
+    ];
+    const c = counter();
+    const res = await runBacklog(tasks, { policy: policy(), execute: c.exec, registry: anthropic, seedOutcomes: seed });
+    expect(c.ran).toEqual(["B"]);
+    expect(res.halted).toBe(false);
+    expect(res.totalCost).toBe(2.25); // 0.5 + sunk 1.25 + rebuilt 0.5
+  });
+
+  it("completedIds excludes failed attempts", () => {
+    const s = newBuildState("id", [t("A", "code")]);
+    s.outcomes = [{ taskId: "A", capability: "code", provider: "anthropic", modelId: "m", finalText: "", files: [], cost: 1, round: 0, error: "aborted" }];
+    expect(completedIds(s).has("A")).toBe(false);
   });
 });
 

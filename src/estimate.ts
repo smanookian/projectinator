@@ -37,6 +37,13 @@ const BUCKETS: Record<Capability, Record<Difficulty, Bucket>> = {
     medium: { input: 25_000, output: 7_000 },
     high: { input: 60_000, output: 14_000 },
   },
+  // Review reads the same tree the tester does but never runs it — shorter output.
+  review: {
+    trivial: { input: 15_000, output: 800 },
+    low: { input: 25_000, output: 1_500 },
+    medium: { input: 50_000, output: 3_000 },
+    high: { input: 80_000, output: 5_000 },
+  },
   test: {
     trivial: { input: 15_000, output: 1_200 },
     low: { input: 25_000, output: 2_500 },

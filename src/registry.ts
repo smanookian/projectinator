@@ -66,6 +66,18 @@ export const REGISTRY: RegistryEntry[] = [
     updated: "2026-07-15",
   },
 
+  // --- REVIEW (read-only wiring check before the tester; one row -> every difficulty is cheap) ---
+  {
+    capability: "review",
+    tier: "fast",
+    byBackend: {
+      web: { provider: "google", model: "gemini-3.1-pro-preview" },
+      api: { provider: "google", model: "gemini-3-flash-preview" },
+    },
+    evidence: "Read-only static check; cheapest tier is adequate, same picks as test",
+    updated: "2026-09-15",
+  },
+
   // --- TEST (QA / review, high volume -> cheap) ---
   {
     capability: "test",

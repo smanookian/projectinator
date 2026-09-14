@@ -10,7 +10,7 @@
 // relative paths all resolve the way they will in production.
 
 import { createServer, type Server } from "node:http";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -144,6 +144,20 @@ async function renderOne(
     await page.close();
   }
 }
+
+/** Whether the tester can actually run apps: Playwright's Chromium is installed.
+ *  No launch, just the executable lookup — cheap enough to call per task.
+ *  Dynamic import on purpose (same as renderCheck): playwright is optional. */
+export async function chromiumAvailable(): Promise<boolean> {
+  try {
+    const { chromium } = await import("playwright");
+    return existsSync(chromium.executablePath());
+  } catch {
+    return false;
+  }
+}
+
+export const CHROMIUM_INSTALL_HINT = "run `npx playwright install chromium` to enable real test execution";
 
 /** Load a built page in headless Chromium and report what actually happened —
  *  over http (production-like) AND over file:// (how a user double-clicks it). */

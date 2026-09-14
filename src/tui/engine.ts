@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join } from "node:path";
-import type { Capability, Provider, RegistryEntry, Task, TaskOutcome, Tier } from "../types.js";
+import type { Capability, Provider, RegistryEntry, Task, TaskLimits, TaskOutcome, Tier } from "../types.js";
 import { DEFAULT_POLICY, route } from "../router.js";
 import { REGISTRY } from "../registry.js";
 import { MODELS } from "../models.js";
@@ -21,7 +21,7 @@ import { narrateRetro } from "../narrate.js";
 import { decomposeIdea } from "../pm.js";
 import { assessIntake, type IntakeQuestion } from "../intake.js";
 import { councilEpics, type Epic, type CouncilResult } from "../council.js";
-import { newBuildState, loadState, saveState, type BuildState } from "../build-state.js";
+import { newBuildState, loadState, saveState, completedIds, type BuildState } from "../build-state.js";
 
 const PROVIDER_KEYS: Record<Provider, string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
@@ -81,6 +81,7 @@ export const ROLE_TIERS: { capability: Capability; tier: Tier; label: string }[]
   { capability: "plan", tier: "mid", label: "Project manager" },
   { capability: "design", tier: "high", label: "Designer" },
   { capability: "code", tier: "high", label: "Developer" },
+  { capability: "review", tier: "fast", label: "Reviewer" },
   { capability: "test", tier: "fast", label: "Tester" },
   { capability: "ops", tier: "high", label: "Runner / ops" },
 ];
@@ -332,7 +333,7 @@ export function saveProjectTasks(dir: string, tasks: Task[]): void {
 export function exportProject(dir: string): { md: string; csv: string } {
   const state = loadState(join(dir, "build-state.json"));
   if (!state) throw new Error("No project data to export.");
-  const done = new Set(state.outcomes.map((o) => o.taskId));
+  const done = completedIds(state);
   const cost = new Map<string, number>();
   for (const o of state.outcomes) cost.set(o.taskId, (cost.get(o.taskId) ?? 0) + o.cost);
 
@@ -358,13 +359,14 @@ export function exportProject(dir: string): { md: string; csv: string } {
       const c = cost.has(t.id) ? ` — $${cost.get(t.id)!.toFixed(2)}` : "";
       const dep = (t.dependsOn ?? []).length ? ` _(after ${(t.dependsOn ?? []).join(", ")})_` : "";
       md.push(`- [${mark}] \`${t.id}\` **${t.capability}/${t.difficulty}** — ${t.title}${c}${dep}`);
+      if (t.notes) md.push(`  - ✎ ${t.notes}`);
     }
     md.push("");
   }
 
   const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
   const csv = [
-    "id,epic,capability,difficulty,status,cost,dependsOn,title",
+    "id,epic,capability,difficulty,status,cost,dependsOn,title,notes",
     ...state.tasks.map((t) =>
       [
         t.id,
@@ -375,6 +377,7 @@ export function exportProject(dir: string): { md: string; csv: string } {
         (cost.get(t.id) ?? 0).toFixed(2),
         esc((t.dependsOn ?? []).join(" ")),
         esc(t.title),
+        esc(t.notes ?? ""),
       ].join(","),
     ),
   ].join("\n");
@@ -390,7 +393,7 @@ export function exportProject(dir: string): { md: string; csv: string } {
 function projectRows(dir: string) {
   const state = loadState(join(dir, "build-state.json"));
   if (!state) throw new Error("No project data to export.");
-  const done = new Set(state.outcomes.map((o) => o.taskId));
+  const done = completedIds(state);
   const cost = new Map<string, number>();
   for (const o of state.outcomes) cost.set(o.taskId, (cost.get(o.taskId) ?? 0) + o.cost);
   return { state, done, cost };
@@ -623,7 +626,7 @@ export async function breakdownEpic(
 
 export interface RunHandle {
   workspace: string;
-  promise: Promise<{ totalCost: number; halted: boolean; files: string[] }>;
+  promise: Promise<{ totalCost: number; halted: boolean; haltReason?: string; files: string[] }>;
 }
 
 /** Run a planned build, streaming orchestrator events to the UI. Spends money.
@@ -635,6 +638,7 @@ export function startBuild(
   opts: {
     concurrency: number;
     budgetCapUSD: number;
+    taskLimits: TaskLimits;
     onEvent: (e: OrchestratorEvent) => void;
     workspace?: string;
     seedOutcomes?: TaskOutcome[];
@@ -658,7 +662,7 @@ export function startBuild(
   state.budgetCapUSD = opts.budgetCapUSD; // remember this project's cap
 
   const executor = makePiExecutor({ workspace, backend: "api" });
-  const policy = { ...DEFAULT_POLICY, backendMode: "api" as const, budgetCapUSD: opts.budgetCapUSD };
+  const policy = { ...DEFAULT_POLICY, backendMode: "api" as const, budgetCapUSD: opts.budgetCapUSD, taskLimits: opts.taskLimits };
 
   // Version the workspace: init a repo, then commit after each finished task.
   initRepo(workspace);
@@ -691,6 +695,7 @@ export function startBuild(
     return {
       totalCost: result.totalCost,
       halted: result.halted,
+      haltReason: result.haltReason,
       files: (result.outcomes.at(-1)?.files ?? []).filter((f) => f !== "build-state.json"),
     };
   });

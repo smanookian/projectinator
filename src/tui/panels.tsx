@@ -76,7 +76,7 @@ export function ListView({ tasks }: { tasks: BoardTask[] }): React.ReactElement 
                 <Box width={3}><Text>{ROLE_META[t.capability].emoji}</Text></Box>
                 <Box flexGrow={1}><Text color={C.text} wrap="truncate-end">{t.title}</Text></Box>
                 <Box width={10} justifyContent="flex-end">
-                  {t.verdict ? <Text color={t.verdict === "PASS" ? C.good : C.bad}>{t.verdict}</Text>
+                  {t.verdict ? <Text color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}>{t.verdict}</Text>
                     : t.cost ? <Text color={C.dim}>${t.cost.toFixed(2)}</Text> : <Text> </Text>}
                 </Box>
               </Box>

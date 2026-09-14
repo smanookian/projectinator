@@ -81,7 +81,7 @@ export function route(task: Task, ctx: RouteContext): RouteDecision {
 
   // 5. Cost.
   const cost = estimateCost(task.estTokens, model);
-  const runningTotal = round2((ctx.runningTotalBefore ?? 0) + cost);
+  const runningTotal = Math.round(((ctx.runningTotalBefore ?? 0) + cost) * 10_000) / 10_000;
   const overCap = runningTotal > policy.budgetCapUSD;
   if (overCap) reasons.push(`OVER CAP: running $${runningTotal} > cap $${policy.budgetCapUSD}`);
 
@@ -110,14 +110,11 @@ export function routeBacklog(tasks: Task[], ctx: RouteContext): RouteDecision[] 
   return out;
 }
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
 /** A sensible default policy. */
 export const DEFAULT_POLICY: RoutingPolicy = {
   backendMode: "cost-first",
   budgetCapUSD: 15,
   difficultyToTier: { trivial: "fast", low: "mid", medium: "mid", high: "high" },
   maxFeedbackRounds: 3,
+  taskLimits: { timeoutMs: 10 * 60_000, costCapUSD: 3 },
 };

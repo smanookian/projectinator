@@ -11,7 +11,7 @@ import { cleanDeps } from "./engine.js";
 import { estimateTokens } from "../estimate.js";
 import { groupByEpic } from "./Kanban.js";
 
-const CAPS: Capability[] = ["plan", "design", "code", "test", "ops"];
+const CAPS: Capability[] = ["plan", "design", "code", "review", "test", "ops"]
 const DIFFS: Difficulty[] = ["trivial", "low", "medium", "high"];
 
 interface Card extends Task {
@@ -34,7 +34,7 @@ export function BoardEditor({
   const [items, setItems] = useState<Card[]>(() => tasks.map((t) => ({ ...t, parked: true })));
   const [cursor, setCursor] = useState(0);
   const [editing, setEditing] = useState(false);
-  const [editField, setEditField] = useState<"title" | "epic" | "deps">("title");
+  const [editField, setEditField] = useState<"title" | "epic" | "deps" | "notes">("title");
   const [draft, setDraft] = useState("");
   const [warn, setWarn] = useState("");
   const [busy, setBusy] = useState<string>(""); // epic being broken down
@@ -134,6 +134,10 @@ export function BoardEditor({
       setEditField("deps");
       setDraft((selected.dependsOn ?? []).join(" "));
       setEditing(true);
+    } else if (input === "n") {
+      setEditField("notes");
+      setDraft(selected.notes ?? "");
+      setEditing(true);
     } else if (input === "c") {
       const cap = CAPS[(CAPS.indexOf(selected.capability) + 1) % CAPS.length]!;
       update(selected.id, { capability: cap, estTokens: estimateTokens(cap, selected.difficulty) });
@@ -170,6 +174,7 @@ export function BoardEditor({
               )}
             </Box>
             {(c.dependsOn ?? []).length ? <Text color={C.dim}>  ↖ {(c.dependsOn ?? []).join(", ")}</Text> : null}
+            {c.notes ? <Text color={C.dim} wrap="truncate-end">  ✎ {c.notes}</Text> : null}
           </Box>
         );
       })}
@@ -200,6 +205,12 @@ export function BoardEditor({
               setEditing(false);
             }}
           />
+        </Box>
+      ) : null}
+      {editing && editField === "notes" && selected ? (
+        <Box>
+          <Text color={C.accent}>Note for {selected.id} (yours only, never sent to the model): </Text>
+          <TextInput value={draft} onChange={setDraft} onSubmit={() => { update(selected.id, { notes: draft.trim() || undefined }); setEditing(false); }} />
         </Box>
       ) : null}
 
@@ -233,6 +244,7 @@ export function BoardEditor({
           { keys: "e", label: "edit" },
           { keys: "g", label: "epic" },
           { keys: "D", label: "deps" },
+          { keys: "n", label: "note" },
           { keys: "c", label: "cap" },
           { keys: "f", label: "diff" },
           { keys: "b", label: "break" },

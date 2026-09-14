@@ -31,7 +31,7 @@ const TaskSchema = Type.Object(
   {
     id: Type.String({ description: "Unique task id, e.g. T-01" }),
     title: Type.String({ description: "One concrete, buildable unit of work" }),
-    capability: Type.String({ description: "one of: plan | design | code | test | ops" }),
+    capability: Type.String({ description: "one of: plan | design | code | review | test | ops" }),
     difficulty: Type.String({ description: "one of: trivial | low | medium | high" }),
     dependsOn: Type.Optional(Type.Array(Type.String(), { description: "task ids that must finish first" })),
     epic: Type.Optional(Type.String({ description: "optional grouping label" })),
@@ -41,7 +41,7 @@ const TaskSchema = Type.Object(
 );
 const BacklogSchema = Type.Object({ tasks: Type.Array(TaskSchema) }, { additionalProperties: true });
 
-const CAPS = new Set<Capability>(["plan", "design", "code", "test", "ops"]);
+const CAPS = new Set<Capability>(["plan", "design", "code", "review", "test", "ops"]);
 const DIFFS = new Set<Difficulty>(["trivial", "low", "medium", "high"]);
 function coerceCap(s: string): Capability {
   const v = s?.toLowerCase().trim() as Capability;
@@ -78,9 +78,10 @@ export function pmSystemPrompt(scope: Scope = "full"): string {
     scope === "change"
       ? [
           "This is a CHANGE to an EXISTING project whose files are already on disk.",
-          "Produce the FEWEST tasks that accomplish the change — usually 1 code task,",
-          "plus 1 test task only if the change is risky. Do NOT re-plan the whole project,",
-          "do NOT add design/setup/deploy tasks. One small tweak = one task.",
+          "Produce the FEWEST tasks that accomplish the change — usually 1 code task plus 1",
+          "`review` task that dependsOn it (cheap read-only wiring check), plus 1 test task",
+          "(dependsOn the review) only if the change is risky. Do NOT re-plan the whole project,",
+          "do NOT add design/setup/deploy tasks. One small tweak = code + review.",
         ]
       : [
           "Scale the number of tasks to the request. A tiny page = a few tasks; a full app = many.",
@@ -92,6 +93,9 @@ export function pmSystemPrompt(scope: Scope = "full"): string {
           "src/components/Header.jsx') and keep file names CONSISTENT across tasks — decide one",
           "structure and reuse it. When several files must agree, add ONE early design task that",
           "defines the file tree, and have the code tasks depend on it.",
+          "After EVERY code task add one `review` task that dependsOn that code task (a cheap",
+          "read-only wiring check). The test task must dependsOn the review task(s), not the code",
+          "task(s) directly. Order: design -> code -> review -> test.",
         ];
   return [
     "You are the PROJECT MANAGER on an autonomous software team.",
@@ -100,7 +104,7 @@ export function pmSystemPrompt(scope: Scope = "full"): string {
     "",
     "Each TASK must be:",
     "- atomic: one model can complete it in one focused turn",
-    "- tagged with a capability: plan | design | code | test | ops",
+    "- tagged with a capability: plan | design | code | review | test | ops",
     "- tagged with a difficulty: trivial | low | medium | high (how hard the thinking is)",
     "Optional per task: dependsOn (ids that must finish first, e.g. code depends on design),",
     "and epic/story labels for grouping. Use ids like T-01, unique across the list.",

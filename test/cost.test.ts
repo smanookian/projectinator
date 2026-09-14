@@ -11,9 +11,14 @@ describe("estimateCost", () => {
 
   it("applies cacheRead rate to the cached fraction of input", () => {
     const opus = getModel("claude-opus-4-8"); // input 5, cacheRead 0.5
-    // 100k input, 50% cached: fresh 50k @5 = $0.25, cached 50k @0.5 = $0.025 -> $0.28 (rounded)
+    // 100k input, 50% cached: fresh 50k @5 = $0.25, cached 50k @0.5 = $0.025 -> $0.275
     const c = estimateCost({ input: 100_000, output: 0, cachedInputFraction: 0.5 }, opus);
-    expect(c).toBeCloseTo(0.28, 2);
+    expect(c).toBe(0.275);
+  });
+
+  it("keeps sub-cent estimates instead of collapsing them to $0.00", () => {
+    const flash = getModel("gemini-3-flash-preview");
+    expect(estimateCost({ input: 2_000, output: 300 }, flash)).toBeGreaterThan(0);
   });
 
   it("honors volume tiers (Gemini past 200k input)", () => {

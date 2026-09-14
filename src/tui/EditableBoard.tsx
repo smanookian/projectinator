@@ -8,7 +8,7 @@ import { C, ROLE_META, KeyHint, TextField as TextInput } from "./components.js";
 import { estimateTokens } from "../estimate.js";
 import { groupByEpic } from "./Kanban.js";
 
-const CAPS: Capability[] = ["plan", "design", "code", "test", "ops"];
+const CAPS: Capability[] = ["plan", "design", "code", "review", "test", "ops"]
 const DIFFS: Difficulty[] = ["trivial", "low", "medium", "high"];
 
 export function EditableBoard({
@@ -25,7 +25,7 @@ export function EditableBoard({
   const [items, setItems] = useState<Task[]>(() => tasks.map((t) => ({ ...t })));
   const [cursor, setCursor] = useState(0);
   const [editing, setEditing] = useState(false);
-  const [field, setField] = useState<"title" | "epic" | "deps">("title");
+  const [field, setField] = useState<"title" | "epic" | "deps" | "notes">("title");
   const [draft, setDraft] = useState("");
   const [warn, setWarn] = useState("");
 
@@ -82,9 +82,10 @@ export function EditableBoard({
     if (key.escape) return onCancel();
     if (input === "g") { setField("epic"); setDraft(selected.epic || "General"); setEditing(true); return; }
     if (input === "D") { setField("deps"); setDraft((selected.dependsOn ?? []).join(" ")); setEditing(true); return; }
+    if (input === "n") { setField("notes"); setDraft(selected.notes ?? ""); setEditing(true); return; }
     // fields below don't change built work
     if (isDone(selected.id)) {
-      setWarn(`${selected.id} is already built — only its epic (g) can be changed.`);
+      setWarn(`${selected.id} is already built — only its epic (g) and notes (n) can be changed.`);
       return;
     }
     if (input === "e") { setField("title"); setDraft(selected.title); setEditing(true); }
@@ -123,6 +124,11 @@ export function EditableBoard({
           />
         </Box>
       ) : null}
+      {editing && field === "notes" && selected ? (
+        <Box><Text color={C.accent}>Note for {selected.id} (yours only, never sent to the model): </Text>
+          <TextInput value={draft} onChange={setDraft} onSubmit={() => { update(selected.id, { notes: draft.trim() || undefined }); setEditing(false); }} />
+        </Box>
+      ) : null}
 
       {lanes.map((lane) => (
         <Box key={lane.epic} flexDirection="column" marginTop={1}>
@@ -131,19 +137,22 @@ export function EditableBoard({
             const sel = selected?.id === t.id;
             const done = isDone(t.id);
             return (
-              <Box key={t.id}>
-                <Box width={2}><Text color={C.accent}>{sel ? "›" : " "}</Text></Box>
-                <Box width={2}><Text color={done ? C.good : C.dim}>{done ? "✓" : "○"}</Text></Box>
-                <Box width={7}><Text color={C.dim}>{t.id}</Text></Box>
-                <Box width={3}><Text>{ROLE_META[t.capability].emoji}</Text></Box>
-                <Box width={16}><Text color={sel ? C.accent : C.dim}>{t.capability}/{t.difficulty}</Text></Box>
-                <Box flexGrow={1}>
-                  {sel && editing && field === "title" ? (
-                    <TextInput value={draft} onChange={setDraft} onSubmit={() => { update(t.id, { title: draft.trim() || t.title }); setEditing(false); }} />
-                  ) : (
-                    <Text color={sel ? C.text : done ? C.dim : C.text} wrap="truncate-end">{t.title}</Text>
-                  )}
+              <Box key={t.id} flexDirection="column">
+                <Box>
+                  <Box width={2}><Text color={C.accent}>{sel ? "›" : " "}</Text></Box>
+                  <Box width={2}><Text color={done ? C.good : C.dim}>{done ? "✓" : "○"}</Text></Box>
+                  <Box width={7}><Text color={C.dim}>{t.id}</Text></Box>
+                  <Box width={3}><Text>{ROLE_META[t.capability].emoji}</Text></Box>
+                  <Box width={16}><Text color={sel ? C.accent : C.dim}>{t.capability}/{t.difficulty}</Text></Box>
+                  <Box flexGrow={1}>
+                    {sel && editing && field === "title" ? (
+                      <TextInput value={draft} onChange={setDraft} onSubmit={() => { update(t.id, { title: draft.trim() || t.title }); setEditing(false); }} />
+                    ) : (
+                      <Text color={sel ? C.text : done ? C.dim : C.text} wrap="truncate-end">{t.title}</Text>
+                    )}
+                  </Box>
                 </Box>
+                {t.notes ? <Box marginLeft={30}><Text color={C.dim} wrap="truncate-end">✎ {t.notes}</Text></Box> : null}
               </Box>
             );
           })}
@@ -155,6 +164,7 @@ export function EditableBoard({
           { keys: "[ ]", label: "reorder" },
           { keys: "g", label: "epic" },
           { keys: "D", label: "deps" },
+          { keys: "n", label: "note" },
           { keys: "e", label: "rename" },
           { keys: "c", label: "cap" },
           { keys: "f", label: "diff" },

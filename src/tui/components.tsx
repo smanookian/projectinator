@@ -261,11 +261,12 @@ export interface TaskView {
   title: string;
   cost?: number;
   model?: string;
-  verdict?: "PASS" | "FAIL";
+  /** "PASS*" = passed, but the tester never ran the app (no Chromium). */
+  verdict?: "PASS" | "PASS*" | "FAIL";
 }
 
 const CAP_LABEL: Record<Capability, string> = {
-  plan: "plan", design: "design", code: "code", test: "test", ops: "ops",
+  plan: "plan", design: "design", code: "code", review: "review", test: "test", ops: "ops",
 };
 
 /** The AI team: each capability is a role with a friendly name + icon. */
@@ -273,6 +274,7 @@ export const ROLE_META: Record<Capability, { emoji: string; label: string }> = {
   plan: { emoji: "🧭", label: "Project manager" },
   design: { emoji: "🎨", label: "Designer" },
   code: { emoji: "🧠", label: "Developer" },
+  review: { emoji: "🔍", label: "Reviewer" },
   test: { emoji: "🔎", label: "Tester" },
   ops: { emoji: "🚀", label: "Runner" },
 };
@@ -311,7 +313,7 @@ export function TaskRow({ t }: { t: TaskView }): React.ReactElement {
       </Box>
       <Box width={10} justifyContent="flex-end">
         {t.verdict ? (
-          <Text color={t.verdict === "PASS" ? C.good : C.bad}>{t.verdict}</Text>
+          <Text color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}>{t.verdict}</Text>
         ) : t.cost !== undefined ? (
           <Text color={C.dim}>${t.cost.toFixed(2)}</Text>
         ) : (

@@ -16,9 +16,11 @@ export interface BoardTask {
   dependsOn?: string[];
   status: "pending" | "running" | "done" | "failed" | "skipped";
   cost?: number;
-  verdict?: "PASS" | "FAIL";
+  verdict?: "PASS" | "PASS*" | "FAIL";
   /** The teammate (model) working this task, when known. */
   assignee?: string;
+  /** Human annotation from the board editor. */
+  notes?: string;
 }
 
 type Col = "backlog" | "notStarted" | "inProgress" | "done";
@@ -62,11 +64,12 @@ function Card({ t }: { t: BoardTask }): React.ReactElement {
         <Text>{ROLE_META[t.capability].emoji} </Text>
         <Text color={C.dim}>{t.id} </Text>
         <Text color={C.accent}>{t.capability}</Text>
-        {t.verdict ? <Text> <Badge color={t.verdict === "PASS" ? "green" : "red"}>{t.verdict}</Badge></Text> : null}
+        {t.verdict ? <Text> <Badge color={t.verdict === "FAIL" ? "red" : t.verdict === "PASS*" ? "yellow" : "green"}>{t.verdict}</Badge></Text> : null}
         {t.cost ? <Text color={C.dim}> ${t.cost.toFixed(2)}</Text> : null}
       </Box>
       <Text color={failed ? C.bad : C.text} wrap="truncate-end">{t.title}</Text>
       {t.assignee ? <Text color={C.dim}>{t.assignee}</Text> : null}
+      {t.notes ? <Text color={C.dim} wrap="truncate-end">✎ {t.notes}</Text> : null}
     </Box>
   );
 }

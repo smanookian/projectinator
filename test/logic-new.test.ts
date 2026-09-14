@@ -47,7 +47,7 @@ describe("computeRetro", () => {
     const r = computeRetro(state(tasks, [
       outcome("A", "design", 0.10),
       outcome("B", "code", 0.30),
-      outcome("C", "test", 0.05, 0, { passed: true, bugs: [] }),
+      outcome("C", "test", 0.05, 0, { passed: true, bugs: [], runtimeChecked: true }),
     ]));
     expect(r.tests).toEqual({ passed: 1, failed: 0 });
     expect(r.byEpic.find((e) => e.epic === "Foundation")!.cost).toBeCloseTo(0.40);
@@ -58,7 +58,7 @@ describe("computeRetro", () => {
 
   it("surfaces tester-flagged bugs and a failed verdict", () => {
     const r = computeRetro(state(tasks, [
-      outcome("C", "test", 0.05, 0, { passed: false, bugs: [{ severity: "high", description: "blank page" }] }),
+      outcome("C", "test", 0.05, 0, { passed: false, bugs: [{ severity: "high", description: "blank page" }], runtimeChecked: true }),
     ]));
     expect(r.tests.failed).toBe(1);
     expect(r.bugs).toHaveLength(1);

@@ -35,7 +35,7 @@ function tracker(over: { passing?: boolean } = {}): {
     await tick();
     active--;
     live.delete(task.id);
-    return { finalText: `did ${task.id}`, files: [], cost: 0.5, verdict: task.capability === "test" ? { passed: over.passing ?? true, bugs: [] } : undefined };
+    return { finalText: `did ${task.id}`, files: [], cost: 0.5, verdict: task.capability === "test" ? { passed: over.passing ?? true, bugs: [], runtimeChecked: true } : undefined };
   };
   return { exec, maxActive: () => max, activeAt };
 }
@@ -124,5 +124,41 @@ describe("parallel: budget + resume still hold", () => {
     const ran = res.outcomes.filter((o) => o.finalText.startsWith("did")).map((o) => o.taskId);
     expect(ran).not.toContain("A");
     expect(ran.sort()).toEqual(["B", "C"]);
+  });
+});
+
+describe("parallel: a failing task does not orphan its siblings", () => {
+  it("drains in-flight work, checkpoints, and rejects once — no unhandled rejection", async () => {
+    const tasks = [t("A", "design"), t("B", "design"), t("C", "design")];
+    // A fails on the first turn; B and C a turn later, so their rejections land
+    // strictly after the first failure — the case that used to orphan promises.
+    const exec: RoleExecutor = async ({ task }) => {
+      if (task.id !== "A") await tick(); // B/C reject a turn later than A
+      throw new Error(`${task.id} exploded`);
+    };
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (e: unknown) => unhandled.push(e);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const checkpoints: number[] = [];
+      const run = runBacklog(tasks, {
+        policy: policy(),
+        execute: exec,
+        registry: anthropic,
+        concurrency: 3,
+        onCheckpoint: (_o, total) => checkpoints.push(total),
+      });
+      // Attach the handler in the same turn, as every real caller does.
+      const settled = expect(run).rejects.toThrow("A exploded");
+      await tick();
+      await settled;
+      expect(checkpoints).toHaveLength(1); // state persisted before the error escapes
+      await tick(); // unhandledRejection would fire on the next turn
+      await tick();
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
   });
 });

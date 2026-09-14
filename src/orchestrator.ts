@@ -8,12 +8,13 @@
 // The executor is INJECTED (RoleExecutor), so this entire control flow is testable
 // offline with a fake — no model, no spend. The real Pi executor lives in roles.ts.
 
-import type {
-  RegistryEntry,
-  RoleExecutor,
-  RoutingPolicy,
-  Task,
-  TaskOutcome,
+import {
+  TaskLimitError,
+  type RegistryEntry,
+  type RoleExecutor,
+  type RoutingPolicy,
+  type Task,
+  type TaskOutcome,
 } from "./types.js";
 import { route } from "./router.js";
 import { REGISTRY } from "./registry.js";
@@ -62,6 +63,7 @@ export interface RunOptions {
 export type OrchestratorEvent =
   | { type: "task_start"; task: Task; round: number; provider: string; modelId: string }
   | { type: "task_done"; outcome: TaskOutcome; runningTotal: number }
+  | { type: "task_failed"; outcome: TaskOutcome; runningTotal: number }
   | { type: "task_skipped"; taskId: string }
   | { type: "test_failed"; taskId: string; bugs: number; round: number }
   | { type: "retry_dev"; taskId: string; forTest: string; round: number }
@@ -107,14 +109,19 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
   let running = 0;
 
   // Resume: replay prior outcomes so finished tasks are skipped and cost is restored.
+  // A failed attempt is billed but never "done" — it is rebuilt.
   const seed = opts.seedOutcomes ?? [];
   for (const o of seed) {
     record.push(o);
-    outcomes.set(o.taskId, o); // last wins (retries overwrite)
+    if (o.error) outcomes.delete(o.taskId); // last wins: a later failure voids an earlier pass
+    else outcomes.set(o.taskId, o);
     running += o.cost;
   }
   running = round2(running);
-  const wasDone = new Set(seed.map((o) => o.taskId));
+  const wasDone = new Set(outcomes.keys());
+
+  let halted = false;
+  let haltReason: string | undefined;
 
   const emit = opts.onProgress ?? (() => {});
   const checkpoint = () => opts.onCheckpoint?.(record, round2(running));
@@ -132,39 +139,58 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
     const decision = route(task, { policy, registry, runningTotalBefore: running });
     emit({ type: "task_start", task, round, provider: decision.provider, modelId: decision.model.id });
     const contextText = contextOverride ?? gatherContext(task, outcomes);
-    const result = await execute({ task, decision, contextText, round });
-    const outcome: TaskOutcome = {
-      ...result,
-      taskId: task.id,
-      capability: task.capability,
-      provider: decision.provider,
-      modelId: decision.model.id,
-      round,
-    };
-    running += result.cost;
+    const meta = { taskId: task.id, capability: task.capability, provider: decision.provider, modelId: decision.model.id, round };
+    let outcome: TaskOutcome;
+    try {
+      outcome = { ...(await execute({ task, decision, contextText, round, limits: policy.taskLimits })), ...meta };
+    } catch (e) {
+      if (!(e instanceof TaskLimitError)) throw e;
+      // Limit breach: bill what was spent, record the failure, halt the build.
+      outcome = { finalText: "", files: [], cost: e.costSoFar, error: e.message, ...meta };
+      running += outcome.cost;
+      record.push(outcome);
+      halted = true;
+      haltReason = `${task.id} aborted: ${e.message}`;
+      emit({ type: "task_failed", outcome, runningTotal: round2(running) });
+      return outcome;
+    }
+    running += outcome.cost;
     outcomes.set(task.id, outcome);
     record.push(outcome);
     emit({ type: "task_done", outcome, runningTotal: round2(running) });
     return outcome;
   };
 
-  // One task's full lifecycle: run it, then its Tester->Developer feedback loop.
+  // One task's full lifecycle: run it, then its Reviewer/Tester -> Developer feedback loop.
   const runTaskUnit = async (task: Task): Promise<void> => {
     let outcome = await runOne(task, 0);
-    if (task.capability === "test" && outcome.verdict && !outcome.verdict.passed) {
-      const codeDeps = (task.dependsOn ?? [])
-        .map((id) => byId.get(id))
-        .filter((t): t is Task => !!t && t.capability === "code");
+    const judges = task.capability === "test" || task.capability === "review";
+    if (!outcome.error && judges && outcome.verdict && !outcome.verdict.passed) {
+      // The code to fix: direct code deps, plus code deps reached through a review
+      // (a test depends on the review, which depends on the code).
+      const codeDeps: Task[] = [];
+      for (const id of task.dependsOn ?? []) {
+        const dep = byId.get(id);
+        if (!dep) continue;
+        if (dep.capability === "code") codeDeps.push(dep);
+        else if (dep.capability === "review") {
+          for (const id2 of dep.dependsOn ?? []) {
+            const d2 = byId.get(id2);
+            if (d2?.capability === "code" && !codeDeps.includes(d2)) codeDeps.push(d2);
+          }
+        }
+      }
 
       let round = 1;
-      while (outcome.verdict && !outcome.verdict.passed && round <= policy.maxFeedbackRounds) {
+      fix: while (outcome.verdict && !outcome.verdict.passed && round <= policy.maxFeedbackRounds) {
         emit({ type: "test_failed", taskId: task.id, bugs: outcome.verdict.bugs.length, round });
         const fixContext = bugReport(outcome.verdict.bugs);
         for (const dep of codeDeps) {
           emit({ type: "retry_dev", taskId: dep.id, forTest: task.id, round });
-          await runOne(dep, round, fixContext);
+          if ((await runOne(dep, round, fixContext)).error) break fix;
         }
         outcome = await runOne(task, round); // re-test
+        if (outcome.error) break;
         round++;
       }
     }
@@ -201,6 +227,7 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
         return { outcomes: record, totalCost: round2(running), halted: true, haltReason: "budget cap" };
       }
       await runTaskUnit(task);
+      if (halted) return { outcomes: record, totalCost: round2(running), halted, haltReason };
     }
     return { outcomes: record, totalCost: round2(running), halted: false };
   }
@@ -215,8 +242,7 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
   const inFlight = new Map<string, Promise<void>>();
   let reserved = 0;
   let codeInFlight = 0; // code tasks are serialized (they share files) even in parallel mode
-  let halted = false;
-  let haltReason: string | undefined;
+  let failure: unknown; // first task error; rethrown after in-flight work drains
 
   const depsSatisfied = (t: Task) => (t.dependsOn ?? []).every((d) => !remaining.has(d));
   const readyTasks = () =>
@@ -235,8 +261,10 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
       if (inFlight.size >= concurrency) break;
       // Only one code task builds at a time — they write to the shared workspace.
       if (task.capability === "code" && codeInFlight >= 1) continue;
-      const est = route(task, { policy, registry, runningTotalBefore: round2(running + reserved) });
-      if (round2(running + reserved + est.cost) > policy.budgetCapUSD) {
+      // Reservations keep full precision: rounding each one to cents drops sub-cent
+      // estimates entirely, so a wide backlog of cheap tasks would under-reserve.
+      const est = route(task, { policy, registry, runningTotalBefore: running + reserved });
+      if (running + reserved + est.cost > policy.budgetCapUSD) {
         if (inFlight.size === 0) {
           emit({ type: "budget_halt", runningTotal: round2(running + est.cost), cap: policy.budgetCapUSD });
           halted = true;
@@ -244,15 +272,25 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
         }
         break; // wait for in-flight tasks to free budget/capacity
       }
-      reserved = round2(reserved + est.cost);
+      reserved += est.cost;
       const cost = est.cost;
       const isCode = task.capability === "code";
       if (isCode) codeInFlight++;
-      const p = runTaskUnit(task).then(() => {
+      const settle = () => {
         if (isCode) codeInFlight--;
-        reserved = round2(reserved - cost);
+        reserved -= cost;
         remaining.delete(task.id);
         inFlight.delete(task.id);
+      };
+      // A rejection must NOT escape through Promise.race below: that abandons the
+      // sibling promises, and their later rejections would have no handler attached
+      // (unhandled rejection -> the host process dies mid-build). Capture the first
+      // failure, stop launching, drain what's running, checkpoint, then rethrow.
+      const p = runTaskUnit(task).then(settle, (e: unknown) => {
+        settle();
+        halted = true;
+        haltReason ??= e instanceof Error ? e.message : String(e);
+        failure ??= e;
       });
       inFlight.set(task.id, p);
     }
@@ -263,6 +301,7 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
 
   await Promise.all(inFlight.values());
   checkpoint();
+  if (failure) throw failure;
   return { outcomes: record, totalCost: round2(running), halted, haltReason };
 }
 

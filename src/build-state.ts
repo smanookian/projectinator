@@ -40,7 +40,8 @@ export function loadState(path: string): BuildState | undefined {
   }
 }
 
-/** Which task ids are already finished (last outcome wins). Used to skip on resume. */
+/** Which task ids are already finished (last outcome wins; a failed attempt does not
+ *  count). Used to skip on resume. */
 export function completedIds(state: BuildState): Set<string> {
-  return new Set(state.outcomes.map((o) => o.taskId));
+  return new Set(state.outcomes.filter((o) => !o.error).map((o) => o.taskId));
 }

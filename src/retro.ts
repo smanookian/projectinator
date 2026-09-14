@@ -2,7 +2,7 @@
 // build-state: what passed, what the tester flagged, cost per epic and per
 // model, retries, and the priciest tasks. No model call.
 
-import type { BuildState } from "./build-state.js";
+import { completedIds, type BuildState } from "./build-state.js";
 import type { Bug, Difficulty } from "./types.js";
 import { baselineTokens } from "./estimate.js";
 import { estimateCost } from "./cost.js";
@@ -30,7 +30,7 @@ export function computeRetro(state: BuildState): RetroReport {
   const epicById = new Map(state.tasks.map((t) => [t.id, t.epic || "General"]));
   const diffById = new Map(state.tasks.map((t) => [t.id, t.difficulty]));
   const outcomes = state.outcomes;
-  const doneIds = new Set(outcomes.map((o) => o.taskId));
+  const doneIds = completedIds(state);
 
   // Baseline-predicted cost for each run: static token budget × the model that ran it.
   let estCost = 0;

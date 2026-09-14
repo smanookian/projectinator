@@ -132,9 +132,9 @@ describe("settings + scope", () => {
     expect(frame).toContain("Model assignments");
     unmount();
   });
-  it("roleAssignments lists the five roles with models", () => {
+  it("roleAssignments lists every role with a model", () => {
     const rows = roleAssignments();
-    expect(rows).toHaveLength(5);
+    expect(rows.map((r) => r.capability)).toEqual(["plan", "design", "code", "review", "test", "ops"]);
     expect(rows.every((r) => !!r.model)).toBe(true);
   });
   it("allModels is non-empty", () => {
@@ -246,6 +246,18 @@ describe("EditableBoard", () => {
     stdin.write("\r");
     await new Promise((r) => setTimeout(r, 20));
     expect(saved!.map((t) => t.id)).toContain("T-1");
+    unmount();
+  });
+  it("n annotates a task — even a built one — and the note survives save", async () => {
+    let saved: Task[] | null = null;
+    const { lastFrame, stdin, unmount } = render(<EditableBoard tasks={tasks} doneIds={new Set(["T-1"])} onSave={(t) => { saved = t; }} onCancel={() => {}} />);
+    const k = (s: string) => { stdin.write(s); return new Promise((r) => setTimeout(r, 20)); };
+    await k("n"); // cursor on T-1 (done): notes are allowed
+    await k("ship by friday");
+    await k("\r");
+    expect(lastFrame() ?? "").toContain("✎ ship by friday");
+    await k("\r");
+    expect(saved!.find((t) => t.id === "T-1")?.notes).toBe("ship by friday");
     unmount();
   });
 });

@@ -10,7 +10,7 @@ import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
 import { estimateAccuracy } from "../estimate.js";
 import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
-import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getPreferredStack, setPreferredStack, ENV_VAR } from "./config.js";
+import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getPreferredStack, setPreferredStack, ENV_VAR, type Prefs } from "./config.js";
 import { validateKey } from "./validate.js";
 import { openRouterModels, refreshOpenRouterModels } from "../openrouter.js";
 
@@ -428,25 +428,35 @@ function PrefsEditor({
   onDone,
   onCancel,
 }: {
-  initial: { budgetCapUSD: number; concurrency: number; budgetAlertPct: number };
-  onDone: (p: { budgetCapUSD: number; concurrency: number; budgetAlertPct: number }) => void;
+  initial: Prefs;
+  onDone: (p: Prefs) => void;
   onCancel: () => void;
 }): React.ReactElement {
   const [cap, setCap] = useState(String(initial.budgetCapUSD));
   const [conc, setConc] = useState(String(initial.concurrency));
   const [pct, setPct] = useState(String(initial.budgetAlertPct));
-  const [field, setField] = useState<"cap" | "conc" | "pct">("cap");
+  const [tmo, setTmo] = useState(String(initial.taskTimeoutMin));
+  const [tcap, setTcap] = useState(String(initial.taskCostCapUSD));
+  const [field, setField] = useState<"cap" | "conc" | "pct" | "tmo" | "tcap">("cap");
 
   const commit = () => {
     const b = Math.max(1, parseFloat(cap) || initial.budgetCapUSD);
     const c = Math.max(1, Math.floor(parseFloat(conc) || initial.concurrency));
     const p = Math.min(99, Math.max(1, Math.round(parseFloat(pct) || initial.budgetAlertPct)));
-    onDone({ budgetCapUSD: b, concurrency: c, budgetAlertPct: p });
+    // "0" is a valid value here (unlimited), so only a non-number falls back.
+    const parse0 = (s: string, fallback: number) => { const n = parseFloat(s); return Number.isFinite(n) ? Math.max(0, n) : fallback; };
+    onDone({
+      budgetCapUSD: b,
+      concurrency: c,
+      budgetAlertPct: p,
+      taskTimeoutMin: parse0(tmo, initial.taskTimeoutMin),
+      taskCostCapUSD: parse0(tcap, initial.taskCostCapUSD),
+    });
   };
 
   return (
     <Box flexDirection="column">
-      <Panel title="Budget, speed & alerts">
+      <Panel title="Budget, speed, alerts & task limits">
       <Box flexDirection="column">
         <Box>
           <Box width={22}><Text color={field === "cap" ? C.accent : C.text}>Budget cap (USD)</Text></Box>
@@ -471,14 +481,30 @@ function PrefsEditor({
         <Box>
           <Box width={22}><Text color={field === "pct" ? C.accent : C.text}>Alert at % of cap</Text></Box>
           {field === "pct" ? (
-            <TextInput value={pct} onChange={setPct} onSubmit={commit} />
+            <TextInput value={pct} onChange={setPct} onSubmit={() => setField("tmo")} />
           ) : (
             <Text>{pct}%</Text>
           )}
         </Box>
+        <Box>
+          <Box width={22}><Text color={field === "tmo" ? C.accent : C.text}>Task timeout (min)</Text></Box>
+          {field === "tmo" ? (
+            <TextInput value={tmo} onChange={setTmo} onSubmit={() => setField("tcap")} />
+          ) : (
+            <Text>{tmo === "0" ? "unlimited" : tmo}</Text>
+          )}
+        </Box>
+        <Box>
+          <Box width={22}><Text color={field === "tcap" ? C.accent : C.text}>Task cost cap (USD)</Text></Box>
+          {field === "tcap" ? (
+            <TextInput value={tcap} onChange={setTcap} onSubmit={commit} />
+          ) : (
+            <Text>{tcap === "0" ? "unlimited" : tcap}</Text>
+          )}
+        </Box>
       </Box>
       <Box flexDirection="column" marginTop={1}>
-        <Text color={C.textSubtle}>Enter moves to the next field, then saves.</Text>
+        <Text color={C.textSubtle}>Enter moves to the next field, then saves. A task over its limit is aborted and the build halts (resumable); 0 = unlimited.</Text>
         <KeyHint hints={[{ keys: "Enter", label: "next / save" }, { keys: "Ctrl+C", label: "cancel" }]} />
       </Box>
       </Panel>

@@ -57,8 +57,15 @@ import {
   type ProjectInfo,
 } from "./engine.js";
 import { deploy, DEPLOY_META, type DeployTarget } from "./deploy.js";
-import { startStaticServer, type StaticServer } from "../preview.js";
-import type { Task, TaskOutcome } from "../types.js";
+import { startStaticServer, CHROMIUM_INSTALL_HINT, type StaticServer } from "../preview.js";
+import type { Capability, Task, TaskOutcome } from "../types.js";
+import { completedIds } from "../build-state.js";
+import type { Verdict } from "../types.js";
+
+/** Board label: PASS* = a TEST that passed without ever running the app (Chromium missing).
+ *  Reviews never run anything, so they are plain PASS/FAIL. */
+const verdictLabel = (v: Verdict, capability: Capability): "PASS" | "PASS*" | "FAIL" =>
+  !v.passed ? "FAIL" : v.runtimeChecked || capability !== "test" ? "PASS" : "PASS*";
 
 type Phase =
   | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
@@ -77,7 +84,7 @@ export default function App(): React.ReactElement {
   const [tasks, setTasks] = useState<TaskView[]>([]);
   const [spent, setSpent] = useState(0);
   const [gate, setGate] = useState<{ resolve: (d: "continue" | "stop") => void } | null>(null);
-  const [buildResult, setBuildResult] = useState<{ halted: boolean; files: string[]; workspace: string } | null>(null);
+  const [buildResult, setBuildResult] = useState<{ halted: boolean; haltReason?: string; files: string[]; workspace: string } | null>(null);
 
   // Existing-project context (open/resume/make-changes).
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
@@ -295,11 +302,14 @@ export default function App(): React.ReactElement {
                   ...t,
                   status: "done",
                   cost: (t.cost ?? 0) + e.outcome.cost,
-                  verdict: e.outcome.verdict ? (e.outcome.verdict.passed ? "PASS" : "FAIL") : t.verdict,
+                  verdict: e.outcome.verdict ? verdictLabel(e.outcome.verdict, e.outcome.capability) : t.verdict,
                 }
               : t,
           ),
         );
+      } else if (e.type === "task_failed") {
+        setSpent(e.runningTotal);
+        setTasks((ts) => ts.map((t) => (t.id === e.outcome.taskId ? { ...t, status: "failed", cost: (t.cost ?? 0) + e.outcome.cost } : t)));
       } else if (e.type === "task_skipped") {
         setTasks((ts) => ts.map((t) => (t.id === e.taskId ? { ...t, status: "skipped" } : t)));
       } else if (e.type === "test_failed") {
@@ -318,6 +328,7 @@ export default function App(): React.ReactElement {
     const handle = startBuild(idea, plan, {
       concurrency: prefs.concurrency,
       budgetCapUSD: projectCap ?? prefs.budgetCapUSD,
+      taskLimits: { timeoutMs: prefs.taskTimeoutMin * 60_000, costCapUSD: prefs.taskCostCapUSD },
       onEvent,
       workspace: targetWorkspace,
       seedOutcomes: seed,
@@ -329,7 +340,7 @@ export default function App(): React.ReactElement {
       .then((r) => {
         if (!alive) return;
         setSpent(r.totalCost);
-        setBuildResult({ halted: r.halted, files: r.files, workspace: handle.workspace });
+        setBuildResult({ halted: r.halted, haltReason: r.haltReason, files: r.files, workspace: handle.workspace });
         setPhase("done");
         if (getNotify()) {
           notifyBuildDone(
@@ -496,7 +507,7 @@ export default function App(): React.ReactElement {
   }
 
   if (phase === "projectActions" && selected) {
-    const doneIds = new Set(selected.state.outcomes.map((o) => o.taskId));
+    const doneIds = completedIds(selected.state);
     // Buildable if it was halted OR the backlog has tasks that were never built.
     const hasUnbuilt = selected.state.tasks.some((t) => !doneIds.has(t.id));
     const canResume = selected.status === "halted" || hasUnbuilt;
@@ -512,6 +523,7 @@ export default function App(): React.ReactElement {
       title: t.title,
       epic: t.epic,
       dependsOn: t.dependsOn,
+      notes: t.notes,
       status: doneIds.has(t.id) ? "done" : "pending",
       cost: costById.get(t.id),
       assignee: modelById.has(t.id) ? modelLabel(modelById.get(t.id)!) : undefined,
@@ -612,7 +624,7 @@ export default function App(): React.ReactElement {
                 setPhase("change");
               } else if (i.value === "resume") {
                 const { registry, lock } = chooseRegistry(providers);
-                const done = new Set(selected.state.outcomes.map((o) => o.taskId));
+                const done = completedIds(selected.state);
                 setPlan({
                   tasks: selected.state.tasks,
                   provider: lock ?? providers[0]!,
@@ -641,7 +653,7 @@ export default function App(): React.ReactElement {
   }
 
   if (phase === "editBoard" && selected) {
-    const doneIds = new Set(selected.state.outcomes.map((o) => o.taskId));
+    const doneIds = completedIds(selected.state);
     return (
       <Box flexDirection="column">
         <EditableBoard
@@ -817,7 +829,7 @@ export default function App(): React.ReactElement {
   }
 
   if (phase === "kanban" && selected) {
-    const done = new Set(selected.state.outcomes.map((o) => o.taskId));
+    const done = completedIds(selected.state);
     const costBy = new Map<string, number>();
     const modelBy = new Map<string, string>();
     for (const o of selected.state.outcomes) {
@@ -830,6 +842,7 @@ export default function App(): React.ReactElement {
       title: t.title,
       epic: t.epic,
       dependsOn: t.dependsOn,
+      notes: t.notes,
       status: done.has(t.id) ? "done" : "pending",
       cost: costBy.get(t.id),
       assignee: modelBy.has(t.id) ? modelLabel(modelBy.get(t.id)!) : undefined,
@@ -1572,13 +1585,14 @@ export default function App(): React.ReactElement {
 
   if (phase === "building") {
     const running = tasks.filter((t) => t.status === "running").length;
-    const metaById = new Map((plan?.tasks ?? []).map((t) => [t.id, { deps: t.dependsOn ?? [], epic: t.epic }]));
+    const metaById = new Map((plan?.tasks ?? []).map((t) => [t.id, { deps: t.dependsOn ?? [], epic: t.epic, notes: t.notes }]));
     const board: BoardTask[] = tasks.map((t) => ({
       id: t.id,
       capability: t.capability,
       title: t.title,
       epic: metaById.get(t.id)?.epic,
       dependsOn: metaById.get(t.id)?.deps,
+      notes: metaById.get(t.id)?.notes,
       status: t.status,
       cost: t.cost,
       verdict: t.verdict,
@@ -1630,6 +1644,9 @@ export default function App(): React.ReactElement {
               {alerting ? (
                 <Text color={C.warn}>⚠ {Math.round((spent / cap) * 100)}% of the ${cap} cap spent — nearing the limit.</Text>
               ) : null}
+              {board.some((t) => t.verdict === "PASS*") ? (
+                <Text color={C.warn}>⚠ Tester could not run the app (no headless Chromium) — PASS* verdicts are code-reading only. {CHROMIUM_INSTALL_HINT}.</Text>
+              ) : null}
             </Box>
           );
         })()}
@@ -1641,8 +1658,11 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Text bold color={buildResult.halted ? C.warn : C.good}>
-          {buildResult.halted ? "⚠ Build halted (budget cap)" : "✓ Build complete"}
+          {buildResult.halted ? `⚠ Build halted (${buildResult.haltReason ?? "budget cap"})` : "✓ Build complete"}
         </Text>
+        {tasks.some((t) => t.verdict === "PASS*") ? (
+          <Text color={C.warn}>⚠ Tests marked PASS* were never executed in a browser — {CHROMIUM_INSTALL_HINT}.</Text>
+        ) : null}
         <Box marginTop={1}>
           <Standup
             tasks={tasks.map((t) => ({ id: t.id, capability: t.capability, title: t.title, status: t.status, cost: t.cost, verdict: t.verdict }))}

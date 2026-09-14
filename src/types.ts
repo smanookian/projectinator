@@ -6,7 +6,7 @@
 export type Backend = "api" | "web";
 
 /** What kind of work a task needs. Roles bind to capabilities, never to model names. */
-export type Capability = "plan" | "design" | "code" | "test" | "ops";
+export type Capability = "plan" | "design" | "code" | "review" | "test" | "ops";
 
 /** How hard the task is. Drives which tier of model we spend on. */
 export type Difficulty = "trivial" | "low" | "medium" | "high";
@@ -90,6 +90,8 @@ export interface Task {
   epic?: string;
   story?: string;
   dependsOn?: string[];
+  /** Human-only annotation shown on the board. Never sent to any model. */
+  notes?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +107,29 @@ export interface RoutingPolicy {
   difficultyToTier: Record<Difficulty, Tier>;
   /** Tester -> Developer feedback loop stop condition (used later, in the orchestrator). */
   maxFeedbackRounds: number;
+  /** Per-task limits. A task that runs longer or spends more is aborted, recorded as
+   *  failed, and the build halts (resumable). 0 = unlimited. */
+  taskLimits: TaskLimits;
+}
+
+export interface TaskLimits {
+  timeoutMs: number;
+  costCapUSD: number;
+}
+
+/** Thrown by an executor when a task breaches its limits. The orchestrator turns it
+ *  into a failed outcome + halt instead of letting it escape as a crash. */
+export class TaskLimitError extends Error {
+  constructor(
+    public readonly kind: "timeout" | "cost",
+    public readonly taskId: string,
+    /** Money already spent on the aborted attempt (must still be billed). */
+    public readonly costSoFar: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "TaskLimitError";
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +166,9 @@ export interface Bug {
 export interface Verdict {
   passed: boolean;
   bugs: Bug[];
+  /** True when the tester actually ran the app (headless Chromium). False = it could
+   *  only read the code, so a PASS is weaker than it looks. */
+  runtimeChecked: boolean;
 }
 
 /** What a role produces when it runs a task. */
@@ -153,6 +181,9 @@ export interface RoleResult {
   cost: number;
   /** Only for test tasks — the pass/fail judgement. */
   verdict?: Verdict;
+  /** Set when the task was aborted (limit breach). A failed outcome is billed but
+   *  never counts as "done": resume rebuilds it. */
+  error?: string;
 }
 
 /** Executor injected into the orchestrator. Real impl runs Pi; tests pass a fake. */
@@ -163,6 +194,8 @@ export type RoleExecutor = (input: {
   contextText: string;
   /** 0 on first attempt, 1+ during a Tester→Developer feedback round. */
   round: number;
+  /** Per-task limits the executor must enforce (throw TaskLimitError on breach). */
+  limits: TaskLimits;
 }) => Promise<RoleResult>;
 
 /** One recorded step of a build run. */

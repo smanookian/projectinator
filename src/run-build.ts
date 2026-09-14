@@ -20,7 +20,7 @@ import { lockRegistryToProvider, makePiExecutor } from "./roles.js";
 import { estimateTokens } from "./estimate.js";
 import { route } from "./router.js";
 import { decomposeIdea } from "./pm.js";
-import { newBuildState, saveState, loadState, type BuildState } from "./build-state.js";
+import { newBuildState, saveState, loadState, completedIds, type BuildState } from "./build-state.js";
 import { initRepo, commitTask } from "./git.js";
 
 const args = process.argv.slice(2);
@@ -32,16 +32,25 @@ const lockIdx = args.indexOf("--lock");
 const lockProvider = (lockIdx >= 0 ? args[lockIdx + 1] : "anthropic") as Provider;
 const concIdx = args.indexOf("--concurrency");
 const concurrency = Math.max(1, parseInt((concIdx >= 0 ? args[concIdx + 1] : "1") ?? "1", 10) || 1);
+const capIdx = args.indexOf("--task-cap");
+const tmoIdx = args.indexOf("--task-timeout");
 const consumed = new Set(
   ["--live", "--mini", "--fan", "--resume", "--lock", lockIdx >= 0 ? args[lockIdx + 1] : "",
-    "--concurrency", concIdx >= 0 ? args[concIdx + 1] : ""].filter(Boolean),
+    "--concurrency", concIdx >= 0 ? args[concIdx + 1] : "",
+    "--task-cap", capIdx >= 0 ? args[capIdx + 1] : "",
+    "--task-timeout", tmoIdx >= 0 ? args[tmoIdx + 1] : ""].filter(Boolean),
 );
 const idea = args.filter((a) => !consumed.has(a)).join(" ").trim() ||
   "A one-page site with a headline and a contact form.";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const registry = lockRegistryToProvider(lockProvider);
-const policy = { ...DEFAULT_POLICY, backendMode: "api" as const, budgetCapUSD: mini ? 10 : 25 };
+// --task-cap USD / --task-timeout MIN override the per-task limits (0 = unlimited).
+const taskLimits = {
+  costCapUSD: capIdx >= 0 ? parseFloat(args[capIdx + 1] ?? "") : DEFAULT_POLICY.taskLimits.costCapUSD,
+  timeoutMs: tmoIdx >= 0 ? parseFloat(args[tmoIdx + 1] ?? "") * 60_000 : DEFAULT_POLICY.taskLimits.timeoutMs,
+};
+const policy = { ...DEFAULT_POLICY, backendMode: "api" as const, budgetCapUSD: mini ? 10 : 25, taskLimits };
 
 // --- a tiny fixed backlog for cheap end-to-end proof ---
 function miniBacklog(): Task[] {
@@ -51,7 +60,8 @@ function miniBacklog(): Task[] {
   return [
     mk("D-1", "design", "low", "Write a short design spec for a centered card that says 'Hello from Projectinator' on a soft gradient background."),
     mk("C-1", "code", "low", "Create index.html implementing the design spec exactly. Single self-contained file with embedded CSS.", ["D-1"]),
-    mk("T-1", "test", "trivial", "Open/read index.html and verify it is valid HTML and matches the design spec (centered card, the headline text, a gradient).", ["C-1"]),
+    mk("R-1", "review", "trivial", "Review index.html against the design spec: file present, no unresolved references, runs on double-click.", ["C-1"]),
+    mk("T-1", "test", "trivial", "Open/read index.html and verify it is valid HTML and matches the design spec (centered card, the headline text, a gradient).", ["R-1"]),
   ];
 }
 
@@ -66,7 +76,9 @@ function fanBacklog(): Task[] {
     mk("DB", "design", "low", "Design spec for an 'FAQ' accordion (3 questions)."),
     mk("CA", "code", "low", "Create newsletter.html from the newsletter design spec.", ["DA"]),
     mk("CB", "code", "low", "Create faq.html from the FAQ design spec.", ["DB"]),
-    mk("TJ", "test", "trivial", "Verify newsletter.html and faq.html are valid and match their specs.", ["CA", "CB"]),
+    mk("RA", "review", "trivial", "Review newsletter.html against its spec.", ["CA"]),
+    mk("RB", "review", "trivial", "Review faq.html against its spec.", ["CB"]),
+    mk("TJ", "test", "trivial", "Verify newsletter.html and faq.html are valid and match their specs.", ["RA", "RB"]),
   ];
 }
 
@@ -135,7 +147,7 @@ if (prior) {
   state.status = "running";
   tasks = prior.tasks; // authoritative backlog from the interrupted run
   seedOutcomes = prior.outcomes;
-  const doneCount = new Set(prior.outcomes.map((o) => o.taskId)).size;
+  const doneCount = completedIds(prior).size;
   console.log(`  Resuming: ${doneCount} task(s) already done, restored ${money(prior.totalCost)}.`);
 } else {
   if (resume) console.log("  (No prior state found — starting fresh.)");
@@ -159,8 +171,9 @@ const onProgress = (e: OrchestratorEvent) => {
   if (e.type === "task_start") console.log(`  ▶ ${e.task.id} [${e.task.capability}] -> ${e.provider}/${e.modelId} (round ${e.round})`);
   else if (e.type === "task_done") {
     const hash = commitTask(workspace, e.outcome.taskId, titleById.get(e.outcome.taskId) ?? e.outcome.taskId);
-    console.log(`    ✓ ${e.outcome.taskId} ${money(e.outcome.cost)}  running ${money(e.runningTotal)}${e.outcome.verdict ? `  verdict=${e.outcome.verdict.passed ? "PASS" : "FAIL"}` : ""}${hash ? `  [${hash}]` : ""}`);
+    console.log(`    ✓ ${e.outcome.taskId} ${money(e.outcome.cost)}  running ${money(e.runningTotal)}${e.outcome.verdict ? `  verdict=${e.outcome.verdict.passed ? (e.outcome.verdict.runtimeChecked ? "PASS" : "PASS* (app not executed — no Chromium)") : "FAIL"}` : ""}${hash ? `  [${hash}]` : ""}`);
   }
+  else if (e.type === "task_failed") console.log(`    ⛔ ${e.outcome.taskId} ABORTED (${e.outcome.error}) — billed ${money(e.outcome.cost)}, halting`);
   else if (e.type === "task_skipped") console.log(`    · ${e.taskId} skipped (already done)`);
   else if (e.type === "test_failed") console.log(`    ✗ ${e.taskId} FAILED (${e.bugs} bugs) — round ${e.round}`);
   else if (e.type === "retry_dev") console.log(`    ↻ re-running ${e.taskId} to fix ${e.forTest}`);
