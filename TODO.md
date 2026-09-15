@@ -29,7 +29,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [x] Burndown — 📉 Burndown (project screen): ASCII bars of tasks-remaining + cumulative spend across completion order; retries flagged
 - [x] Estimates vs actuals — Retro shows predicted-vs-actual build cost (Δ%); Settings → 📈 Estimate accuracy shows baseline-vs-measured output tokens per bucket + sample count + whether calibration is live
 - [x] Portfolio dashboard — Home → 📊 Portfolio: project count, total spend, status breakdown, and a per-project spend bar + done/total progress
-- [ ] Task comments / notes
+- [x] Task comments / notes — shipped as **Task notes** (see 2026-09-14 backlog)
 
 ### Robustness
 - [x] Provider fallback — routed provider errors / returns 0 tokens → auto-retry the same-strength model on another key-holding provider (executor-level, both build paths). CLI prints the fallback
@@ -41,13 +41,13 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [x] Template save + share — 💾 Save as template (from a project); picker shows built-in + user templates (★); 📥 Import a shared .pitemplate.json; 🗂 Manage → export (share) / delete. Persisted in ~/.projectinator/templates.json
 
 ### Packaging (deferred)
-- [ ] Bundle to install/run/share without `npm run` (npm binary or installer)
+- [x] Bundle to install/run/share without `npm run` — `npm i -g projectinator` ships compiled `dist/`; `projectinator` / `projectinator <command>` work with no tsx
 
 ### Parked
 - [ ] Web-login (paid subs in-app) — OAuth spoof closed by vendors 2026; browser automation half-works Claude; behind PROJECTINATOR_WEB=1
 
 ### Deferred / low-value
-- [ ] Git-worktree isolation per task
+- [ ] Git-worktree isolation per task — same as "Worktree-parallel code tasks" below
 
 ## Backlog (brainstorm 2026-09-14)
 
