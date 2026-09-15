@@ -22,8 +22,8 @@ import { StackPick } from "./StackPick.js";
 import { stackInstruction, type StackChoice } from "../stack.js";
 import type { Epic, CouncilResult } from "../council.js";
 import { allTemplates, saveUserTemplate, deleteUserTemplate, exportTemplate, importTemplate, type Template } from "./templates.js";
-import { getPrefs, getDefaultMode, getNotify, getPreferredStack, type WorkflowMode } from "./config.js";
-import { notifyBuildDone } from "./notify.js";
+import { getPrefs, getDefaultMode, getNotify, getWebhookUrl, getPreferredStack, type WorkflowMode } from "./config.js";
+import { notifyBuildDone, postWebhook } from "./notify.js";
 import {
   availableProviders,
   chooseRegistry,
@@ -364,6 +364,8 @@ export default function App(): React.ReactElement {
             `Build ${r.halted ? "halted" : "complete"} · $${r.totalCost.toFixed(2)}${r.files.length ? ` · ${r.files.length} file${r.files.length === 1 ? "" : "s"}` : ""}`,
           );
         }
+        const hook = getWebhookUrl();
+        if (hook) void postWebhook(hook, { event: "build.finished", status: r.halted ? "halted" : "complete", haltReason: r.haltReason, idea, totalCost: r.totalCost, files: r.files, workspace: handle.workspace, at: new Date().toISOString() });
       })
       .catch((e) => {
         if (!alive) return;

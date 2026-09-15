@@ -62,8 +62,8 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [x] Per-task transcript view — project → Reports → **Transcripts**: every outcome (retries included) with role/model/cost/verdict; pick one to read the role's final text, verdict bugs, and files. ↑↓/PgUp/PgDn scroll. Page size is `termRows − 18` (measured frame chrome + 1 slack; less and Yoga squeezes a row).
 - [x] Per-commit diff viewer — History rows are now selectable; pick a commit → `--stat` + full patch, colored (+ green / − red / @@ amber), same pager as Transcripts. `git.ts` `commitDiff()`.
 - [x] Per-model calibration — `recordActual` folds every run into `cap/diff` **and** `cap/diff/model`; `route()` prices with the model row once it has ≥2 samples (reason line: "tokens from measured runs on …"), otherwise leaves the task's estimate untouched. Settings → Estimate accuracy shows model rows indented under each bucket.
-- [ ] Webhook notify on done/halt (URL in prefs; alongside desktop notify)
-- [ ] Headless JSON CLI mode — `run-build --json` emits orchestrator events as NDJSON (CI)
+- [x] Webhook notify on done/halt — Settings → Build defaults → **Webhook**; POSTs `{event:"build.finished", status, haltReason?, idea, totalCost, files, workspace, at}` from both the cockpit and `projectinator build` (which also emits a `webhook` NDJSON event with `ok`). 5 s timeout, never throws.
+- [x] Headless JSON CLI mode — shipped as `projectinator build --json` (NDJSON: plan, every orchestrator event, done, webhook).
 - [ ] Model-choice cost matrix on the plan screen — the backlog priced per provider/tier lock
 - [ ] Tier-bump escalation — on a failed test round, re-run the **Dev only, one tier up**; tester stays on its routed model
 - [ ] "Stuck task" indicator — elapsed vs bucket median (needs per-task timing from the timeout work)

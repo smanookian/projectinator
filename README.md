@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 193 passing](https://img.shields.io/badge/tests-193%20passing-brightgreen.svg)
+![tests: 195 passing](https://img.shields.io/badge/tests-195%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -69,8 +69,8 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
   place, every route updates. Run a **bake-off** to pick empirically.
 - **A real pipeline.** PM decomposes → Designer specs → Developer writes files → **Reviewer**
   (cheap, read-only) checks the wiring → Tester **runs the app headless and catches real
-  bugs** → feedback loop re-runs the dev on failure.
-- **Multi-file apps.** Vanilla HTML/CSS/JS or **React (CDN, no build)** — your choice.
+- **The cockpit.** A polished terminal UI: editable board, Kanban, standup, per-task cost,
+  live budget bar, desktop notification and optional webhook when done.
 - **The cockpit.** A polished terminal UI: editable board, Kanban, standup, per-task cost,
   live budget bar, desktop notification when done.
 - **Honest cost.** Live spend tracking, per-project budget cap + an alert before the cap,
@@ -144,7 +144,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 193 tests
+npm test                                          # 195 tests
 npm run typecheck
 ```
 </details>

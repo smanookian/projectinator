@@ -20,7 +20,8 @@ import { MODELS, getModel } from "./models.js";
 import { REGISTRY } from "./registry.js";
 import { piRuntime, resolvePiModel } from "./executor.js";
 import { chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
-import { applyKeysToEnv, getPrefs, loadConfig, ENV_VAR } from "./tui/config.js";
+import { applyKeysToEnv, getPrefs, getWebhookUrl, loadConfig, ENV_VAR } from "./tui/config.js";
+import { postWebhook } from "./tui/notify.js";
 import {
   availableProviders,
   effectiveRoster,
@@ -220,6 +221,12 @@ async function build(argv: Argv): Promise<number> {
   const handle = startBuild(idea, plan, { concurrency, budgetCapUSD: budget, taskLimits, onEvent, mode: "auto" });
   const r = await handle.promise;
   emit({ event: "done", halted: r.halted, haltReason: r.haltReason, totalCost: r.totalCost, files: r.files, workspace: handle.workspace });
+  const hook = getWebhookUrl();
+  if (hook) {
+    const ok = await postWebhook(hook, { event: "build.finished", status: r.halted ? "halted" : "complete", haltReason: r.haltReason, idea, totalCost: r.totalCost, files: r.files, workspace: handle.workspace, at: new Date().toISOString() });
+    emit({ event: "webhook", url: hook, ok });
+    if (!ok) say(`  (webhook ${hook} did not accept the summary)`);
+  }
   say(`\n  ${r.halted ? `⚠ Halted (${r.haltReason ?? "?"})` : "✓ Complete"} · ${money(r.totalCost)} · ${r.files.length} file${r.files.length === 1 ? "" : "s"}`);
   say(`  ${handle.workspace}\n`);
   return r.halted ? 3 : 0;

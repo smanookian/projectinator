@@ -10,11 +10,11 @@ import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
 import { estimateAccuracy } from "../estimate.js";
 import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
-import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getPreferredStack, setPreferredStack, ENV_VAR, type Prefs } from "./config.js";
+import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getWebhookUrl, setWebhookUrl, getPreferredStack, setPreferredStack, ENV_VAR, type Prefs } from "./config.js";
 import { validateKey } from "./validate.js";
 import { openRouterModels, refreshOpenRouterModels } from "../openrouter.js";
 
-type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack";
+type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack" | "webhook";
 
 export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
   const [sub, setSub] = useState<Sub>("menu");
@@ -25,6 +25,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   const [role, setRole] = useState<{ capability: Capability; tier: Tier; label: string } | null>(null);
   const [notice, setNotice] = useState("");
   const [orQuery, setOrQuery] = useState(""); // OpenRouter model-browser filter
+  const [hookDraft, setHookDraft] = useState(() => getWebhookUrl());
   const [, force] = useState(0);
   const refresh = () => force((n) => n + 1);
 
@@ -42,6 +43,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         { label: `Default stack: ${getPreferredStack()}`, value: "stack" },
         { label: "Budget, speed & alerts", value: "prefs" },
         { label: `Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
+        { label: `Webhook: ${getWebhookUrl() || "off"}`, value: "webhook" },
       ] },
       // Web-login (browser automation / OAuth) is parked — vendors closed
       // third-party subscription auth in 2026. Hidden unless PROJECTINATOR_WEB=1.
@@ -345,6 +347,33 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   if (sub === "prefs") {
     const prefs = getPrefs();
     return <PrefsEditor initial={prefs} onDone={(p) => { setPrefs(p); setNotice("Preferences saved."); setSub("menu"); }} onCancel={() => setSub("menu")} />;
+  }
+
+  // ---------- webhook ----------
+  if (sub === "webhook") {
+    return (
+      <Box flexDirection="column">
+        <Panel title="Webhook on build finished / halted">
+          <Text color={C.textMuted}>POSTs a JSON summary (status, idea, cost, files, workspace) to this URL. Works with</Text>
+          <Text color={C.textMuted}>Slack/Discord incoming webhooks, n8n, Zapier, or your own endpoint. Leave empty to turn off.</Text>
+          <Box marginTop={1}>
+            <Text color={C.accent}>URL: </Text>
+            <TextInput
+              value={hookDraft}
+              onChange={setHookDraft}
+              onSubmit={() => {
+                const url = hookDraft.trim();
+                if (url && !/^https?:\/\//.test(url)) { setNotice("Webhook must start with http:// or https://."); return; }
+                setWebhookUrl(url);
+                setNotice(url ? `Webhook set: ${url}` : "Webhook off.");
+                setSub("menu");
+              }}
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "back" }]} /></Box>
+        </Panel>
+      </Box>
+    );
   }
 
   // ---------- estimate accuracy (calibration vs baseline) ----------

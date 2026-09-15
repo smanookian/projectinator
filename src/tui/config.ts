@@ -20,7 +20,8 @@ export interface AppConfig {
   taskCostCapUSD?: number;
   /** If set, always route to this provider (when it has a key), ignoring the others. */
   preferredProvider?: Provider;
-  /** Default workflow for new builds: auto-run, or require PM approval before building. */
+  /** POST a JSON summary here when a build finishes or halts. Empty = off. */
+  webhookUrl?: string;
   defaultMode?: WorkflowMode;
   /** Desktop notification + sound when a build finishes. Default on. */
   notify?: boolean;
@@ -67,6 +68,17 @@ export function getNotify(): boolean {
 export function setNotify(v: boolean): void {
   const cfg = loadConfig();
   cfg.notify = v;
+  saveConfig(cfg);
+}
+
+export function getWebhookUrl(): string {
+  return loadConfig().webhookUrl ?? "";
+}
+export function setWebhookUrl(url: string): void {
+  const cfg = loadConfig();
+  const v = url.trim();
+  if (v) cfg.webhookUrl = v;
+  else delete cfg.webhookUrl;
   saveConfig(cfg);
 }
 
