@@ -186,6 +186,8 @@ export interface RoleResult {
   /** Set when the task was aborted (limit breach). A failed outcome is billed but
    *  never counts as "done": resume rebuilds it. */
   error?: string;
+  /** Test runs only: screenshot paths (relative to the workspace) from check_app. */
+  screenshots?: string[];
 }
 
 /** Executor injected into the orchestrator. Real impl runs Pi; tests pass a fake. */

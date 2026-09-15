@@ -661,7 +661,7 @@ export function importProject(rawSrc: string, idea?: string): { ok: true; dir: s
  *  Excludes build-state, git, deploy staging and node_modules. Written next to the project. */
 export function shareBuild(dir: string): { ok: true; path: string; format: "zip" | "tar.gz" } | { ok: false; error: string } {
   const slug = basename(dir);
-  const exclude = ["build-state.json", ".git", ".deploy", "node_modules", "export.md", "export.csv"];
+  const exclude = ["build-state.json", ".git", ".deploy", ".checks", "node_modules", "export.md", "export.csv"];
   const out = join(dirname(dir), `${slug}.zip`);
   const zip = spawnSync("zip", ["-r", "-q", out, ".", ...exclude.flatMap((e) => ["-x", e, `${e}/*`])], { cwd: dir, encoding: "utf8" });
   if (zip.status === 0) return { ok: true, path: out, format: "zip" };

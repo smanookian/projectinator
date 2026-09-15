@@ -72,7 +72,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 
 ### Medium (design doc before code)
 - [x] **Reviewer role** — sixth capability `review`: PM plans one after every code task (test depends on the review); cheap read-only session (no `bash`, no `check_app`) ending in `submit_verdict`; a FAIL re-runs the code via the same Tester→Dev loop; the Tester's fix round resolves code deps *through* review tasks. Settings → Models has a Reviewer slot; registry holds one `fast` row so every difficulty routes cheap. Design: [`docs/REVIEWER.md`](docs/REVIEWER.md).
-- [ ] Richer tester — design agreed in [`docs/TESTER.md`](docs/TESTER.md): (1) 3-viewport screenshots + overflow signal, (2) six deterministic a11y/quality checks (not Lighthouse), (3) `interact_app` declarative step tool, (4) visual delta on rebuild. Three open questions there.
+- [ ] Richer tester — **piece 1 shipped** (3-viewport screenshots + overflow signal, saved to `.checks/`, listed in Transcripts, 1–3 opens them). Design agreed in [`docs/TESTER.md`](docs/TESTER.md): (1) 3-viewport screenshots + overflow signal, (2) six deterministic a11y/quality checks (not Lighthouse), (3) `interact_app` declarative step tool, (4) visual delta on rebuild. Three open questions there.
 - [ ] Vite/npm stack on host, then Node/Express and Python backend targets
 - [ ] Worktree-parallel code tasks (today code tasks serialize even in parallel mode)
 - [ ] Mid-build steering — pause, inject/edit a task, resume without losing in-flight work

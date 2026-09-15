@@ -10,7 +10,8 @@
 // relative paths all resolve the way they will in production.
 
 import { createServer, type Server } from "node:http";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import type { Browser } from "playwright";
 import { extname, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -97,6 +98,15 @@ export function startStaticServer(dir: string, opts: { liveReload?: boolean } = 
   });
 }
 
+export interface ViewportResult {
+  width: number;
+  screenshotPath: string;
+  /** Page is wider than the viewport — the classic broken-phone-layout signal. */
+  overflowsHorizontally: boolean;
+  /** Rendered body text length at this width (0 = blank). */
+  textLength: number;
+}
+
 export interface RenderReport {
   ok: boolean; // rendered over http with no JS/console errors
   file: string;
@@ -104,6 +114,8 @@ export interface RenderReport {
   text: string; // rendered body text (trimmed)
   errors: string[]; // console errors + uncaught page errors (http)
   screenshotPath?: string;
+  /** One entry per checked width (phone/tablet/desktop) when `checksDir` was given. */
+  viewports: ViewportResult[];
   // The way a non-technical user opens the folder: double-click → file://.
   // ES modules + relative imports (and fetch of local assets) die here even
   // though they work over a server — so we render BOTH and compare.
@@ -116,11 +128,44 @@ export interface RenderReport {
   doubleClickBroken: boolean;
 }
 
+/** Widths the tester screenshots: phone, tablet, desktop. */
+export const VIEWPORTS = [390, 820, 1280] as const;
+
+/** Screenshot one page at each width; report overflow + text length per width. */
+async function renderViewports(
+  browser: Browser,
+  url: string,
+  outDir: string,
+  prefix: string,
+  timeoutMs: number,
+): Promise<ViewportResult[]> {
+  mkdirSync(outDir, { recursive: true });
+  const out: ViewportResult[] = [];
+  for (const width of VIEWPORTS) {
+    const page = await browser.newPage({ viewport: { width, height: 900 } });
+    try {
+      await page.goto(url, { waitUntil: "networkidle", timeout: timeoutMs });
+      const screenshotPath = join(outDir, `${prefix}-${width}.png`);
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      const m = await page.evaluate(() => ({
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+        textLength: (document.body?.innerText ?? "").trim().length,
+      }));
+      out.push({ width, screenshotPath, overflowsHorizontally: m.overflow, textLength: m.textLength });
+    } catch {
+      out.push({ width, screenshotPath: "", overflowsHorizontally: false, textLength: 0 });
+    } finally {
+      await page.close();
+    }
+  }
+  return out;
+}
+
 interface OneRender { title: string; text: string; errors: string[]; }
 
 /** Render a single URL and capture title, visible text, and errors. */
 async function renderOne(
-  browser: import("playwright").Browser,
+  browser: Browser,
   url: string,
   opts: { screenshotPath?: string; timeoutMs?: number } = {},
 ): Promise<OneRender> {
@@ -164,7 +209,7 @@ export const CHROMIUM_INSTALL_HINT = "run `npx playwright install chromium` to e
 export async function renderCheck(
   dir: string,
   file = "index.html",
-  opts: { screenshotPath?: string; timeoutMs?: number } = {},
+  opts: { screenshotPath?: string; timeoutMs?: number; checksDir?: string; checksPrefix?: string } = {},
 ): Promise<RenderReport> {
   const { chromium } = await import("playwright");
   const server = await startStaticServer(dir);
@@ -177,6 +222,9 @@ export async function renderCheck(
   }
   try {
     const http = await renderOne(browser, `${server.url}/${file}`, opts);
+    const viewports = opts.checksDir
+      ? await renderViewports(browser, `${server.url}/${file}`, opts.checksDir, opts.checksPrefix ?? "check", opts.timeoutMs ?? 15_000)
+      : [];
     // file:// gets no screenshot — the http render is the one we keep.
     const fileUrl = pathToFileURL(join(dir, file)).href;
     const fileR = await renderOne(browser, fileUrl, { timeoutMs: opts.timeoutMs });
@@ -194,6 +242,7 @@ export async function renderCheck(
       text: http.text,
       errors: http.errors,
       screenshotPath: opts.screenshotPath,
+      viewports,
       fileOk,
       fileText: fileR.text,
       fileErrors: fileR.errors,

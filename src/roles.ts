@@ -86,9 +86,11 @@ type VerdictRaw = Static<typeof VerdictSchema>;
 
 // ---- tester "run the app" tool: headless render + error capture ----
 
-/** check_app + a flag telling whether a render actually happened this task. */
-function buildCheckTool(workspace: string, chromium: boolean) {
+/** check_app + a flag telling whether a render actually happened this task, and the
+ *  screenshot paths it produced (kept on the outcome for the Transcripts screen). */
+function buildCheckTool(workspace: string, chromium: boolean, checksPrefix = "check") {
   let rendered = false;
+  const screenshots: string[] = [];
   const tool = defineTool({
     name: "check_app",
     label: "Run the app",
@@ -108,8 +110,9 @@ function buildCheckTool(workspace: string, chromium: boolean) {
         };
       }
       try {
-        const r = await renderCheck(workspace, params.file || "index.html");
+        const r = await renderCheck(workspace, params.file || "index.html", { checksDir: join(workspace, ".checks"), checksPrefix });
         rendered = true;
+        screenshots.push(...r.viewports.map((v) => v.screenshotPath).filter(Boolean));
         const doubleClick = r.doubleClickBroken
           ? "BROKEN — renders behind a server but is blank/erroring when opened directly as a file (double-click). "
             + "Most likely ES modules + relative imports (or fetch of local files), which browsers block on file://. "
@@ -118,11 +121,20 @@ function buildCheckTool(workspace: string, chromium: boolean) {
           : r.fileOk
             ? "OK (works on double-click too)"
             : `over file://: ${r.fileErrors.length ? r.fileErrors.join("; ") : "(empty page)"}`;
+        const viewportLines = r.viewports.map((v) => {
+          const label = v.width === 390 ? "phone" : v.width === 820 ? "tablet" : "desktop";
+          const flags = [
+            v.textLength === 0 ? "BLANK" : "",
+            v.overflowsHorizontally ? "OVERFLOWS the viewport horizontally (layout breaks at this width — a real bug on phones)" : "",
+          ].filter(Boolean).join("; ");
+          return `  - ${label} ${v.width}px: ${flags || "OK"}${v.screenshotPath ? `  (${relative(workspace, v.screenshotPath)})` : ""}`;
+        });
         const text = [
           `rendered (served over http): ${r.ok ? "OK (no JS errors)" : "with errors"}`,
           `title: ${r.title || "(none)"}`,
           `errors: ${r.errors.length ? "\n  - " + r.errors.join("\n  - ") : "none"}`,
           `opened as a file (double-click / file://): ${doubleClick}`,
+          ...(viewportLines.length ? [`responsive check (screenshots saved for the human reviewer):\n${viewportLines.join("\n")}`] : []),
           `visible text:\n${r.text || "(empty page — nothing rendered)"}`,
         ].join("\n");
         return { content: [{ type: "text", text }], details: {} };
@@ -134,7 +146,7 @@ function buildCheckTool(workspace: string, chromium: boolean) {
       }
     },
   });
-  return { tool, rendered: () => rendered };
+  return { tool, rendered: () => rendered, screenshots: () => [...screenshots] };
 }
 
 function buildVerdictTool(runtimeChecked: () => boolean) {
@@ -306,13 +318,14 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     provider: Provider,
     modelId: string,
     limits: TaskLimits,
+    round: number,
   ): Promise<{ result: RoleResult; tokensTotal: number }> => {
     const runtime = await piRuntime();
     const model = resolvePiModel(runtime, provider, modelId);
 
     const isTest = task.capability === "test";
     const isReview = task.capability === "review";
-    const checkTool = isTest ? buildCheckTool(opts.workspace, await chromiumAvailable()) : undefined;
+    const checkTool = isTest ? buildCheckTool(opts.workspace, await chromiumAvailable(), `${task.id}-r${round}`) : undefined;
     // A review never runs the app, so its verdict is never "runtime checked".
     const verdictTool = isTest || isReview ? buildVerdictTool(checkTool ? checkTool.rendered : () => false) : undefined;
     const t0 = Date.now();
@@ -377,11 +390,13 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
         const inputTotal = stats.tokens.input + stats.tokens.cacheRead;
         recordActual(task.capability, task.difficulty, inputTotal, stats.tokens.output, inputTotal > 0 ? stats.tokens.cacheRead / inputTotal : 0, modelId, Date.now() - t0);
       }
+      const shots = checkTool?.screenshots() ?? [];
       const result: RoleResult = {
         finalText: lastAssistantText(session),
         files: listFiles(opts.workspace),
         cost: round2(stats.cost),
         verdict,
+        ...(shots.length ? { screenshots: shots.map((p) => relative(opts.workspace, p)) } : {}),
       };
       return { result, tokensTotal: stats.tokens.total };
     } finally {
@@ -393,13 +408,13 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     }
   };
 
-  return async ({ task, decision, contextText, limits }) => {
+  return async ({ task, decision, contextText, limits, round }) => {
     const chain = fallbackChain(decision.provider, decision.model.id, task.capability);
     let lastErr: unknown;
     for (let i = 0; i < chain.length; i++) {
       const cand = chain[i]!;
       try {
-        const att = await runOnce(task, contextText, cand.provider, cand.model, limits);
+        const att = await runOnce(task, contextText, cand.provider, cand.model, limits, round);
         if (att.tokensTotal > 0) {
           if (i > 0) opts.onFallback?.({ taskId: task.id, from: decision.provider, to: cand.provider, model: cand.model });
           return att.result;

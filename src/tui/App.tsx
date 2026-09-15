@@ -1,6 +1,7 @@
 // Projectinator TUI — the whole flow: setup -> idea -> plan -> build -> done.
 // Dead simple: type what you want, confirm the cost, watch it build.
 
+import { join } from "node:path";
 import React, { useEffect, useState } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
@@ -232,6 +233,11 @@ export default function App(): React.ReactElement {
     // Pagers share one key handler; the page size matches the viewer's (frame chrome + 1 slack).
     const pager = phase === "transcript" && transcript ? transcript : phase === "diff" && diffView ? diffView : null;
     if (pager) {
+      if (phase === "transcript" && selected && /^[1-9]$/.test(input)) {
+        const shot = transcript!.outcome.screenshots?.[Number(input) - 1];
+        if (shot) openInBrowser(join(selected.dir, shot));
+        return;
+      }
       const page = Math.max(4, termRows - 18);
       const step = key.upArrow ? -1 : key.downArrow ? 1 : key.pageUp ? -page : key.pageDown ? page : 0;
       if (!step) return;
@@ -1128,6 +1134,8 @@ export default function App(): React.ReactElement {
     }
     lines.push(...(o.finalText.trim() || "(the role produced no text — files only)").split("\n"));
     if (o.files.length) lines.push("", `Files after this run: ${o.files.join(", ")}`);
+    const shots = o.screenshots ?? [];
+    if (shots.length) lines.push("", `Screenshots: ${shots.map((s, i) => `[${i + 1}] ${s.replace(/^\.checks\//, "")}`).join("  ")}  — press the number to open`);
     const page = Math.max(4, termRows - 18);
     const scroll = Math.min(transcript.scroll, Math.max(0, lines.length - page));
     return (
@@ -1139,7 +1147,7 @@ export default function App(): React.ReactElement {
           </Box>
           <Box marginTop={1}>
             <Text color={C.textSubtle}>{lines.length > page ? `lines ${scroll + 1}–${Math.min(scroll + page, lines.length)} of ${lines.length}   ` : ""}</Text>
-            <KeyHint hints={[{ keys: "↑↓ PgUp PgDn", label: "scroll" }, { keys: "Esc", label: "back" }]} />
+            <KeyHint hints={[{ keys: "↑↓ PgUp PgDn", label: "scroll" }, ...(shots.length ? [{ keys: `1–${shots.length}`, label: "open screenshot" }] : []), { keys: "Esc", label: "back" }]} />
           </Box>
         </Panel>
       </Box>

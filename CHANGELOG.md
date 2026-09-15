@@ -2,6 +2,12 @@
 
 ## 0.5.0 — 2026-09-15
 
+### Added (tester)
+- **Responsive check**: the Tester now screenshots the app at phone (390), tablet (820) and
+  desktop (1280) widths, and is told when the page overflows a viewport or renders blank at
+  that width — the classic broken-phone-layout bug. Screenshots are kept in the project's
+  `.checks/` folder (never shipped/deployed) and listed in Transcripts; press 1–3 to open one.
+
 ### Added
 - **Local models** (Settings → Local models): point Projectinator at an Ollama / LM Studio /
   vLLM server, pick the models to allow, and they show up under Model assignments as

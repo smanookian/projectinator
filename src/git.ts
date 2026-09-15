@@ -25,7 +25,7 @@ export function isRepo(dir: string): boolean {
 export function initRepo(dir: string): boolean {
   if (isRepo(dir)) return true;
   const gi = join(dir, ".gitignore");
-  if (!existsSync(gi)) writeFileSync(gi, ".deploy/\nbuild-state.json\nnode_modules/\n");
+  if (!existsSync(gi)) writeFileSync(gi, ".deploy/\n.checks/\nbuild-state.json\nnode_modules/\n");
   if (!git(dir, ["init"]).ok) return false;
   // Local identity so commits work even when the user has no global git config.
   git(dir, ["config", "user.email", "bot@projectinator.local"]);

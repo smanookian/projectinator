@@ -105,3 +105,10 @@ JSON script (~200 output tokens) and reads a short result. Piece 4: CPU only.
    Reviewer is the cheap static pass; running the app is the Tester's job.
 3. Contrast check: body text only (cheap, robust) or every text node (thorough, noisy)?
    Recommendation: body + headings.
+
+## Decisions (2026-09-15)
+
+1. Keep every screenshot; `.checks/` is small and never shipped.
+2. `interact_app` is Tester-only. The Reviewer stays a static code pass; sub-pages are
+   exercised by the Tester clicking through them.
+3. Contrast check covers body text and headings.
