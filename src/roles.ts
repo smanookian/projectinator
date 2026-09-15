@@ -28,6 +28,7 @@ import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
 import { addSessionCost } from "./session-cost.js";
 import { recordActual } from "./calibration.js";
+import { getLocalModels } from "./local-models.js";
 import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -158,12 +159,29 @@ function buildVerdictTool(runtimeChecked: () => boolean) {
 // Useful when you hold a key for only one provider. Maps each capability+tier to
 // that provider's sensible model, so route() resolves everything to it.
 
-const PROVIDER_MODELS: Record<Provider, { strong: string; mid: string; cheap: string }> = {
+/** Provider-lock picks. "local" resolves to whatever the user configured — read at call
+ *  time (providerPicks) so Settings changes apply without a restart. */
+const PROVIDER_MODELS: Record<Exclude<Provider, "local">, { strong: string; mid: string; cheap: string }> = {
   anthropic: { strong: "claude-opus-5", mid: "claude-sonnet-5", cheap: "claude-haiku-4-5" },
   openai: { strong: "gpt-5.6-sol", mid: "gpt-5.6-terra", cheap: "gpt-5.6-luna" },
   google: { strong: "gemini-3.1-pro-preview", mid: "gemini-3.1-pro-preview", cheap: "gemini-3.8-flash" },
   openrouter: { strong: "anthropic/claude-opus-5", mid: "anthropic/claude-sonnet-5", cheap: "google/gemini-3.8-flash" },
 };
+
+function providerPicks(p: Provider): { strong: string; mid: string; cheap: string } {
+  if (p !== "local") return PROVIDER_MODELS[p];
+  const ids = getLocalModels()?.models ?? [];
+  const first = ids[0] ?? "none-configured";
+  // Best effort: largest-looking name for strong (e.g. "…:70b"), first for cheap.
+  const strong = [...ids].sort((a, b) => sizeOf(b) - sizeOf(a))[0] ?? first;
+  return { strong, mid: strong, cheap: first };
+}
+
+/** Parameter count hinted by a model id ("qwen2.5-coder:32b" → 32); 0 when unknown. */
+function sizeOf(id: string): number {
+  const m = /(\d+(?:\.\d+)?)b\b/i.exec(id);
+  return m ? parseFloat(m[1]!) : 0;
+}
 
 const CAP_STRENGTH: Record<Capability, "strong" | "mid" | "cheap"> = {
   plan: "mid",
@@ -176,7 +194,7 @@ const CAP_STRENGTH: Record<Capability, "strong" | "mid" | "cheap"> = {
 
 /** A registry where every capability routes to one provider's models. */
 export function lockRegistryToProvider(provider: Provider): RegistryEntry[] {
-  const m = PROVIDER_MODELS[provider];
+  const m = providerPicks(provider);
   const caps: Capability[] = ["plan", "design", "code", "review", "test", "ops"];
   const tiers = ["fast", "mid", "high"] as const;
   const out: RegistryEntry[] = [];
@@ -206,7 +224,7 @@ export interface PiExecutorOptions {
 }
 
 // Env vars that hold each provider's key (mirrors run-build's check).
-const ENV_KEYS: Record<Provider, string[]> = {
+const ENV_KEYS: Record<Exclude<Provider, "local">, string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
   openai: ["OPENAI_API_KEY"],
   google: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
@@ -214,16 +232,19 @@ const ENV_KEYS: Record<Provider, string[]> = {
 };
 
 function providersWithKeys(): Provider[] {
-  return (Object.keys(ENV_KEYS) as Provider[]).filter((p) => ENV_KEYS[p].some((k) => process.env[k]));
+  const keyed = (Object.keys(ENV_KEYS) as Exclude<Provider, "local">[]).filter((p) => ENV_KEYS[p].some((k) => process.env[k]));
+  return getLocalModels() ? [...keyed, "local"] : keyed;
 }
 
 /** The routed model first, then the same-strength model on every OTHER provider
- *  that has a key — so a 0-token / errored provider falls back automatically. */
+ *  that has a key — so a 0-token / errored provider falls back automatically.
+ *  Local servers are never a fallback for a cloud task (a 7B model is not "the same
+ *  strength"); they only run what was routed to them. */
 function fallbackChain(primary: Provider, primaryModel: string, cap: Capability): { provider: Provider; model: string }[] {
   const chain: { provider: Provider; model: string }[] = [{ provider: primary, model: primaryModel }];
   for (const p of providersWithKeys()) {
-    if (p === primary) continue;
-    chain.push({ provider: p, model: PROVIDER_MODELS[p][CAP_STRENGTH[cap]] });
+    if (p === primary || p === "local") continue;
+    chain.push({ provider: p, model: providerPicks(p)[CAP_STRENGTH[cap]] });
   }
   return chain;
 }

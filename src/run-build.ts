@@ -21,6 +21,7 @@ import { route } from "./router.js";
 import { decomposeIdea } from "./pm.js";
 import { newBuildState, saveState, loadState, completedIds, type BuildState } from "./build-state.js";
 import { initRepo, commitTask } from "./git.js";
+import { getLocalModels } from "./local-models.js";
 
 const args = process.argv.slice(2);
 const live = args.includes("--live");
@@ -120,15 +121,15 @@ if (!live) {
   process.exit(0);
 }
 
-// Live: key check.
-const envKey: Record<Provider, string[]> = {
+// Live: key check (a local server needs no key, just a configured entry).
+const envKey: Record<Exclude<Provider, "local">, string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
   openai: ["OPENAI_API_KEY"],
   google: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
   openrouter: ["OPENROUTER_API_KEY"],
 };
-if (!(envKey[lockProvider] ?? []).some((k) => process.env[k])) {
-  console.error(`  No API key for ${lockProvider}. Set: ${(envKey[lockProvider] ?? []).join(", ")}\n`);
+if (lockProvider === "local" ? !getLocalModels() : !envKey[lockProvider].some((k) => process.env[k])) {
+  console.error(lockProvider === "local" ? "  No local models configured (Settings → Local models).\n" : `  No API key for ${lockProvider}. Set: ${envKey[lockProvider].join(", ")}\n`);
   process.exit(1);
 }
 

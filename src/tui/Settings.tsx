@@ -10,15 +10,16 @@ import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
 import { estimateAccuracy } from "../estimate.js";
 import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
-import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getWebhookUrl, setWebhookUrl, getPreferredStack, setPreferredStack, ENV_VAR, type Prefs } from "./config.js";
+import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getWebhookUrl, setWebhookUrl, getPreferredStack, setPreferredStack, ENV_VAR, type Prefs, type KeyedProvider } from "./config.js";
 import { validateKey } from "./validate.js";
 import { openRouterModels, refreshOpenRouterModels } from "../openrouter.js";
+import { getLocalModels, setLocalModels, probeLocalServer, DEFAULT_LOCAL_URL } from "../local-models.js";
 
-type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack" | "webhook";
+type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack" | "webhook" | "local" | "localPick";
 
 export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
   const [sub, setSub] = useState<Sub>("menu");
-  const [keyProvider, setKeyProvider] = useState<Provider>("anthropic");
+  const [keyProvider, setKeyProvider] = useState<KeyedProvider>("anthropic");
   const [keyDraft, setKeyDraft] = useState("");
   const [checking, setChecking] = useState(false);
   const [keyError, setKeyError] = useState("");
@@ -26,6 +27,9 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   const [notice, setNotice] = useState("");
   const [orQuery, setOrQuery] = useState(""); // OpenRouter model-browser filter
   const [hookDraft, setHookDraft] = useState(() => getWebhookUrl());
+  const [localUrl, setLocalUrl] = useState(() => getLocalModels()?.baseUrl ?? DEFAULT_LOCAL_URL);
+  const [localProbe, setLocalProbe] = useState<{ busy: boolean; found: string[]; error: string }>({ busy: false, found: [], error: "" });
+  const [localChosen, setLocalChosen] = useState<Set<string>>(() => new Set(getLocalModels()?.models ?? []));
   const [, force] = useState(0);
   const refresh = () => force((n) => n + 1);
 
@@ -37,6 +41,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         { label: "Preferred provider", value: "provider" },
         { label: "Model assignments", value: "models" },
         { label: "Estimate accuracy", value: "accuracy" },
+        { label: `Local models: ${getLocalModels() ? `${getLocalModels()!.models.length} configured` : "none"}`, value: "local" },
       ] },
       { title: "Build defaults", items: [
         { label: "Default workflow", value: "workflow" },
@@ -73,10 +78,92 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     );
   }
 
+  // ---------- local models (Ollama / LM Studio / vLLM) ----------
+  if (sub === "local") {
+    const cur = getLocalModels();
+    return (
+      <Box flexDirection="column">
+        <Panel title="Local models — Ollama, LM Studio, vLLM">
+          <Text color={C.textMuted}>Any OpenAI-compatible server on this machine. Free, private, no key. Registered with Pi as</Text>
+          <Text color={C.textMuted}>provider “local”. Small models are weak at the structured tool calls the PM/Tester rely on —</Text>
+          <Text color={C.textMuted}>start with the Reviewer and Tester slots (Model assignments) and a ≥14B coder model.</Text>
+          {cur ? <Text color={C.good}>{"\n"}✓ {cur.models.length} model{cur.models.length === 1 ? "" : "s"} at {cur.baseUrl}: {cur.models.join(", ")}</Text> : null}
+          {localProbe.error ? <Box marginTop={1}><StatusMessage variant="error">{localProbe.error}</StatusMessage></Box> : null}
+          <Box marginTop={1}>
+            <Text color={C.accent}>Server URL: </Text>
+            {localProbe.busy ? <Text color={C.dim}>{localUrl}  <Spinner label="asking the server for its models…" /></Text> : (
+              <TextInput
+                value={localUrl}
+                onChange={setLocalUrl}
+                onSubmit={() => {
+                  const url = localUrl.trim();
+                  if (!/^https?:\/\//.test(url)) { setLocalProbe({ busy: false, found: [], error: "URL must start with http:// or https://" }); return; }
+                  setLocalProbe({ busy: true, found: [], error: "" });
+                  void probeLocalServer(url).then((r) => {
+                    if (!r.ok) { setLocalProbe({ busy: false, found: [], error: r.error }); return; }
+                    if (!r.models.length) { setLocalProbe({ busy: false, found: [], error: "The server is up but lists no models — pull one first (e.g. `ollama pull qwen2.5-coder:14b`)." }); return; }
+                    setLocalProbe({ busy: false, found: r.models, error: "" });
+                    setLocalChosen(new Set(cur?.models.filter((m) => r.models.includes(m)) ?? []));
+                    setSub("localPick");
+                  });
+                }}
+              />
+            )}
+          </Box>
+          <Text color={C.textSubtle}>{"\n"}Ollama: http://localhost:11434/v1 · LM Studio: http://localhost:1234/v1 · vLLM: http://localhost:8000/v1</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                ...(cur ? [{ label: "Remove local models", value: "__remove" }] : []),
+                { label: "Back", value: "__back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "__remove") { setLocalModels({ baseUrl: cur!.baseUrl, models: [] }); setNotice("Local models removed."); refresh(); }
+                setSub("menu");
+              }}
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "connect" }, { keys: "Esc", label: "back" }]} /></Box>
+        </Panel>
+      </Box>
+    );
+  }
+
+  if (sub === "localPick") {
+    const { found } = localProbe;
+    return (
+      <Box flexDirection="column">
+        <Panel title={`Models at ${localUrl}`}>
+          <Text color={C.textMuted}>Toggle the ones Projectinator may use, then Save. They'll appear under Model assignments.</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                ...found.map((m) => ({ label: `${localChosen.has(m) ? "✓" : "·"}  ${m}`, value: `m:${m}` })),
+                { label: `Save (${localChosen.size} selected)`, value: "__save" },
+                { label: "Back", value: "__back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value.startsWith("m:")) {
+                  const id = i.value.slice(2);
+                  setLocalChosen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+                } else if (i.value === "__save") {
+                  setLocalModels({ baseUrl: localUrl.trim(), models: [...localChosen] });
+                  setNotice(localChosen.size ? `Local models saved: ${[...localChosen].join(", ")}. Assign them under Model assignments.` : "Local models removed.");
+                  refresh();
+                  setSub("menu");
+                } else setSub("local");
+              }}
+            />
+          </Box>
+        </Panel>
+      </Box>
+    );
+  }
+
   // ---------- API keys ----------
   if (sub === "keys") {
     const have = new Set(availableProviders());
-    const providers: Provider[] = ["anthropic", "openai", "google", "openrouter"];
+    const providers: KeyedProvider[] = ["anthropic", "openai", "google", "openrouter"];
     return (
       <Box flexDirection="column">
         <Panel title="API keys">
@@ -93,7 +180,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
               onSelect={(i) => {
                 if (i.value === "__back") setSub("menu");
                 else {
-                  setKeyProvider(i.value as Provider);
+                  setKeyProvider(i.value as KeyedProvider);
                   setKeyDraft("");
                   setKeyError("");
                   setChecking(false);

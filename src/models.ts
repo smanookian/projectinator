@@ -4,6 +4,7 @@
 
 import type { Model } from "./types.js";
 import { findOpenRouterModel } from "./openrouter.js";
+import { getLocalModels } from "./local-models.js";
 
 export const MODELS: Record<string, Model> = {
   // ---- OpenAI: GPT-5.6 family (prices cut Sept 2026; past 272k input costs 2x) ----
@@ -159,8 +160,15 @@ export const MODELS: Record<string, Model> = {
   },
 };
 
+/** A configured local model: $0, provider "local". Checked before the OpenRouter guess so a
+ *  local id that happens to contain "/" isn't mispriced. */
+function localModel(id: string): Model | undefined {
+  if (!getLocalModels()?.models.includes(id)) return undefined;
+  return { id, provider: "local", name: `${id} (local)`, contextWindow: 32_000, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } };
+}
+
 export function getModel(id: string): Model {
-  const m = MODELS[id];
+  const m = MODELS[id] ?? localModel(id);
   if (m) return m;
   // OpenRouter slugs (vendor/model) aren't in the static table — price them from
   // the OpenRouter catalog (live cache or Pi's built-in list). Fall back to a
@@ -171,5 +179,5 @@ export function getModel(id: string): Model {
     if (or) return { ...or, provider: "openrouter" };
     return { id, provider: "openrouter", name: id, contextWindow: 200_000, cost: { input: 1, output: 3, cacheRead: 0.1, cacheWrite: 1.25 } };
   }
-  throw new Error(`Unknown model id: "${id}". Add it to src/models.ts.`);
+  throw new Error(`Unknown model id: "${id}". Add it to src/models.ts, or configure it under Settings → Local models.`);
 }

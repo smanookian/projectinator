@@ -14,7 +14,9 @@ export type Difficulty = "trivial" | "low" | "medium" | "high";
 /** Capability tier — the abstract "how strong a model" axis. */
 export type Tier = "fast" | "mid" | "high";
 
-export type Provider = "anthropic" | "openai" | "google" | "openrouter";
+/** "local" = an OpenAI-compatible server on this machine (Ollama, LM Studio, vLLM) that
+ *  Projectinator registers with Pi as provider id "local". No key, $0, dynamic model list. */
+export type Provider = "anthropic" | "openai" | "google" | "openrouter" | "local";
 
 // ---------------------------------------------------------------------------
 // Model pricing — mirrors Pi's models.json `cost` shape so it ports 1:1 later.

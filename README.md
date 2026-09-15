@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 212 passing](https://img.shields.io/badge/tests-212%20passing-brightgreen.svg)
+![tests: 217 passing](https://img.shields.io/badge/tests-217%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -38,7 +38,8 @@ npm install -g projectinator      # then just: projectinator
 > bin dir isn't on your `PATH` — run `npm prefix -g` to locate it, or just use `npx`.)
 
 Then, inside the app: **Settings → API keys** and paste an Anthropic, OpenAI, Gemini, or OpenRouter key
-(stored under `~/.projectinator`, never in the repo). That's it — pick **New build** and go.
+(stored under `~/.projectinator`, never in the repo). Or point **Settings → Local models** at an
+Ollama / LM Studio server for free, private runs. That's it — pick **New build** and go.
 
 <details>
 <summary>Run from source instead</summary>
@@ -95,6 +96,8 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
 | ⛔ **Task limits** | Per-task timeout and cost ceiling (Settings → Preferences). A runaway task is aborted, billed for what it spent, and the build halts — resumable. |
 | ✎ **Task notes** | Annotate any task on the board (`n`). Yours only — never sent to a model; included in exports. |
 | 📥 **Import a folder** | Bring an existing site or prototype in as a project; the PM plans changes against its real files. |
+| 🖥 **Local models** | Ollama, LM Studio or vLLM as a provider — $0, no key. Best on the Reviewer/Tester slots; the PM's structured tool calls need a strong model. |
+| 📦 **Share** | Zip a build's files (tar.gz where `zip` is absent) from the project menu. |
 
 ## How it works
 
@@ -145,7 +148,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 212 tests
+npm test                                          # 217 tests
 npm run typecheck
 ```
 </details>

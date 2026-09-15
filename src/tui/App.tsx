@@ -39,6 +39,7 @@ import {
   mainFileOf,
   addAsset,
   importProject,
+  shareBuild,
   renameProject,
   duplicateProject,
   deleteProject,
@@ -585,6 +586,7 @@ export default function App(): React.ReactElement {
       { title: "Ship", items: [
         { label: "Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
         { label: "Export (Markdown, CSV, Jira, Trello)", value: "export" },
+        { label: "Share (zip the built files)", value: "share" },
       ] },
       { title: "Manage", items: [
         { label: `Budget cap: ${selected.state.budgetCapUSD != null ? `$${selected.state.budgetCapUSD}` : "global default"}`, value: "cap" },
@@ -614,6 +616,10 @@ export default function App(): React.ReactElement {
               else if (i.value === "kanban") { setFlash(""); setPhase("kanban"); }
               else if (i.value === "export") { setFlash(""); setPhase("exportMenu"); }
               else if (i.value === "deploy") { setFlash(""); setPhase("deployMenu"); }
+              else if (i.value === "share") {
+                const r = shareBuild(selected.dir);
+                setFlash(r.ok ? `Archived → ${r.path}` : r.error);
+              }
               else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
               else if (i.value === "filter") setPhase("filterEpic");
               else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));

@@ -20,7 +20,8 @@ import { MODELS, getModel } from "./models.js";
 import { REGISTRY } from "./registry.js";
 import { piRuntime, resolvePiModel } from "./executor.js";
 import { chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
-import { applyKeysToEnv, getPrefs, getWebhookUrl, loadConfig, ENV_VAR } from "./tui/config.js";
+import { applyKeysToEnv, getPrefs, getWebhookUrl, loadConfig, ENV_VAR, type KeyedProvider } from "./tui/config.js";
+import { getLocalModels } from "./local-models.js";
 import { postWebhook } from "./tui/notify.js";
 import {
   availableProviders,
@@ -86,12 +87,14 @@ async function doctor(): Promise<number> {
 
   const cfg = loadConfig();
   const providers = availableProviders();
-  for (const p of Object.keys(ENV_VAR) as Provider[]) {
+  for (const p of Object.keys(ENV_VAR) as KeyedProvider[]) {
     const has = providers.includes(p);
     const src = cfg.keys[p] ? "~/.projectinator/config.json" : has ? "env" : "";
     checks.push({ label: `Key: ${PROVIDER_LABEL[p]}`, ok: has, detail: has ? `set (${src})` : `not set — Settings → API keys, or export ${ENV_VAR[p]}` });
   }
-  if (providers.length === 0) checks.push({ label: "Any provider key", ok: false, detail: "no keys at all — nothing can run", fatal: true });
+  const local = getLocalModels();
+  checks.push({ label: "Local models", ok: !!local, detail: local ? `${local.models.length} model${local.models.length === 1 ? "" : "s"} at ${local.baseUrl}` : "none — Settings → Local models (Ollama / LM Studio); optional" });
+  if (providers.length === 0) checks.push({ label: "Any provider", ok: false, detail: "no keys and no local server — nothing can run", fatal: true });
 
   try {
     const runtime = await piRuntime();
@@ -177,8 +180,8 @@ async function build(argv: Argv): Promise<number> {
   let providers = availableProviders();
   const lock = argv.flags.provider;
   if (typeof lock === "string") {
-    if (!(lock in PROVIDER_LABEL)) { console.error(`  build: unknown provider "${lock}" (anthropic | openai | google | openrouter)`); return 2; }
-    if (!providers.includes(lock as Provider)) { console.error(`  build: no key for ${lock} — export ${ENV_VAR[lock as Provider]} or set it in the app`); return 1; }
+    if (!(lock in PROVIDER_LABEL)) { console.error(`  build: unknown provider "${lock}" (anthropic | openai | google | openrouter | local)`); return 2; }
+    if (!providers.includes(lock as Provider)) { console.error(lock === "local" ? "  build: no local models configured — Settings → Local models" : `  build: no key for ${lock} — export ${ENV_VAR[lock as KeyedProvider]} or set it in the app`); return 1; }
     providers = [lock as Provider];
   }
   if (!providers.length) { console.error("  build: no API key found. Run `projectinator doctor`."); return 1; }

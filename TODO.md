@@ -37,7 +37,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [x] Budget alert — soft warning during the build once spend crosses a configurable % of the effective cap (Settings → Preferences → "Alert at % of cap", default 80), before the hard halt
 
 ### Sharing
-- [ ] Zip / share a build
+- [x] Zip / share a build — project → Ship → **Share**: `zip` when present, else `tar.gz`; excludes build-state/.git/.deploy/node_modules
 - [x] Template save + share — 💾 Save as template (from a project); picker shows built-in + user templates (★); 📥 Import a shared .pitemplate.json; 🗂 Manage → export (share) / delete. Persisted in ~/.projectinator/templates.json
 
 ### Packaging (deferred)
@@ -82,5 +82,5 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [ ] Bake-off upgrades — cross-provider, code bake-off scored by the real tester, quality/$ Pareto
 - [ ] GitHub push + PR per build; export backlog to GitHub Issues
 - [ ] MCP server exposing Projectinator
-- [ ] Local models (Ollama/LM Studio) — **unverified** whether Pi's registry supports them
+- [x] Local models (Ollama/LM Studio/vLLM) — verified: Pi loads `~/.pi/agent/models.json`; we own one entry, provider id `local` (`local-models.ts`). Settings screen probes `GET /models`, user picks ids; `Provider` gains `"local"`; `$0`; available without a key; never a cloud fallback; `lockRegistryToProvider("local")` picks the biggest-looking id for strong slots.
 - [ ] Homebrew / Docker packaging

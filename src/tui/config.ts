@@ -29,7 +29,10 @@ export interface AppConfig {
   preferredStack?: "ask" | "vanilla" | "react" | "ai";
 }
 
-export const ENV_VAR: Record<Provider, string> = {
+/** Providers that authenticate with an API key. "local" is configured under Settings → Local models. */
+export type KeyedProvider = Exclude<Provider, "local">;
+
+export const ENV_VAR: Record<KeyedProvider, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   google: "GEMINI_API_KEY",
@@ -118,14 +121,14 @@ export function saveConfig(cfg: AppConfig): void {
 
 /** Put stored keys into process.env (without clobbering ones already set in the shell). */
 export function applyKeysToEnv(cfg: AppConfig = loadConfig()): void {
-  for (const p of Object.keys(cfg.keys) as Provider[]) {
+  for (const p of Object.keys(cfg.keys) as KeyedProvider[]) {
     const v = cfg.keys[p];
-    if (v && !process.env[ENV_VAR[p]]) process.env[ENV_VAR[p]] = v;
+    if (v && ENV_VAR[p] && !process.env[ENV_VAR[p]]) process.env[ENV_VAR[p]] = v;
   }
 }
 
 /** Save a key both to disk and live env so availableProviders() updates immediately. */
-export function setKey(provider: Provider, key: string): void {
+export function setKey(provider: KeyedProvider, key: string): void {
   const cfg = loadConfig();
   cfg.keys[provider] = key;
   saveConfig(cfg);

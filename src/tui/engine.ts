@@ -2,7 +2,7 @@
 // The UI calls these; they reuse the same core the CLI does.
 
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join } from "node:path";
@@ -12,6 +12,7 @@ import { REGISTRY } from "../registry.js";
 import { MODELS } from "../models.js";
 import { loadRegistry, saveOverrides, OVERRIDES_FILENAME } from "../registry-store.js";
 import { loadConfig } from "./config.js";
+import { getLocalModels } from "../local-models.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
 import { runBacklog, type OrchestratorEvent } from "../orchestrator.js";
 import { initRepo, commitTask, undoLastCommit, history as gitHistory, type Commit } from "../git.js";
@@ -23,7 +24,7 @@ import { assessIntake, type IntakeQuestion } from "../intake.js";
 import { councilEpics, type Epic, type CouncilResult } from "../council.js";
 import { newBuildState, loadState, saveState, completedIds, type BuildState } from "../build-state.js";
 
-const PROVIDER_KEYS: Record<Provider, string[]> = {
+const PROVIDER_KEYS: Record<Exclude<Provider, "local">, string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
   openai: ["OPENAI_API_KEY"],
   google: ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
@@ -35,13 +36,15 @@ export const PROVIDER_LABEL: Record<Provider, string> = {
   openai: "OpenAI (GPT)",
   google: "Google (Gemini)",
   openrouter: "OpenRouter",
+  local: "Local (Ollama / LM Studio)",
 };
 
-/** Which providers have a usable API key right now (presence only). */
+/** Which providers are usable right now: a key present (cloud) or a configured local server. */
 export function availableProviders(): Provider[] {
-  return (Object.keys(PROVIDER_KEYS) as Provider[]).filter((p) =>
+  const keyed = (Object.keys(PROVIDER_KEYS) as Exclude<Provider, "local">[]).filter((p) =>
     PROVIDER_KEYS[p].some((k) => !!process.env[k]),
   );
+  return getLocalModels() ? [...keyed, "local"] : keyed;
 }
 
 /** A locked-to-one-provider registry that still honors per-role model overrides
@@ -116,12 +119,14 @@ export function effectiveRoster(): RoleAssignment[] {
 }
 
 export function allModels(): { id: string; provider: Provider; name: string }[] {
-  return Object.values(MODELS).map((m) => ({ id: m.id, provider: m.provider, name: m.name }));
+  const cloud = Object.values(MODELS).map((m) => ({ id: m.id, provider: m.provider, name: m.name }));
+  const local = (getLocalModels()?.models ?? []).map((id) => ({ id, provider: "local" as const, name: `${id} (local, $0)` }));
+  return [...cloud, ...local];
 }
 
 /** Friendly model name for display (e.g. "claude-opus-4-8" -> "Claude Opus 4.8"). */
 export function modelLabel(id: string): string {
-  return MODELS[id]?.name ?? id;
+  return MODELS[id]?.name ?? (getLocalModels()?.models.includes(id) ? `${id} (local)` : id);
 }
 
 /** Reassign a role's model across ALL tiers of that capability (so the role uses one
@@ -649,6 +654,21 @@ export function importProject(rawSrc: string, idea?: string): { ok: true; dir: s
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/** Archive a project's built files for sharing: `<slug>.zip` when the system has `zip`,
+ *  else `<slug>.tar.gz` (stdlib tar via the system `tar`, present on every OS we support).
+ *  Excludes build-state, git, deploy staging and node_modules. Written next to the project. */
+export function shareBuild(dir: string): { ok: true; path: string; format: "zip" | "tar.gz" } | { ok: false; error: string } {
+  const slug = basename(dir);
+  const exclude = ["build-state.json", ".git", ".deploy", "node_modules", "export.md", "export.csv"];
+  const out = join(dirname(dir), `${slug}.zip`);
+  const zip = spawnSync("zip", ["-r", "-q", out, ".", ...exclude.flatMap((e) => ["-x", e, `${e}/*`])], { cwd: dir, encoding: "utf8" });
+  if (zip.status === 0) return { ok: true, path: out, format: "zip" };
+  const tgz = join(dirname(dir), `${slug}.tar.gz`);
+  const tar = spawnSync("tar", ["-czf", tgz, ...exclude.flatMap((e) => ["--exclude", e]), "-C", dir, "."], { encoding: "utf8" });
+  if (tar.status === 0) return { ok: true, path: tgz, format: "tar.gz" };
+  return { ok: false, error: `Could not create an archive (zip: ${zip.error?.message ?? zip.stderr?.trim() ?? "not available"}; tar: ${tar.error?.message ?? tar.stderr?.trim() ?? "failed"})` };
 }
 
 /** Open a file or folder in the OS default app (macOS `open`). Fire-and-forget. */

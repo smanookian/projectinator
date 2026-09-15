@@ -50,6 +50,8 @@ The brief the planner sees is composed **purely** from state:
 | `narrate.ts` | AI retro narrative |
 | `retro.ts` / `burndown.ts` | pure analytics from build-state |
 | `stack.ts` | platform/framework → brief instruction |
+| `local-models.ts` | owns the `local` provider entry in Pi's `~/.pi/agent/models.json` (Ollama/LM Studio/vLLM): probe, read, write |
+| `stuck.ts` | pure "slow task" rule (2× typical, ½ timeout, 60 s floor) |
 | `session-cost.ts` | per-session $ accumulator |
 | `run-*.ts` | dev CLI entries (build with fixed mini/fan backlogs, pm, dev, scout, research, bakeoff, web) |
 | `cli.ts` | user-facing headless CLI (`doctor`/`build`/`projects`/`models`); `bin/projectinator.mjs` dispatches here for any command, else to the TUI |
@@ -74,7 +76,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (212)
+npm test                  # vitest (217)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 

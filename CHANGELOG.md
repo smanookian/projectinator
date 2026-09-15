@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 — 2026-09-15
+
+### Added
+- **Local models** (Settings → Local models): point Projectinator at an Ollama / LM Studio /
+  vLLM server, pick the models to allow, and they show up under Model assignments as
+  provider "local" — $0, no key. Registered through Pi's own `~/.pi/agent/models.json` (only
+  our `local` entry is touched). `--provider local` works in the CLI; `doctor` reports it.
+  Local servers are never used as a *fallback* for a cloud task.
+- **Share a build** (project → Ship): `<slug>.zip` next to the project (`tar.gz` if the
+  system has no `zip`), built files only.
+
 ## 0.4.0 — 2026-09-15
 
 ### Added
