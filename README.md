@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 181 passing](https://img.shields.io/badge/tests-181%20passing-brightgreen.svg)
+![tests: 187 passing](https://img.shields.io/badge/tests-187%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -30,7 +30,7 @@ npx projectinator                 # run without installing
 npm install -g projectinator      # then just: projectinator
 ```
 
-`projectinator --help` / `--version` work without opening the app.
+`projectinator --help` / `--version` work without opening the app; `projectinator doctor` checks your setup.
 
 > **It's a CLI, not a library.** `npm install projectinator` (without `-g`) only drops it into a
 > project's `node_modules` — it won't create a runnable command. Use `npx projectinator` or
@@ -122,16 +122,32 @@ Real, unedited output from a full build, kept in [`examples/`](examples/):
 
 ## CLI (same engine, for scripting/CI)
 
+Everything below uses the same workspace as the cockpit, so headless builds show up in the app.
+
 ```bash
-npm start                                         # the cockpit (the normal way to use it)
-npm run build -- --live --mini                    # cheap end-to-end proof (~$0.10)
-npm run build -- --live --lock anthropic "idea"   # full pipeline on one provider
-npm run build -- --live --mini --resume           # resume a halted/finished build (skips done tasks)
-npm run build -- --live --mini --task-cap 0.5 --task-timeout 5   # per-task limits (USD / minutes)
+projectinator doctor                                  # Node, keys, Chromium, Pi catalog, git
+projectinator build "a tip calculator" --dry-run      # plan + estimate only (one PM call)
+projectinator build "a tip calculator" --yes          # build without the confirmation prompt
+projectinator build "…" --json --budget 2 --provider anthropic   # NDJSON events; cap; lock provider
+projectinator build "…" --task-cap 0.5 --task-timeout 5           # per-task limits (USD / minutes)
+projectinator projects                                # past builds, status, cost
+projectinator models                                  # the roster as it will run, with prices
+```
+
+Exit codes: `0` ok · `1` environment problem · `2` bad usage · `3` build halted (resume it in the app).
+
+<details>
+<summary>Developer scripts (from a clone)</summary>
+
+```bash
+npm start                                         # the cockpit
+npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
+npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 181 tests
+npm test                                          # 187 tests
 npm run typecheck
 ```
+</details>
 
 ## Configuration & data
 

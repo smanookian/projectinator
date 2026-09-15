@@ -3,7 +3,15 @@
 ## 0.3.0 — 2026-09-15
 
 ### Added
-- `projectinator --version` / `-v` and `--help` / `-h`. Unknown options exit 2 with a hint.
+- **Headless CLI** — `projectinator doctor | build | projects | models`, routed by the launcher
+  (`src/cli.ts`, same engine and workspace as the cockpit).
+  - `doctor`: Node ≥ 22.19, per-provider keys (env or app config), Pi catalog resolves every
+    registry pick, headless Chromium, git, data dir, prefs. Exit 1 on a blocking problem.
+  - `build "<idea>"`: `--dry-run`, `--yes`/`-y`, `--json` (NDJSON events; implies `--yes`),
+    `--budget`, `--provider`, `--concurrency`, `--task-cap`, `--task-timeout`. Defaults come from
+    your app prefs. Exit 3 when the build halts.
+  - `projects`: past builds with status/cost/progress. `models`: effective roster with prices.
+- `projectinator --version` / `-v` and `--help` / `-h`. Unknown commands/options exit 2.
 
 ### Changed
 - **Model roster refreshed (Sept 2026).** API picks: Developer high → **Claude Opus 5**
