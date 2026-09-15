@@ -13,7 +13,7 @@ import { createServer, type Server } from "node:http";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import type { Browser } from "playwright";
 import { PAGE_FACTS_SCRIPT, type PageFacts } from "./a11y.js";
-import { extname, join, normalize } from "node:path";
+import { dirname, extname, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const TYPES: Record<string, string> = {
@@ -254,6 +254,99 @@ export async function renderCheck(
       doubleClickBroken,
     };
   } finally {
+    await browser.close();
+    await server.close();
+  }
+}
+
+// ---- interaction probe: a tiny declarative script the Tester writes ----
+
+export type InteractStep =
+  | { click: string }
+  | { fill: string; value: string }
+  | { select: string; value: string }
+  | { press: string }
+  | { expectText: string; contains: string }
+  | { expectVisible: string }
+  | { expectUrl: string };
+
+export interface StepResult { step: number; ok: boolean; detail: string }
+
+export interface InteractReport {
+  ok: boolean;
+  steps: StepResult[];
+  errors: string[]; // console/page errors raised DURING the interaction
+  screenshotPath?: string;
+}
+
+export const INTERACT_MAX_STEPS = 20;
+const INTERACT_TOTAL_MS = 10_000;
+const STEP_MS = 3_000;
+
+function stepLabel(s: InteractStep): string {
+  if ("click" in s) return `click ${s.click}`;
+  if ("fill" in s) return `fill ${s.fill} = ${JSON.stringify(s.value)}`;
+  if ("select" in s) return `select ${s.select} = ${JSON.stringify(s.value)}`;
+  if ("press" in s) return `press ${s.press}`;
+  if ("expectText" in s) return `expect ${s.expectText} contains ${JSON.stringify(s.contains)}`;
+  if ("expectVisible" in s) return `expect ${s.expectVisible} visible`;
+  return `expect url contains ${JSON.stringify(s.expectUrl)}`;
+}
+
+/** Run a bounded step script against the served page. Stops at the first failing step
+ *  (later steps would be meaningless) but still reports it and screenshots the end state. */
+export async function interactCheck(
+  dir: string,
+  file: string,
+  steps: InteractStep[],
+  opts: { screenshotPath?: string } = {},
+): Promise<InteractReport> {
+  const { chromium } = await import("playwright");
+  const server = await startStaticServer(dir);
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (e) {
+    await server.close();
+    throw e;
+  }
+  const errors: string[] = [];
+  const results: StepResult[] = [];
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  page.on("console", (m) => { if (m.type() === "error") errors.push(`console.error: ${m.text()}`); });
+  page.on("pageerror", (e) => errors.push(`uncaught: ${e.message}`));
+  const deadline = Date.now() + INTERACT_TOTAL_MS;
+  try {
+    await page.goto(`${server.url}/${file}`, { waitUntil: "networkidle", timeout: 15_000 });
+    for (const [i, s] of steps.slice(0, INTERACT_MAX_STEPS).entries()) {
+      const n = i + 1;
+      if (Date.now() > deadline) { results.push({ step: n, ok: false, detail: `${stepLabel(s)} — skipped: ${INTERACT_TOTAL_MS / 1000}s total budget exhausted` }); break; }
+      const t = { timeout: Math.min(STEP_MS, Math.max(200, deadline - Date.now())) };
+      try {
+        if ("click" in s) await page.locator(s.click).first().click(t);
+        else if ("fill" in s) await page.locator(s.fill).first().fill(s.value, t);
+        else if ("select" in s) await page.locator(s.select).first().selectOption(s.value, t);
+        else if ("press" in s) await page.keyboard.press(s.press);
+        else if ("expectText" in s) {
+          const text = await page.locator(s.expectText).first().innerText(t);
+          if (!text.includes(s.contains)) { results.push({ step: n, ok: false, detail: `${stepLabel(s)} — got ${JSON.stringify(text.trim().slice(0, 120))}` }); break; }
+        } else if ("expectVisible" in s) {
+          if (!(await page.locator(s.expectVisible).first().isVisible())) { results.push({ step: n, ok: false, detail: `${stepLabel(s)} — not visible (or no such element)` }); break; }
+        } else if (!page.url().includes(s.expectUrl)) { results.push({ step: n, ok: false, detail: `${stepLabel(s)} — url is ${page.url()}` }); break; }
+        results.push({ step: n, ok: true, detail: stepLabel(s) });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message.split("\n")[0]! : String(e);
+        results.push({ step: n, ok: false, detail: `${stepLabel(s)} — ${msg}` });
+        break;
+      }
+    }
+    if (opts.screenshotPath) {
+      mkdirSync(dirname(opts.screenshotPath), { recursive: true });
+      try { await page.screenshot({ path: opts.screenshotPath, fullPage: true }); } catch { /* non-fatal */ }
+    }
+    return { ok: results.every((r) => r.ok) && errors.length === 0, steps: results, errors, screenshotPath: opts.screenshotPath };
+  } finally {
+    await page.close();
     await browser.close();
     await server.close();
   }

@@ -10,6 +10,10 @@
 - **Accessibility & basics check**: in the same render, the Tester is told about missing
   `<title>`/`lang`/`<h1>`, images without alt text, unlabeled form controls, and text that fails
   WCAG AA contrast (body + headings). Deterministic, no model tokens, no Lighthouse.
+- **The Tester uses the app**: a new `interact_app` tool lets it write a short step script
+  (fill inputs, click, expect text/visibility/URL) and run it in the browser. A failing step
+  is reported with what was actually shown, and is a high-severity bug in the verdict. This is
+  where "the button doesn't do anything" gets caught. Tester-only; the Reviewer stays static.
 
 ## 0.5.0 — 2026-09-15
 

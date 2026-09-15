@@ -23,7 +23,7 @@ import {
   type Verdict,
 } from "./types.js";
 import { piRuntime, resolvePiModel } from "./executor.js"
-import { renderCheck, chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
+import { renderCheck, interactCheck, chromiumAvailable, CHROMIUM_INSTALL_HINT, INTERACT_MAX_STEPS, type InteractStep } from "./preview.js";
 import { describeFacts } from "./a11y.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
@@ -52,7 +52,7 @@ const ROLE_INTRO: Record<Capability, string> = {
     "Check: every file the design named exists; every <script src> / <link href> / import resolves to a real file; nothing is referenced but never defined " +
     "(functions, element ids, CSS classes the JS relies on); a plain static site uses no ES modules or fetch() of local files (both break on double-click / file://); " +
     "and the task's stated deliverable is actually present. Report only real defects a developer must fix — not style. Then call submit_verdict exactly once.",
-  test: "You are the TESTER. For a web app, FIRST call check_app to actually run it in a headless browser — it reports how the app renders BOTH served over http AND opened directly as a file (double-click / file://). Confirm it renders, shows the expected content, and has no JavaScript/console errors. The app MUST also work on double-click (file://) UNLESS a README documents how to run it — if check_app says double-click is BROKEN and there is no README with a run command, that is a HIGH-severity bug (report it, describe the file:// failure). Then inspect the files against the task and check multi-file wiring (referenced files exist, paths/imports resolve). Then call submit_verdict with pass/fail and any bugs. A blank render or a JS error is a high-severity bug. Do not fix anything yourself.",
+  test: "You are the TESTER. For a web app, FIRST call check_app to actually run it in a headless browser — it reports how the app renders BOTH served over http AND opened directly as a file (double-click / file://). Confirm it renders, shows the expected content, and has no JavaScript/console errors. The app MUST also work on double-click (file://) UNLESS a README documents how to run it — if check_app says double-click is BROKEN and there is no README with a run command, that is a HIGH-severity bug (report it, describe the file:// failure). For an INTERACTIVE app (inputs, buttons, navigation), THEN call interact_app with a short step script that exercises the main flow — fill the inputs, click the action, expectText the result; a failing step is a HIGH-severity bug. Then inspect the files against the task and check multi-file wiring (referenced files exist, paths/imports resolve). Then call submit_verdict with pass/fail and any bugs. A blank render or a JS error is a high-severity bug. Do not fix anything yourself.",
   ops: "You are OPS. Perform the operational task (build, config, deploy prep) using your tools. Report what you did as text.",
 };
 
@@ -148,7 +148,80 @@ function buildCheckTool(workspace: string, chromium: boolean, checksPrefix = "ch
       }
     },
   });
-  return { tool, rendered: () => rendered, screenshots: () => [...screenshots] };
+  return { tool, rendered: () => rendered, screenshots: () => [...screenshots], shotList: screenshots };
+}
+
+// ---- tester "use the app" tool: a short click/fill/expect script ----
+
+const StepSchema = Type.Object(
+  {
+    click: Type.Optional(Type.String({ description: "CSS selector to click" })),
+    fill: Type.Optional(Type.String({ description: "CSS selector of an input to type into" })),
+    select: Type.Optional(Type.String({ description: "CSS selector of a <select>" })),
+    value: Type.Optional(Type.String({ description: "value for fill/select" })),
+    press: Type.Optional(Type.String({ description: "key to press, e.g. Enter" })),
+    expectText: Type.Optional(Type.String({ description: "CSS selector whose text must contain `contains`" })),
+    contains: Type.Optional(Type.String()),
+    expectVisible: Type.Optional(Type.String({ description: "CSS selector that must be visible" })),
+    expectUrl: Type.Optional(Type.String({ description: "substring the URL must contain (after navigation)" })),
+  },
+  { additionalProperties: true },
+);
+
+/** Coerce a loose step object into one InteractStep (forced-tool args are permissive). */
+function toStep(raw: Static<typeof StepSchema>): InteractStep | undefined {
+  if (raw.click) return { click: raw.click };
+  if (raw.fill) return { fill: raw.fill, value: raw.value ?? "" };
+  if (raw.select) return { select: raw.select, value: raw.value ?? "" };
+  if (raw.press) return { press: raw.press };
+  if (raw.expectText) return { expectText: raw.expectText, contains: raw.contains ?? "" };
+  if (raw.expectVisible) return { expectVisible: raw.expectVisible };
+  if (raw.expectUrl) return { expectUrl: raw.expectUrl };
+  return undefined;
+}
+
+function buildInteractTool(workspace: string, chromium: boolean, checksPrefix: string, screenshots: string[]) {
+  let calls = 0;
+  const tool = defineTool({
+    name: "interact_app",
+    label: "Use the app",
+    description:
+      "Drive the running app like a user: a short list of steps — click, fill, select, press, " +
+      "expectText, expectVisible, expectUrl — run in order in a headless browser. Use it to prove " +
+      "the main flow works (e.g. fill inputs, click Calculate, expect the total). Stops at the " +
+      `first failing step and tells you why. Max ${INTERACT_MAX_STEPS} steps, 10 s.`,
+    parameters: Type.Object(
+      {
+        file: Type.Optional(Type.String({ description: "HTML entry file; default index.html" })),
+        steps: Type.Array(StepSchema, { description: "steps in order" }),
+      },
+      { additionalProperties: true },
+    ),
+    execute: async (_id, params: { file?: string; steps: Static<typeof StepSchema>[] }) => {
+      if (!chromium) {
+        return { content: [{ type: "text", text: `interact_app is UNAVAILABLE: headless Chromium is not installed (${CHROMIUM_INSTALL_HINT}).` }], details: {} };
+      }
+      const steps = params.steps.map(toStep).filter((s): s is InteractStep => !!s);
+      if (!steps.length) return { content: [{ type: "text", text: "interact_app: no valid steps. Each step needs one of click/fill/select/press/expectText/expectVisible/expectUrl." }], details: {} };
+      calls++;
+      const shot = join(workspace, ".checks", `${checksPrefix}-interact${calls}.png`);
+      try {
+        const r = await interactCheck(workspace, params.file || "index.html", steps, { screenshotPath: shot });
+        if (r.screenshotPath) screenshots.push(r.screenshotPath);
+        const lines = r.steps.map((s) => `  ${s.ok ? "✓" : "✗"} ${s.step}. ${s.detail}`);
+        const text = [
+          `interaction: ${r.ok ? "PASSED" : "FAILED"} (${r.steps.filter((s) => s.ok).length}/${steps.length} steps)`,
+          ...lines,
+          `errors during interaction: ${r.errors.length ? "\n  - " + r.errors.join("\n  - ") : "none"}`,
+          `screenshot after the last step: ${relative(workspace, shot)}`,
+        ].join("\n");
+        return { content: [{ type: "text", text }], details: {} };
+      } catch (e) {
+        return { content: [{ type: "text", text: `interact_app could not run (${e instanceof Error ? e.message : e}).` }], details: {} };
+      }
+    },
+  });
+  return { tool };
 }
 
 function buildVerdictTool(runtimeChecked: () => boolean) {
@@ -327,7 +400,9 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
 
     const isTest = task.capability === "test";
     const isReview = task.capability === "review";
-    const checkTool = isTest ? buildCheckTool(opts.workspace, await chromiumAvailable(), `${task.id}-r${round}`) : undefined;
+    const chromium = isTest ? await chromiumAvailable() : false;
+    const checkTool = isTest ? buildCheckTool(opts.workspace, chromium, `${task.id}-r${round}`) : undefined;
+    const interactTool = isTest ? buildInteractTool(opts.workspace, chromium, `${task.id}-r${round}`, checkTool!.shotList) : undefined;
     // A review never runs the app, so its verdict is never "runtime checked".
     const verdictTool = isTest || isReview ? buildVerdictTool(checkTool ? checkTool.rendered : () => false) : undefined;
     const t0 = Date.now();
@@ -337,7 +412,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
       modelRuntime: runtime,
       thinkingLevel: opts.thinkingLevel ?? "medium",
       ...(isTest
-        ? { customTools: [verdictTool!.tool, checkTool!.tool], tools: ["read", "bash", "ls", "grep", "find", "check_app", "submit_verdict"] }
+        ? { customTools: [verdictTool!.tool, checkTool!.tool, interactTool!.tool], tools: ["read", "bash", "ls", "grep", "find", "check_app", "interact_app", "submit_verdict"] }
         : isReview
           ? { customTools: [verdictTool!.tool], tools: ["read", "ls", "grep", "find", "submit_verdict"] }
           : { tools: ["read", "write", "edit", "bash", "ls", "grep", "find"] }),
@@ -436,4 +511,4 @@ function round2(n: number): number {
 }
 
 // exported for tests
-export { buildCheckTool, buildVerdictTool, VerdictSchema, estimateCost, getModel };
+export { buildCheckTool, buildInteractTool, buildVerdictTool, VerdictSchema, estimateCost, getModel };

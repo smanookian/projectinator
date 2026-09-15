@@ -39,13 +39,13 @@ The brief the planner sees is composed **purely** from state:
 | `cost.ts` / `estimate.ts` / `calibration.ts` | token estimate × price → USD; buckets self-calibrate from real runs |
 | `router.ts` | task → backend → model → cost → budget check |
 | `executor.ts` | resolve a Pi model; run a session |
-| `roles.ts` | per-role prompts, Tester verdict + `check_app` tools, provider-lock, **the real Pi executor + provider-fallback chain**, per-task timeout/cost abort (`TaskLimitError`) |
+| `roles.ts` | per-role prompts, Tester verdict + `check_app`/`interact_app` tools, provider-lock, **the real Pi executor + provider-fallback chain**, per-task timeout/cost abort (`TaskLimitError`) |
 | `pm.ts` | `decomposeIdea` — forced-tool backlog; accepts approved `epics` |
 | `intake.ts` | `assessIntake` (clarifying questions) + `enrichBrief` |
 | `council.ts` | `councilEpics` — 3 lenses ∥ → synthesize epics |
 | `orchestrator.ts` | toposort + run backlog + Tester→Dev loop + parallel scheduler + budget halt + limit-breach → failed outcome & halt |
 | `build-state.ts` | checkpoint/restore (save & resume) |
-| `preview.ts` | static server (+live-reload) and `renderCheck` (headless test-execution) |
+| `preview.ts` | static server (+live-reload) and `renderCheck` (headless render + viewports + a11y facts) and `interactCheck` (step script) |
 | `bakeoff.ts` | run one task across models + LLM judge |
 | `narrate.ts` | AI retro narrative |
 | `retro.ts` / `burndown.ts` | pure analytics from build-state |
@@ -77,7 +77,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (224)
+npm test                  # vitest (228)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 
