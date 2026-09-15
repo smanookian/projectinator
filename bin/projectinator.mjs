@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Launcher for `projectinator` / `npx github:smanookian/projectinator`.
-// Runs the Ink TUI (TypeScript) through tsx — no build step, no compiled dist.
+// Runs the compiled app from dist/ (published), or the TypeScript sources via tsx (dev clone).
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -44,16 +44,23 @@ if (args.length && !COMMANDS.has(args[0])) {
   process.exit(2);
 }
 
-// `node --import tsx <entry>` registers tsx's loader, then runs the TS entry.
-// No command → the TUI; a command → the headless CLI with the remaining args.
-const target = args.length ? join(root, "src", "cli.ts") : entry;
-const res = spawnSync(process.execPath, ["--import", "tsx", target, ...args], {
-  stdio: "inherit",
-  cwd: root,
-});
-
-if (res.error) {
-  console.error("Failed to launch Projectinator:", res.error.message);
-  process.exit(1);
+// Published package: run the compiled JS in-process (no tsx, fast start).
+// Dev clone without `npm run compile`: fall back to tsx on the TypeScript sources.
+const dist = join(root, "dist");
+if (existsSync(join(dist, "cli.js")) && existsSync(join(dist, "tui.js"))) {
+  process.chdir(root);
+  if (args.length) {
+    const { main } = await import(pathToFileURL(join(dist, "cli.js")).href);
+    process.exitCode = await main(args);
+  } else {
+    await import(pathToFileURL(join(dist, "tui.js")).href);
+  }
+} else {
+  const target = args.length ? join(root, "src", "cli.ts") : entry;
+  const res = spawnSync(process.execPath, ["--import", "tsx", target, ...args], { stdio: "inherit", cwd: root });
+  if (res.error) {
+    console.error("Failed to launch Projectinator:", res.error.message, "\n(dev clone: run `npm install` and `npm run compile`, or keep tsx installed)");
+    process.exit(1);
+  }
+  process.exit(res.status ?? 0);
 }
-process.exit(res.status ?? 0);

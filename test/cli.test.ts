@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parseArgv, semverGte } from "../src/cli.js";
 
 describe("parseArgv", () => {
@@ -44,5 +44,26 @@ describe("launcher (bin/projectinator.mjs)", () => {
     expect(run("--bogus").status).toBe(2);
     expect(run("bogus").stderr).toMatch(/unknown command/);
     expect(run("--bogus").stderr).toMatch(/unknown option/);
+  });
+});
+
+describe.skipIf(!existsSync("dist/cli.js"))("compiled dist (run `npm run compile` first)", () => {
+  it("the launcher runs dist in-process: no tsx on the command line, and the package ships no src", () => {
+    const r = spawnSync(process.execPath, ["bin/projectinator.mjs", "models"], { encoding: "utf8", env: { ...process.env, NODE_OPTIONS: "" } });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Roster as it will run now");
+    const files = JSON.parse(readFileSync("package.json", "utf8")).files as string[];
+    expect(files).toContain("dist");
+    expect(files).not.toContain("src");
+  });
+  it("the compiled tree resolves every registry pick (import graph is intact)", async () => {
+    const r = spawnSync(process.execPath, ["-e", `
+      const { REGISTRY } = await import("./dist/registry.js");
+      const { piRuntime, resolvePiModel } = await import("./dist/executor.js");
+      const rt = await piRuntime();
+      for (const e of REGISTRY) resolvePiModel(rt, e.byBackend.api.provider, e.byBackend.api.model);
+      console.log("ok", REGISTRY.length);
+    `, "--input-type=module"], { encoding: "utf8" });
+    expect(r.stdout.trim()).toMatch(/^ok \d+$/);
   });
 });

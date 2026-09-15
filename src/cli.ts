@@ -32,6 +32,9 @@ import {
 } from "./tui/engine.js";
 
 const NODE_MIN = "22.19.0";
+
+// `projectinator projects | head` closes our stdout early; that's not an error.
+process.stdout.on("error", (e: NodeJS.ErrnoException) => { if (e.code === "EPIPE") process.exit(0); throw e; });
 const money = (n: number) => `$${n.toFixed(2)}`;
 
 // ---- tiny argv parser: `--flag value`, `--flag=value`, `--bool`, positionals ----

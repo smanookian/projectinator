@@ -67,7 +67,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [x] Model-choice cost matrix on the plan screen — `costMatrix()` prices the backlog under the current roster and each key-holding provider locked, cheapest first, current row marked ▶. Shown only when there's more than one option.
 - [x] Tier-bump escalation — `route()` takes `tierBump`; the feedback loop re-runs the developer with `tierBump: 1` (fast→mid→high, capped; registry nearest-tier fallback covers single-row capabilities). The judge (review/test) keeps its routed model. Decision trail says "escalated from <tier>".
 - [x] "Stuck task" indicator — every run's wall time is recorded into calibration (`ms`, per bucket and per model). The live board shows `m:ss` on running cards and an amber `slow` badge once elapsed > max(60 s, 2× typical, ½ task timeout); header counts slow tasks. Rule is pure in `stuck.ts`.
-- [ ] Compiled `dist` — drop runtime `tsx`; `bin` switches entry
+- [x] Compiled `dist` — `tsconfig.build.json` emits `dist/` (src layout, sourcemaps); `bin` imports `dist/cli.js` / `dist/tui.js` in-process and falls back to tsx for a dev clone. `files: [bin, dist]`, `tsx` → devDependency. Tarball 192 kB. Tests verify the launcher runs dist without tsx and that the compiled import graph resolves every registry pick.
 - [ ] Import an existing folder as a project — copy-in + `git init`; `buildProjectContext` already summarizes
 
 ### Medium (design doc before code)

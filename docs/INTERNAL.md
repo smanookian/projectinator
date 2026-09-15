@@ -74,11 +74,14 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (206)
+npm test                  # vitest (208)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 
-- **Node ≥ 22.19** (Pi's floor; dev on 24). TypeScript via `tsx` (no build step for the app itself).
+- **Node ≥ 22.19** (Pi's floor; dev on 24). Dev scripts run TypeScript via `tsx`; the **published
+  package ships compiled JS** (`npm run compile` → `dist/`, mirrors `src/`; `bin` prefers `dist/`
+  and falls back to tsx on a clone). `tsx` is a devDependency. `prepublishOnly` compiles first
+  so the dist tests exercise the fresh build.
 - **`npx playwright install chromium`** is required for `renderCheck` (the tester) + web-login.
 - The executor is **injected** into the orchestrator, so all control-flow logic is unit-tested
   offline with a fake — no spend. Live runs are behind `--live` and key-gated.
