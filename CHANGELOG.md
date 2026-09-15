@@ -15,6 +15,8 @@
 - **Webhook** (Settings → Build defaults): POST a JSON summary to any URL when a build
   finishes or halts — Slack/Discord incoming webhooks, n8n, your own endpoint. Fired by the
   cockpit and by `projectinator build`.
+- **Cost matrix** on the plan screen: the same backlog priced under every provider you hold a
+  key for, cheapest first, so you can see what a provider lock would save before building.
 - **Headless CLI** — `projectinator doctor | build | projects | models`, routed by the launcher
   (`src/cli.ts`, same engine and workspace as the cockpit).
   - `doctor`: Node ≥ 22.19, per-provider keys (env or app config), Pi catalog resolves every

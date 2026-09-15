@@ -171,6 +171,25 @@ export function estimateTasks(tasks: Task[], registry: RegistryEntry[]): { total
   return { total, per };
 }
 
+export interface CostOption {
+  label: string;
+  provider?: Provider;
+  total: number;
+  /** True for the option the build will actually use. */
+  current: boolean;
+}
+
+/** The same backlog priced under each available choice: the current roster, and each
+ *  key-holding provider locked. Pure — reads only the estimates and the registry. */
+export function costMatrix(tasks: Task[], current: RegistryEntry[], providers: Provider[], currentLock?: Provider): CostOption[] {
+  const rows: CostOption[] = [{ label: currentLock ? `${PROVIDER_LABEL[currentLock]} (locked)` : "Best model per role", total: estimateTasks(tasks, current).total, current: true }];
+  for (const p of providers) {
+    if (p === currentLock) continue;
+    rows.push({ label: PROVIDER_LABEL[p], provider: p, total: estimateTasks(tasks, lockedRegistry(p)).total, current: false });
+  }
+  return rows.sort((a, b) => a.total - b.total);
+}
+
 /** Drop dependsOn refs to tasks that no longer exist (after removals). */
 export function cleanDeps(tasks: Task[]): Task[] {
   const valid = new Set(tasks.map((t) => t.id));

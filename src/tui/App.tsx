@@ -33,6 +33,7 @@ import {
   setProjectBudget,
   startBuild,
   estimateTasks,
+  costMatrix,
   listProjects,
   openInBrowser,
   mainFileOf,
@@ -1598,6 +1599,21 @@ export default function App(): React.ReactElement {
           {"  "}Runs {prefs.concurrency} at once · {targetWorkspace ? "edits this project's files" : "output to a fresh folder"} · {mode === "approval" ? "approval-gated" : "auto-run"}
         </Text>
         {overCap && <Text color={C.bad}>{"\n"}Estimate exceeds the ${effCap} cap — it may halt partway.</Text>}
+        {(() => {
+          const rows = costMatrix(plan.tasks, plan.registry, providers, plan.lock);
+          if (rows.length < 2) return null;
+          return (
+            <Box marginTop={1} flexDirection="column">
+              <Text color={C.textMuted}>Same backlog, other rosters (change under Settings → Preferred provider):</Text>
+              {rows.map((r) => (
+                <Text key={r.label}>
+                  {"  "}<Text color={r.current ? C.accent : C.text}>{r.current ? "▶ " : "  "}{r.label.padEnd(24)}</Text>
+                  <Text color={r.current ? C.accent : C.dim}>${r.total.toFixed(2)}</Text>
+                </Text>
+              ))}
+            </Box>
+          );
+        })()}
         <Box marginTop={1}>
           <Panel title="Ready?">
           <SelectInput

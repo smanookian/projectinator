@@ -64,7 +64,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [x] Per-model calibration — `recordActual` folds every run into `cap/diff` **and** `cap/diff/model`; `route()` prices with the model row once it has ≥2 samples (reason line: "tokens from measured runs on …"), otherwise leaves the task's estimate untouched. Settings → Estimate accuracy shows model rows indented under each bucket.
 - [x] Webhook notify on done/halt — Settings → Build defaults → **Webhook**; POSTs `{event:"build.finished", status, haltReason?, idea, totalCost, files, workspace, at}` from both the cockpit and `projectinator build` (which also emits a `webhook` NDJSON event with `ok`). 5 s timeout, never throws.
 - [x] Headless JSON CLI mode — shipped as `projectinator build --json` (NDJSON: plan, every orchestrator event, done, webhook).
-- [ ] Model-choice cost matrix on the plan screen — the backlog priced per provider/tier lock
+- [x] Model-choice cost matrix on the plan screen — `costMatrix()` prices the backlog under the current roster and each key-holding provider locked, cheapest first, current row marked ▶. Shown only when there's more than one option.
 - [ ] Tier-bump escalation — on a failed test round, re-run the **Dev only, one tier up**; tester stays on its routed model
 - [ ] "Stuck task" indicator — elapsed vs bucket median (needs per-task timing from the timeout work)
 - [ ] Compiled `dist` — drop runtime `tsx`; `bin` switches entry
