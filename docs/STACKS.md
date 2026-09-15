@@ -113,3 +113,11 @@ its URL instead of our static server.
    the request needs it (TypeScript, Tailwind, routing, state library).
 3. Backend targets: are Node and Python both wanted, or Node only first? Recommendation:
    Node only in the first pass; Python is the same shape and can follow once Node is solid.
+
+## Decisions (2026-09-16)
+
+1. `npm ci --ignore-scripts` by default; a per-project "allow install scripts" switch appears
+   when a build fails for that reason.
+2. "Let the AI decide" keeps **static** as the default; the PM picks Vite only when the
+   request needs it.
+3. Backends: **Node first**; Python follows once Node is solid.
