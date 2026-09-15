@@ -69,10 +69,10 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
   place, every route updates. Run a **bake-off** to pick empirically.
 - **A real pipeline.** PM decomposes → Designer specs → Developer writes files → **Reviewer**
   (cheap, read-only) checks the wiring → Tester **runs the app headless and catches real
+  bugs** → feedback loop re-runs the dev on failure.
+- **Multi-file apps.** Vanilla HTML/CSS/JS or **React (CDN, no build)** — your choice.
 - **The cockpit.** A polished terminal UI: editable board, Kanban, standup, per-task cost,
   live budget bar, desktop notification and optional webhook when done.
-- **The cockpit.** A polished terminal UI: editable board, Kanban, standup, per-task cost,
-  live budget bar, desktop notification when done.
 - **Honest cost.** Live spend tracking, per-project budget cap + an alert before the cap,
   **per-task timeout and cost ceiling**, and predicted-vs-actual reporting that sharpens
   itself over real runs.
