@@ -49,6 +49,10 @@ const PHASE_LABEL: Record<string, string> = {
   retro: "Retro",
   burndown: "Burndown",
   history: "History",
+  diff: "Diff",
+  transcripts: "Transcripts",
+  transcript: "Transcript",
+  importProject: "Import folder",
 };
 
 /** Slim top bar (OpenCode-style header): brand ▌ + project · phase on the left,

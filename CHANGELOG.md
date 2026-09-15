@@ -26,6 +26,9 @@
 - **Compiled package**: `npm install -g projectinator` now gets prebuilt JavaScript — no `tsx`
   at runtime, faster start, `tsx` moved to devDependencies. Dev clones still run from source.
 - `projectinator … | head` no longer dies with EPIPE.
+- **Import an existing folder** (Home menu): bring any folder in as a project — files copied
+  (junk dirs skipped), versioned, and ready for "Add to backlog" so the PM plans changes
+  against what's actually there.
 - **Headless CLI** — `projectinator doctor | build | projects | models`, routed by the launcher
   (`src/cli.ts`, same engine and workspace as the cockpit).
   - `doctor`: Node ≥ 22.19, per-provider keys (env or app config), Pi catalog resolves every

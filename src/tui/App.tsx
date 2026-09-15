@@ -38,6 +38,7 @@ import {
   openInBrowser,
   mainFileOf,
   addAsset,
+  importProject,
   renameProject,
   duplicateProject,
   deleteProject,
@@ -71,7 +72,7 @@ const verdictLabel = (v: Verdict, capability: Capability): "PASS" | "PASS*" | "F
   !v.passed ? "FAIL" : v.runtimeChecked || capability !== "test" ? "PASS" : "PASS*";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "diff" | "transcripts" | "transcript" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "diff" | "transcripts" | "transcript" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions" | "importProject"
   | "idea" | "change" | "stack" | "assessing" | "intake" | "planMode" | "council" | "approveEpics" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
@@ -184,6 +185,7 @@ export default function App(): React.ReactElement {
       case "templates": return setPhase("home");
       case "saveTemplate": return setPhase("projectActions");
       case "importTemplate": setFlash(""); return setPhase("templates");
+      case "importProject": return setPhase("home");
       case "myTemplates": setFlash(""); return setPhase("templates");
       case "tplActions": return setPhase("myTemplates");
       case "change": return setPhase(selected ? "projectActions" : buildResult ? "done" : "home");
@@ -218,7 +220,7 @@ export default function App(): React.ReactElement {
   // Any phase that hosts a text/number input must be here, or the App-level
   // useInput below quits on a "q" keystroke (both handlers see every key).
   const typing =
-    phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" ||
+    phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "importProject" ||
     phase === "bakeoff" || phase === "intake" || phase === "setCap" || phase === "stack" ||
     phase === "saveTemplate" || phase === "importTemplate" || phase === "settings" ||
     phase === "editBoard" || phase === "board";
@@ -438,6 +440,7 @@ export default function App(): React.ReactElement {
     const items = [
       { label: "New build", value: "new" },
       { label: "Start from a template", value: "templates" },
+      { label: "Import an existing folder", value: "import" },
       ...(projs.length ? [{ label: `Projects (${projs.length})`, value: "open" }] : []),
       { label: "Compare models (bake-off)", value: "bakeoff" },
       { label: "Settings", value: "settings" },
@@ -455,6 +458,9 @@ export default function App(): React.ReactElement {
                 setPhase("idea");
               } else if (i.value === "templates") {
                 setPhase("templates");
+              } else if (i.value === "import") {
+                setAssetPath(""); setAssetMsg(null); setAssetKey((k) => k + 1);
+                setPhase("importProject");
               } else if (i.value === "open") {
                 setProjects(projs);
                 setPhase("projects");
@@ -1260,6 +1266,37 @@ export default function App(): React.ReactElement {
             />
           </Box>
           <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "add" }, { keys: "Esc", label: "go back" }]} /></Box>
+        </Panel>
+      </Box>
+    );
+  }
+
+  if (phase === "importProject") {
+    return (
+      <Box flexDirection="column">
+        <Panel title="Import an existing folder as a project">
+          <Text color={C.textMuted}>Paste the path to a folder. Its files are copied into a new project (node_modules,</Text>
+          <Text color={C.textMuted}>.git, dist skipped) and versioned; then “Add to backlog” plans changes against them.</Text>
+          <Text color={C.textMuted}>Tip: drag the folder into the terminal to paste its path. ~ works.</Text>
+          {assetMsg ? <Text color={assetMsg.ok ? C.good : C.bad}>{"\n"}{assetMsg.ok ? "✓ " : "✗ "}{assetMsg.text}</Text> : null}
+          <Box marginTop={1}>
+            <Text color={C.accent}>{"› "}</Text>
+            <TextInput
+              key={assetKey}
+              value={assetPath}
+              onChange={setAssetPath}
+              placeholder="~/code/my-landing-page"
+              onSubmit={() => {
+                if (!assetPath.trim()) return setPhase("home");
+                const r = importProject(assetPath);
+                if (!r.ok) { setAssetMsg({ ok: false, text: r.error }); return; }
+                reselect(r.dir);
+                setFlash(`Imported ${r.files} file${r.files === 1 ? "" : "s"}. Use “Add to backlog” to plan a change.`);
+                setPhase("projectActions");
+              }}
+            />
+          </Box>
+          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "import" }, { keys: "Esc", label: "back" }]} /></Box>
         </Panel>
       </Box>
     );

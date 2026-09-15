@@ -590,15 +590,20 @@ export function mainFileOf(dir: string): string {
   return join(dir, index ?? html ?? "");
 }
 
+/** Terminals wrap dragged paths in quotes or backslash-escape special chars
+ *  (space, ~, parens, &, …). Strip quotes, un-escape "\x" -> "x", expand ~. */
+function normalizeUserPath(raw: string): string {
+  let p = raw.trim();
+  if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith("'") && p.endsWith("'"))) p = p.slice(1, -1);
+  else p = p.replace(/\\(.)/g, "$1");
+  if (p.startsWith("~")) p = homedir() + p.slice(1);
+  return p;
+}
+
 /** Copy a file from anywhere on the computer into a project's folder, so the
  *  build can use it (images, logos, fonts…). Returns the copied filename. */
 export function addAsset(dir: string, rawSrc: string): { ok: true; name: string } | { ok: false; error: string } {
-  let src = rawSrc.trim();
-  // Terminals wrap dragged paths in quotes or backslash-escape special chars
-  // (space, ~, parens, &, …). Strip quotes, then un-escape every "\x" -> "x".
-  if ((src.startsWith('"') && src.endsWith('"')) || (src.startsWith("'") && src.endsWith("'"))) src = src.slice(1, -1);
-  else src = src.replace(/\\(.)/g, "$1");
-  if (src.startsWith("~")) src = homedir() + src.slice(1);
+  const src = normalizeUserPath(rawSrc);
   try {
     if (!existsSync(src)) return { ok: false, error: `File not found: ${src}` };
     if (statSync(src).isDirectory()) return { ok: false, error: "That's a folder — pick a single file." };
@@ -606,6 +611,41 @@ export function addAsset(dir: string, rawSrc: string): { ok: true; name: string 
     mkdirSync(dir, { recursive: true });
     copyFileSync(src, join(dir, name));
     return { ok: true, name };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Folders never worth copying into a project (huge, regenerable, or another repo's state). */
+const IMPORT_SKIP = new Set(["node_modules", ".git", "dist", ".next", ".cache", ".workspace"]);
+
+/** Bring an existing folder in as a project: copy its files into a fresh workspace,
+ *  write an empty backlog (the PM plans changes against the real files via
+ *  buildProjectContext), and version it. Returns the new project dir. */
+export function importProject(rawSrc: string, idea?: string): { ok: true; dir: string; files: number } | { ok: false; error: string } {
+  const src = normalizeUserPath(rawSrc);
+  try {
+    if (!existsSync(src)) return { ok: false, error: `Folder not found: ${src}` };
+    if (!statSync(src).isDirectory()) return { ok: false, error: "That's a file — pick the project folder." };
+    if (existsSync(join(src, "build-state.json"))) return { ok: false, error: "That folder is already a Projectinator project — open it from Projects." };
+    const label = (idea ?? "").trim() || `Imported: ${basename(src)}`;
+    const dir = uniqueDir(slugify(label));
+    mkdirSync(dir, { recursive: true });
+    let files = 0;
+    cpSync(src, dir, {
+      recursive: true,
+      filter: (p) => {
+        const name = basename(p);
+        if (IMPORT_SKIP.has(name)) return false;
+        if (p !== src && !statSync(p).isDirectory()) files++;
+        return true;
+      },
+    });
+    const state = newBuildState(basename(dir), [], label, "auto");
+    state.status = "complete"; // nothing to build yet; "Add to backlog" plans the first change
+    saveState(state, join(dir, "build-state.json"));
+    initRepo(dir);
+    return { ok: true, dir, files };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }

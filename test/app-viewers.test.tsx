@@ -10,7 +10,7 @@
 import React from "react";
 import { render } from "ink-testing-library";
 import { describe, it, expect } from "vitest";
-import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import App from "../src/tui/App.js";
@@ -151,6 +151,40 @@ describe.skipIf(!hasGit)("commit diff", () => {
     } finally {
       app.close();
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("import an existing folder", () => {
+  it("Home → Import → path → lands on the project screen with Add-to-backlog available", async () => {
+    const src = join(projectRoot(), ".workspace", "tui-import-src");
+    rmSync(src, { recursive: true, force: true });
+    mkdirSync(src, { recursive: true });
+    writeFileSync(join(src, "index.html"), "<h1>hi</h1>");
+    const app = mountApp();
+    let dir: string | undefined;
+    try {
+      await tick(150);
+      await app.pick("Start a build");
+      await app.pick("Import an existing folder");
+      await until(() => app.frame().includes("Import an existing folder as a project"), app.frame);
+      // Same race as menus: the input subscribes a tick after render. Type, verify, retry.
+      for (let i = 0; i < 10 && !app.frame().includes(src.slice(-12)); i++) {
+        app.stdin.write(src);
+        await until(() => app.frame().includes(src.slice(-12)), app.frame, 150);
+      }
+      expect(app.frame()).toContain(src.slice(-12));
+      app.stdin.write(ENTER);
+      await until(() => app.frame().includes("Imported 1 file"), app.frame);
+      const f = app.frame();
+      expect(f).toContain("Add to backlog");
+      expect(f).toContain("Imported: tui-import-src");
+      dir = join(projectRoot(), ".workspace", "tui", "imported-tui-import-src");
+      expect(existsSync(join(dir, "index.html"))).toBe(true);
+    } finally {
+      app.close();
+      rmSync(src, { recursive: true, force: true });
+      if (dir) rmSync(dir, { recursive: true, force: true });
     }
   });
 });

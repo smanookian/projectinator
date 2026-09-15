@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 208 passing](https://img.shields.io/badge/tests-208%20passing-brightgreen.svg)
+![tests: 212 passing](https://img.shields.io/badge/tests-212%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -94,6 +94,7 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
 | 💾 **Templates** | Save a project's brief as a reusable template; import/share as a file. |
 | ⛔ **Task limits** | Per-task timeout and cost ceiling (Settings → Preferences). A runaway task is aborted, billed for what it spent, and the build halts — resumable. |
 | ✎ **Task notes** | Annotate any task on the board (`n`). Yours only — never sent to a model; included in exports. |
+| 📥 **Import a folder** | Bring an existing site or prototype in as a project; the PM plans changes against its real files. |
 
 ## How it works
 
@@ -144,7 +145,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 208 tests
+npm test                                          # 212 tests
 npm run typecheck
 ```
 </details>
