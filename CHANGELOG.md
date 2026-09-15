@@ -3,6 +3,9 @@
 ## 0.3.1 — 2026-09-15
 
 ### Added
+- **Transcripts** (project → Reports): browse every run of a build — role, model, cost,
+  verdict, retries — and read what each role actually said, with its bugs and files. Scrolls
+  with ↑↓ / PgUp / PgDn.
 - **Headless CLI** — `projectinator doctor | build | projects | models`, routed by the launcher
   (`src/cli.ts`, same engine and workspace as the cockpit).
   - `doctor`: Node ≥ 22.19, per-provider keys (env or app config), Pi catalog resolves every

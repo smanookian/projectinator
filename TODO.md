@@ -59,7 +59,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [x] **Task notes** — `Task.notes`; `n` in the plan board and the project board editor (allowed on built tasks too — it changes nothing that ran). Shown as `✎ …` on both editors and the Kanban; included in the Markdown/CSV export. Never sent to a model (`buildRolePrompt` only reads id/title; test pins it).
 
 ### Small (independently shippable; reuse existing seams)
-- [ ] Per-task transcript view — `RoleResult.finalText` is already stored; History → task → text
+- [x] Per-task transcript view — project → Reports → **Transcripts**: every outcome (retries included) with role/model/cost/verdict; pick one to read the role's final text, verdict bugs, and files. ↑↓/PgUp/PgDn scroll. Page size is `termRows − 18` (measured frame chrome + 1 slack; less and Yoga squeezes a row).
 - [ ] Per-commit diff viewer — `git.ts` history + `git show --stat` / paged diff
 - [ ] Per-model calibration — bucket key `cap/diff/model`, fallback to today's `cap/diff`
 - [ ] Webhook notify on done/halt (URL in prefs; alongside desktop notify)

@@ -7,7 +7,7 @@ import { Spinner, StatusMessage } from "@inkjs/ui";
 import InkSpinner from "ink-spinner"; // a Text-based spinner, safe as an inline glyph inside <Text>
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
-import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, type TaskView, type MenuGroup } from "./components.js";
+import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, ROLE_META, type TaskView, type MenuGroup } from "./components.js";
 import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
@@ -68,7 +68,7 @@ const verdictLabel = (v: Verdict, capability: Capability): "PASS" | "PASS*" | "F
   !v.passed ? "FAIL" : v.runtimeChecked || capability !== "test" ? "PASS" : "PASS*";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "transcripts" | "transcript" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
   | "idea" | "change" | "stack" | "assessing" | "intake" | "planMode" | "council" | "approveEpics" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
@@ -121,6 +121,7 @@ export default function App(): React.ReactElement {
     log: string[];
   } | null>(null);
   const [preview, setPreview] = useState<{ server: StaticServer; error?: string } | { error: string } | null>(null);
+  const [transcript, setTranscript] = useState<{ outcome: TaskOutcome; scroll: number } | null>(null);
 
   const termRows = useTermRows();
 
@@ -182,6 +183,8 @@ export default function App(): React.ReactElement {
       case "exportMenu": return setPhase("projectActions");
       case "deployMenu": return setPhase("projectActions");
       case "history": return setPhase("projectActions");
+      case "transcripts": return setPhase("projectActions");
+      case "transcript": setTranscript(null); return setPhase("transcripts");
       case "retro": return setPhase("projectActions");
       case "burndown": return setPhase("projectActions");
       case "kanban": return setPhase("projectActions");
@@ -211,6 +214,11 @@ export default function App(): React.ReactElement {
     if (key.ctrl && input === "c") return exit();
     if (input === "q" && !typing) return exit();
     if (key.escape) goBack();
+    if (phase === "transcript" && transcript) {
+      const page = Math.max(4, termRows - 18);
+      const step = key.upArrow ? -1 : key.downArrow ? 1 : key.pageUp ? -page : key.pageDown ? page : 0;
+      if (step) setTranscript({ ...transcript, scroll: Math.max(0, transcript.scroll + step) });
+    }
   });
 
   // ---- stack effect: apply the default stack (skip the picker) when one is set ----
@@ -547,6 +555,7 @@ export default function App(): React.ReactElement {
         { label: "Retro (build summary)", value: "retro" },
         { label: "Burndown (progress + spend)", value: "burndown" },
         { label: "History (per-task commits)", value: "history" },
+        { label: "Transcripts (what each role said)", value: "transcripts" },
       ] },
       { title: "Ship", items: [
         { label: "Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
@@ -584,6 +593,7 @@ export default function App(): React.ReactElement {
               else if (i.value === "filter") setPhase("filterEpic");
               else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
               else if (i.value === "history") { setFlash(""); setPhase("history"); }
+              else if (i.value === "transcripts") { setFlash(""); setPhase("transcripts"); }
               else if (i.value === "retro") { setFlash(""); setNarr({ loading: false, text: getRetroNarrative(selected.dir) ?? "", error: "" }); setPhase("retro"); }
               else if (i.value === "burndown") { setFlash(""); setPhase("burndown"); }
               else if (i.value === "cap") { setCapReturn("projectActions"); setCapDraft(selected.state.budgetCapUSD != null ? String(selected.state.budgetCapUSD) : ""); setPhase("setCap"); }
@@ -1010,6 +1020,68 @@ export default function App(): React.ReactElement {
                 }
               }}
             />
+          </Box>
+        </Panel>
+      </Box>
+    );
+  }
+
+  if (phase === "transcripts" && selected) {
+    const outcomes = selected.state.outcomes;
+    const titleById = new Map(selected.state.tasks.map((t) => [t.id, t.title]));
+    return (
+      <Box flexDirection="column">
+        <Panel title={`Transcripts — ${selected.idea}`}>
+          <Text color={C.textMuted}>Every run, in order — retries included. Pick one to read what the role said.</Text>
+          <Box marginTop={1}>
+            {outcomes.length ? (
+              <SelectInput
+                items={[
+                  ...outcomes.map((o, i) => ({
+                    label: `${o.taskId.padEnd(6)} ${ROLE_META[o.capability].emoji} ${o.capability.padEnd(7)}${o.round ? ` r${o.round}` : "   "}  $${o.cost.toFixed(2).padStart(5)}  ${o.error ? "ABORTED" : o.verdict ? verdictLabel(o.verdict, o.capability) : ""}`.padEnd(40) + `  ${(titleById.get(o.taskId) ?? "").slice(0, 40)}`,
+                    value: String(i),
+                  })),
+                  { label: "Back", value: "back" },
+                ]}
+                onSelect={(i) => {
+                  if (i.value === "back") return setPhase("projectActions");
+                  setTranscript({ outcome: outcomes[Number(i.value)]!, scroll: 0 });
+                  setPhase("transcript");
+                }}
+              />
+            ) : (
+              <Text color={C.textMuted}>Nothing has run yet.</Text>
+            )}
+          </Box>
+        </Panel>
+      </Box>
+    );
+  }
+
+  if (phase === "transcript" && selected && transcript) {
+    const o = transcript.outcome;
+    const title = selected.state.tasks.find((t) => t.id === o.taskId)?.title ?? o.taskId;
+    const lines: string[] = [];
+    if (o.error) lines.push(`⛔ Aborted: ${o.error}`, "");
+    if (o.verdict) {
+      lines.push(`Verdict: ${verdictLabel(o.verdict, o.capability)}${o.capability === "test" && !o.verdict.runtimeChecked ? " (app not executed — no Chromium)" : ""}`);
+      for (const b of o.verdict.bugs) lines.push(`  • [${b.severity}] ${b.description}${b.file ? ` (${b.file})` : ""}`);
+      lines.push("");
+    }
+    lines.push(...(o.finalText.trim() || "(the role produced no text — files only)").split("\n"));
+    if (o.files.length) lines.push("", `Files after this run: ${o.files.join(", ")}`);
+    const page = Math.max(4, termRows - 18);
+    const scroll = Math.min(transcript.scroll, Math.max(0, lines.length - page));
+    return (
+      <Box flexDirection="column">
+        <Panel title={`${o.taskId} · ${ROLE_META[o.capability].label}${o.round ? ` · round ${o.round}` : ""} · ${modelLabel(o.modelId)} · $${o.cost.toFixed(2)}`}>
+          <Text bold wrap="truncate-end">{title}</Text>
+          <Box marginTop={1} flexDirection="column">
+            {lines.slice(scroll, scroll + page).map((l, i) => <Text key={scroll + i} wrap="truncate-end">{l || " "}</Text>)}
+          </Box>
+          <Box marginTop={1}>
+            <Text color={C.textSubtle}>{lines.length > page ? `lines ${scroll + 1}–${Math.min(scroll + page, lines.length)} of ${lines.length}   ` : ""}</Text>
+            <KeyHint hints={[{ keys: "↑↓ PgUp PgDn", label: "scroll" }, { keys: "Esc", label: "back" }]} />
           </Box>
         </Panel>
       </Box>
