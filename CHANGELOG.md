@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 — 2026-09-15
+## 0.3.1 — 2026-09-15
 
 ### Added
 - **Headless CLI** — `projectinator doctor | build | projects | models`, routed by the launcher
@@ -12,6 +12,12 @@
     your app prefs. Exit 3 when the build halts.
   - `projects`: past builds with status/cost/progress. `models`: effective roster with prices.
 - `projectinator --version` / `-v` and `--help` / `-h`. Unknown commands/options exit 2.
+
+### Fixed
+- `tsconfig` uses `lib: ES2024` with `target: ES2022`, so vitest's esbuild no longer prints an
+  "Unrecognized target environment" warning per file.
+
+## 0.3.0 — 2026-09-15
 
 ### Changed
 - **Model roster refreshed (Sept 2026).** API picks: Developer high → **Claude Opus 5**
