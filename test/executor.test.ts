@@ -4,13 +4,12 @@
 // won't fail on a bad model id.
 
 import { describe, it, expect } from "vitest";
-import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
-import { resolvePiModel, buildDeveloperPrompt } from "../src/executor.js";
+import { piRuntime, resolvePiModel, buildDeveloperPrompt } from "../src/executor.js";
 import { REGISTRY } from "../src/registry.js";
 import { MODELS } from "../src/models.js";
 import type { Task } from "../src/types.js";
 
-const registry = ModelRegistry.create(AuthStorage.create());
+const registry = await piRuntime();
 
 describe("every model in our table resolves in Pi's registry", () => {
   for (const [id, model] of Object.entries(MODELS)) {
@@ -34,14 +33,13 @@ describe("every registry pick (both backends) is executable in Pi", () => {
 });
 
 describe("our estimated price matches Pi's authoritative price", () => {
-  it("input/output rates agree for the core roster", () => {
-    for (const id of ["claude-opus-4-8", "claude-fable-5", "gpt-5.6-sol", "gpt-5.6-terra"]) {
-      const ours = MODELS[id]!;
-      const pi = registry.find(ours.provider, id)!;
-      expect(pi.cost?.input).toBe(ours.cost.input);
-      expect(pi.cost?.output).toBe(ours.cost.output);
-    }
-  });
+  for (const [id, ours] of Object.entries(MODELS)) {
+    it(`${ours.provider}/${id}`, () => {
+      const pi = registry.getModel(ours.provider, id)!;
+      expect(pi.cost.input).toBe(ours.cost.input);
+      expect(pi.cost.output).toBe(ours.cost.output);
+    });
+  }
 });
 
 describe("buildDeveloperPrompt", () => {

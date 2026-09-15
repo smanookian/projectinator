@@ -9,23 +9,26 @@ import { mergeRegistry, loadRegistry, saveOverrides } from "../src/registry-stor
 import { REGISTRY, findEntry } from "../src/registry.js";
 import type { RegistryEntry } from "../src/types.js";
 
+const current = (cap: RegistryEntry["capability"], tier: RegistryEntry["tier"]) => findEntry(cap, tier).entry.byBackend.api.model;
+
 describe("proposeUpdate", () => {
   it("flags an update when the model differs", () => {
+    const was = current("code", "high");
     const f: Finding[] = [{ capability: "code", tier: "high", backend: "api", provider: "anthropic", model: "claude-fable-5", evidence: "Fable now leads" }];
     const { updated, changes } = proposeUpdate(REGISTRY, f);
     const change = changes.find((c) => c.capability === "code" && c.tier === "high")!;
     expect(change.kind).toBe("update");
-    expect(change.from).toBe("claude-opus-4-8");
+    expect(change.from).toBe(was);
     expect(change.to).toBe("claude-fable-5");
     // updated registry reflects it
     const entry = updated.find((e) => e.capability === "code" && e.tier === "high")!;
     expect(entry.byBackend.api.model).toBe("claude-fable-5");
     // input registry is untouched (pure)
-    expect(findEntry("code", "high").entry.byBackend.api.model).toBe("claude-opus-4-8");
+    expect(current("code", "high")).toBe(was);
   });
 
   it("marks a noop when the finding matches the current pick", () => {
-    const f: Finding[] = [{ capability: "test", tier: "fast", backend: "api", provider: "google", model: "gemini-3-flash-preview", evidence: "same" }];
+    const f: Finding[] = [{ capability: "test", tier: "fast", backend: "api", provider: "google", model: current("test", "fast"), evidence: "same" }];
     const { changes } = proposeUpdate(REGISTRY, f);
     expect(changes[0]!.kind).toBe("noop");
     expect(meaningfulChanges(changes)).toHaveLength(0);
@@ -47,7 +50,7 @@ describe("proposeUpdate", () => {
   it("formats a readable proposal and hides noops", () => {
     const f: Finding[] = [
       { capability: "code", tier: "high", backend: "api", provider: "anthropic", model: "claude-fable-5", evidence: "leads" },
-      { capability: "test", tier: "fast", backend: "api", provider: "google", model: "gemini-3-flash-preview", evidence: "same" },
+      { capability: "test", tier: "fast", backend: "api", provider: "google", model: current("test", "fast"), evidence: "same" },
     ];
     const { changes } = proposeUpdate(REGISTRY, f);
     const text = formatProposal(changes);

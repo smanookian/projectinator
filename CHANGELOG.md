@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.0 — 2026-09-15
+
+### Changed
+- **Model roster refreshed (Sept 2026).** API picks: Developer high → **Claude Opus 5**
+  (96% SWE-bench Verified, same $5/$25 as Opus 4.8); Developer mid → **Claude Sonnet 5**
+  ($2/$10 in Pi's table); Developer fast, Reviewer and Tester → **Gemini 3.8 Flash**
+  ($0.75/$3.75, 90.8% Terminal-Bench 2.1); web picks move from Fable 5 to **Fable 5.1**. PM,
+  Designer and Ops stay on GPT-5.6 Terra/Sol, which OpenAI repriced to $2/$12 and $4/$20.
+  Every `evidence` field cites the benchmark. Provider-lock and OpenRouter tables follow.
+- **Pi harness `0.80.7 → 0.85.1`** (required for the new catalog). Sessions now use Pi's
+  `ModelRuntime` (`AuthStorage`/`ModelRegistry` were removed from the SDK). `typebox` repinned
+  to `1.3.7` to match Pi.
+- **Node ≥ 22.19** is now required (Pi's floor). Was ≥ 20.
+- `models.ts` prices are copied verbatim from Pi's catalog and the test suite pins **every**
+  entry's input/output rate against it (was four hand-picked ids).
+- Router/scout tests assert routing behaviour against the live registry instead of literal
+  model ids, so future roster refreshes don't re-pin them.
+
+### Fixed
+- GPT-5.6 Sol/Terra/Luna were over-estimated since OpenAI's price cut; estimates now match.
+  The demo backlog estimate drops $7.53 → $7.03.
+
 ## 0.2.0 — 2026-09-15
 
 ### Added

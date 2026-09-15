@@ -8,8 +8,6 @@
 // Flow:  research report (text)  ->  extractFindings()  ->  findings.json  ->  scout --from
 
 import {
-  AuthStorage,
-  ModelRegistry,
   createAgentSession,
   defineTool,
   type AgentSession,
@@ -17,7 +15,7 @@ import {
 import { Type, type Static } from "typebox";
 import type { Provider } from "./types.js";
 import type { Finding } from "./scout.js";
-import { resolvePiModel } from "./executor.js";
+import { piRuntime, resolvePiModel } from "./executor.js"
 import { MODELS } from "./models.js";
 
 const FindingsSchema = Type.Object({
@@ -89,19 +87,17 @@ export function extractionPrompt(report: string): string {
 
 export interface ExtractOptions {
   model: { provider: Provider; model: string };
-  authStorage?: AuthStorage;
   onEvent?: Parameters<AgentSession["subscribe"]>[0];
 }
 
 /** Extract findings from a report via a model. Spends money (one model call). */
 export async function extractFindings(report: string, opts: ExtractOptions): Promise<Finding[]> {
-  const authStorage = opts.authStorage ?? AuthStorage.create();
-  const registry = ModelRegistry.create(authStorage);
-  const model = resolvePiModel(registry, opts.model.provider, opts.model.model);
+  const runtime = await piRuntime();
+  const model = resolvePiModel(runtime, opts.model.provider, opts.model.model);
 
   const { tool, get } = buildFindingsTool();
   const { session } = await createAgentSession({
-    model, authStorage, modelRegistry: registry,
+    model, modelRuntime: runtime,
     thinkingLevel: "low",
     noTools: "all",
     customTools: [tool],

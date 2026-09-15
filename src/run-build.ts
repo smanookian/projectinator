@@ -11,7 +11,6 @@
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { AuthStorage } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { Provider, Task } from "./types.js";
 import { DEFAULT_POLICY } from "./router.js";

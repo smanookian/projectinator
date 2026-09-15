@@ -4,8 +4,6 @@
 // via the normal decomposer seeded with these epics.
 
 import {
-  AuthStorage,
-  ModelRegistry,
   createAgentSession,
   defineTool,
   type AgentSession,
@@ -13,7 +11,7 @@ import {
 import { Type, type Static } from "typebox";
 import type { Backend, Provider } from "./types.js";
 import { findEntry } from "./registry.js";
-import { resolvePiModel } from "./executor.js";
+import { piRuntime, resolvePiModel } from "./executor.js"
 import { addSessionCost } from "./session-cost.js";
 
 export interface Epic {
@@ -67,17 +65,15 @@ interface Ctx {
 }
 
 async function runEpicAgent(idea: string, system: string, toolName: string, ctx: Ctx): Promise<Epic[]> {
-  const authStorage = AuthStorage.create();
-  const registry = ModelRegistry.create(authStorage);
+  const runtime = await piRuntime();
   const { entry } = findEntry("plan", "mid");
   const pick = ctx.modelOverride ?? entry.byBackend[ctx.backend];
   try {
-    const model = resolvePiModel(registry, pick.provider, pick.model);
+    const model = resolvePiModel(runtime, pick.provider, pick.model);
     const { tool, get } = buildEpicsTool(toolName);
     const { session } = await createAgentSession({
       model,
-      authStorage,
-      modelRegistry: registry,
+      modelRuntime: runtime,
       thinkingLevel: "low",
       noTools: "all",
       customTools: [tool],
@@ -145,15 +141,14 @@ export async function councilEpics(idea: string, ctx: Ctx): Promise<CouncilResul
   if (!proposals.length) return { epics: [], proposals: [] };
 
   // Synthesize.
-  const authStorage = AuthStorage.create();
-  const registry = ModelRegistry.create(authStorage);
+  const runtime = await piRuntime();
   const { entry } = findEntry("plan", "mid");
   const pick = ctx.modelOverride ?? entry.byBackend[ctx.backend];
   try {
-    const model = resolvePiModel(registry, pick.provider, pick.model);
+    const model = resolvePiModel(runtime, pick.provider, pick.model);
     const { tool, get } = buildEpicsTool("submit_epics");
     const { session } = await createAgentSession({
-      model, authStorage, modelRegistry: registry, thinkingLevel: "low",
+      model, modelRuntime: runtime, thinkingLevel: "low",
       noTools: "all", customTools: [tool], tools: ["submit_epics"],
     });
     try {

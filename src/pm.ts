@@ -9,8 +9,6 @@
 // code buckets after decomposition. The PM only decomposes + tags.
 
 import {
-  AuthStorage,
-  ModelRegistry,
   createAgentSession,
   defineTool,
   type AgentSession,
@@ -19,7 +17,7 @@ import { Type, type Static } from "typebox";
 import type { Backend, Capability, Difficulty, Provider, Task } from "./types.js";
 import { estimateTokens } from "./estimate.js";
 import { findEntry } from "./registry.js";
-import { resolvePiModel } from "./executor.js";
+import { piRuntime, resolvePiModel } from "./executor.js";
 import { addSessionCost } from "./session-cost.js";
 
 // ---- typebox schema = the backlog contract ----
@@ -215,7 +213,6 @@ export function extractBacklogFromText(text: string): Backlog | undefined {
 
 export interface DecomposeOptions {
   backend: Backend;
-  authStorage?: AuthStorage;
   thinkingLevel?: "off" | "low" | "medium" | "high";
   onEvent?: Parameters<import("@earendil-works/pi-coding-agent").AgentSession["subscribe"]>[0];
   /** Override the PM model (else resolved from registry plan/mid). */
@@ -237,19 +234,17 @@ export interface DecomposeResult {
 }
 
 export async function decomposeIdea(idea: string, opts: DecomposeOptions): Promise<DecomposeResult> {
-  const authStorage = opts.authStorage ?? AuthStorage.create();
-  const registry = ModelRegistry.create(authStorage);
+  const runtime = await piRuntime();
 
   // PM = plan capability, mid tier — unless the caller overrides the model.
   const { entry } = findEntry("plan", "mid");
   const pick = opts.modelOverride ?? entry.byBackend[opts.backend];
-  const model = resolvePiModel(registry, pick.provider, pick.model);
+  const model = resolvePiModel(runtime, pick.provider, pick.model);
 
   const { tool, get } = buildBacklogTool();
   const { session } = await createAgentSession({
     model,
-    authStorage,
-    modelRegistry: registry,
+    modelRuntime: runtime,
     thinkingLevel: opts.thinkingLevel ?? "medium",
     noTools: "all",
     customTools: [tool],

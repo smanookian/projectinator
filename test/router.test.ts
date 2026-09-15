@@ -33,20 +33,24 @@ describe("backend resolution", () => {
   });
 });
 
+// The registry is data that changes every roster refresh; assert the ROUTING
+// behaviour (backend picks its own column, tier resolves) against what it says now.
+const pick = (cap: Task["capability"], tier: "fast" | "mid" | "high", backend: "web" | "api") =>
+  findEntry(cap, tier).entry.byBackend[backend].model;
+
 describe("backend-conditional model selection", () => {
-  it("web backend routes design -> Fable 5", () => {
-    const d = route(designTask, { policy: policy({ backendMode: "web" }) });
-    expect(d.model.id).toBe("claude-fable-5");
-    expect(d.backend).toBe("web");
+  it("web and api backends route design to their own registry columns", () => {
+    const web = route(designTask, { policy: policy({ backendMode: "web" }) });
+    const api = route(designTask, { policy: policy({ backendMode: "api" }) });
+    expect(web.backend).toBe("web");
+    expect(web.model.id).toBe(pick("design", "high", "web"));
+    expect(api.model.id).toBe(pick("design", "high", "api"));
+    expect(web.model.id).not.toBe(api.model.id); // the whole point of two columns
   });
-  it("api backend routes design -> GPT-5.6 Sol", () => {
-    const d = route(designTask, { policy: policy({ backendMode: "api" }) });
-    expect(d.model.id).toBe("gpt-5.6-sol");
-  });
-  it("web routes code/high -> Fable 5, api -> Opus 4.8", () => {
+  it("code/high follows the registry on both backends", () => {
     const codeTask: Task = { ...designTask, id: "C-1", capability: "code" };
-    expect(route(codeTask, { policy: policy({ backendMode: "web" }) }).model.id).toBe("claude-fable-5");
-    expect(route(codeTask, { policy: policy({ backendMode: "api" }) }).model.id).toBe("claude-opus-4-8");
+    expect(route(codeTask, { policy: policy({ backendMode: "web" }) }).model.id).toBe(pick("code", "high", "web"));
+    expect(route(codeTask, { policy: policy({ backendMode: "api" }) }).model.id).toBe(pick("code", "high", "api"));
   });
 });
 
@@ -64,7 +68,7 @@ describe("per-role model override on API", () => {
       policy: policy({ backendMode: "web" }),
       prompts: { chooseModel: () => "gpt-5.6-terra" },
     });
-    expect(d.model.id).toBe("claude-fable-5");
+    expect(d.model.id).toBe(pick("design", "high", "web"));
   });
 });
 
@@ -73,7 +77,7 @@ describe("tier fallback", () => {
     const testTask: Task = { ...designTask, id: "Q-1", capability: "test", difficulty: "high" };
     const d = route(testTask, { policy: policy({ backendMode: "api" }) });
     expect(d.tier).toBe("fast");
-    expect(d.model.id).toBe("gemini-3-flash-preview");
+    expect(d.model.id).toBe(pick("test", "fast", "api"));
     expect(d.reasons.some((r) => r.includes("fell back"))).toBe(true);
   });
   it("findEntry marks exact vs fallback", () => {

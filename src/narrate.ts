@@ -3,15 +3,13 @@
 // (costs a small call) and cached on the build state by the caller.
 
 import {
-  AuthStorage,
-  ModelRegistry,
   createAgentSession,
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
 import type { Backend, Provider } from "./types.js";
 import type { RetroReport } from "./retro.js";
 import { findEntry } from "./registry.js";
-import { resolvePiModel } from "./executor.js";
+import { piRuntime, resolvePiModel } from "./executor.js"
 import { addSessionCost } from "./session-cost.js";
 
 function lastAssistantText(session: AgentSession): string {
@@ -66,16 +64,14 @@ export interface NarrateOptions {
 
 /** Generate the narrative. Throws on failure (caller shows the error). */
 export async function narrateRetro(report: RetroReport, opts: NarrateOptions): Promise<string> {
-  const authStorage = AuthStorage.create();
-  const registry = ModelRegistry.create(authStorage);
+  const runtime = await piRuntime();
   const { entry } = findEntry("plan", "mid");
   const pick = opts.modelOverride ?? entry.byBackend[opts.backend];
-  const model = resolvePiModel(registry, pick.provider, pick.model);
+  const model = resolvePiModel(runtime, pick.provider, pick.model);
 
   const { session } = await createAgentSession({
     model,
-    authStorage,
-    modelRegistry: registry,
+    modelRuntime: runtime,
     thinkingLevel: "low",
     noTools: "all",
   });

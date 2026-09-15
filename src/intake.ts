@@ -6,15 +6,13 @@
 // schema, coerced/validated in code.
 
 import {
-  AuthStorage,
-  ModelRegistry,
   createAgentSession,
   defineTool,
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
 import type { Backend, Provider } from "./types.js";
 import { findEntry } from "./registry.js";
-import { resolvePiModel } from "./executor.js";
+import { piRuntime, resolvePiModel } from "./executor.js"
 import { addSessionCost } from "./session-cost.js";
 
 const IntakeSchema = Type.Object(
@@ -78,18 +76,16 @@ export interface AssessOptions {
 /** Ask the PM whether the request needs clarification; returns up to 4 questions
  *  (empty = clear enough to plan directly). Never throws — returns [] on trouble. */
 export async function assessIntake(idea: string, opts: AssessOptions): Promise<IntakeQuestion[]> {
-  const authStorage = AuthStorage.create();
-  const registry = ModelRegistry.create(authStorage);
+  const runtime = await piRuntime();
   const { entry } = findEntry("plan", "mid");
   const pick = opts.modelOverride ?? entry.byBackend[opts.backend];
 
   try {
-    const model = resolvePiModel(registry, pick.provider, pick.model);
+    const model = resolvePiModel(runtime, pick.provider, pick.model);
     const { tool, get } = buildIntakeTool();
     const { session } = await createAgentSession({
       model,
-      authStorage,
-      modelRegistry: registry,
+      modelRuntime: runtime,
       thinkingLevel: "low",
       noTools: "all",
       customTools: [tool],

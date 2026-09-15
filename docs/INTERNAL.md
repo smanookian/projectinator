@@ -73,11 +73,11 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (157)
+npm test                  # vitest (181)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 
-- **Node ≥ 20** (dev on 24). TypeScript via `tsx` (no build step for the app itself).
+- **Node ≥ 22.19** (Pi's floor; dev on 24). TypeScript via `tsx` (no build step for the app itself).
 - **`npx playwright install chromium`** is required for `renderCheck` (the tester) + web-login.
 - The executor is **injected** into the orchestrator, so all control-flow logic is unit-tested
   offline with a fake — no spend. Live runs are behind `--live` and key-gated.
@@ -85,7 +85,14 @@ npm run typecheck         # tsc --noEmit — run this after every change
 
 ### Gotchas (hard-won)
 
-- **typebox pinned to `1.1.38`** (Pi's bundled version) or `TSchema` types diverge.
+- **typebox pinned to Pi's bundled version** (`1.3.7` for pi-coding-agent 0.85.1) or `TSchema` types diverge.
+- **Model ids + prices must match Pi's catalog exactly** — `test/executor.test.ts` resolves every
+  `models.ts` entry through `ModelRuntime` and pins input/output rates. Upgrading Pi = rerun it,
+  then copy any repriced rows. Pi's catalog lives at
+  `node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/models.generated.js`.
+- Sessions are created with `modelRuntime: await piRuntime()` (`executor.ts`); Pi ≥ 0.85 removed
+  `AuthStorage`/`ModelRegistry` from the SDK. The runtime is built per call so a key saved in
+  Settings applies to the next session.
 - Forced-tool schemas must be **permissive** (`additionalProperties: true`, loose enums coerced
   in code) or the tool call fails *invisibly* (Pi rejects it, your capture never fires). See
   `pm.ts` / `intake.ts` / `council.ts`.

@@ -6,8 +6,8 @@
 
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
-![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)
-![tests: 157 passing](https://img.shields.io/badge/tests-157%20passing-brightgreen.svg)
+![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
+![tests: 181 passing](https://img.shields.io/badge/tests-181%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -22,7 +22,7 @@ watch it happen from a terminal cockpit: a live board, budget bar, and a standup
 
 Built on the [Pi](https://pi.dev) agent harness (Node/TypeScript). Bring your own API key.
 
-**Install & run** (Node ≥ 20):
+**Install & run** (Node ≥ 22.19):
 
 ```bash
 npx projectinator                 # run without installing
@@ -127,7 +127,7 @@ npm run build -- --live --lock anthropic "idea"   # full pipeline on one provide
 npm run build -- --live --mini --resume           # resume a halted/finished build (skips done tasks)
 npm run build -- --live --mini --task-cap 0.5 --task-timeout 5   # per-task limits (USD / minutes)
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 157 tests
+npm test                                          # 181 tests
 npm run typecheck
 ```
 

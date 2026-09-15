@@ -8,11 +8,10 @@
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { Task } from "./types.js";
 import { DEFAULT_POLICY, route } from "./router.js";
-import { buildDeveloperPrompt, executeTask, resolvePiModel } from "./executor.js";
+import { buildDeveloperPrompt, executeTask, piRuntime, resolvePiModel } from "./executor.js";
 
 const TASK: Task = {
   id: "T-DEV1",
@@ -29,9 +28,7 @@ const live = process.argv.includes("--live");
 const policy = { ...DEFAULT_POLICY, backendMode: "api" as const };
 const decision = route(TASK, { policy });
 
-const auth = AuthStorage.create();
-const registry = ModelRegistry.create(auth);
-const piModel = resolvePiModel(registry, decision.provider, decision.model.id); // offline, free
+const piModel = resolvePiModel(await piRuntime(), decision.provider, decision.model.id); // offline, free
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 

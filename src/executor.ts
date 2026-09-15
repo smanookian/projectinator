@@ -6,8 +6,7 @@
 // hits the provider API and spends money — that path is guarded by the caller.
 
 import {
-  AuthStorage,
-  ModelRegistry,
+  ModelRuntime,
   createAgentSession,
   type AgentSession,
   type AgentSessionEvent,
@@ -20,17 +19,23 @@ import { getModel } from "./models.js";
 import { addSessionCost } from "./session-cost.js";
 
 /** Pi's own Model type, derived so we don't depend on a deep sub-path import. */
-type PiModel = NonNullable<ReturnType<ModelRegistry["find"]>>;
+export type PiModel = NonNullable<ReturnType<ModelRuntime["getModel"]>>;
+
+/** Pi's model/auth runtime: built-in catalog + env keys / ~/.pi/agent/auth.json.
+ *  Created per call on purpose — a key added in Settings must apply to the next session. */
+export function piRuntime(): Promise<ModelRuntime> {
+  return ModelRuntime.create();
+}
 
 /** Resolve a Projectinator (provider, modelId) to Pi's executable Model.
  *  Offline + free — reads Pi's built-in registry. Throws with a clear message
  *  if the id isn't one Pi knows (our ids are kept identical to Pi's on purpose). */
 export function resolvePiModel(
-  registry: ModelRegistry,
+  runtime: ModelRuntime,
   provider: Provider,
   modelId: string,
 ): PiModel {
-  const m = registry.find(provider, modelId);
+  const m = runtime.getModel(provider, modelId);
   if (!m) {
     throw new Error(
       `Pi has no model "${provider}/${modelId}". ` +
@@ -47,8 +52,6 @@ export interface ExecuteOptions {
   thinkingLevel?: "off" | "low" | "medium" | "high";
   /** Optional progress hook — receives raw Pi session events. */
   onEvent?: (event: AgentSessionEvent) => void;
-  /** Override auth (tests). Default resolves env keys / ~/.pi/agent/auth.json. */
-  authStorage?: AuthStorage;
   /** Tools the agent may use. Default: the coding set. */
   tools?: string[];
 }
@@ -95,15 +98,13 @@ export async function executeTask(
   decision: RouteDecision,
   opts: ExecuteOptions,
 ): Promise<ExecuteResult> {
-  const authStorage = opts.authStorage ?? AuthStorage.create();
-  const registry = ModelRegistry.create(authStorage);
-  const model = resolvePiModel(registry, decision.provider, decision.model.id);
+  const runtime = await piRuntime();
+  const model = resolvePiModel(runtime, decision.provider, decision.model.id);
 
   const { session } = await createAgentSession({
     model,
     cwd: opts.workspace,
-    authStorage,
-    modelRegistry: registry,
+    modelRuntime: runtime,
     thinkingLevel: opts.thinkingLevel ?? "medium",
     tools: opts.tools ?? ["read", "write", "edit", "bash", "ls", "grep", "find"],
   });

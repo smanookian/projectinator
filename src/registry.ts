@@ -1,6 +1,6 @@
 // The Model Registry — the swappable brain.
 // Maps capability + tier -> model, per backend. Change an entry, re-route everything.
-// Seeded from the July-2026 verified roster. This is the ONE file the scout edits.
+// Seeded from the September-2026 verified roster. This is the ONE file the scout edits.
 
 import type { Capability, RegistryEntry, Tier } from "./types.js";
 
@@ -18,8 +18,8 @@ export const REGISTRY: RegistryEntry[] = [
       web: { provider: "openai", model: "gpt-5.6-sol" },
       api: { provider: "openai", model: "gpt-5.6-terra" },
     },
-    evidence: "OpenAI leads DeepPlanning long-horizon planning",
-    updated: "2026-07-15",
+    evidence: "OpenAI leads DeepPlanning long-horizon planning; Terra repriced to $2/$12 (Sept 2026)",
+    updated: "2026-09-15",
   },
 
   // --- DESIGN (UI/UX) ---
@@ -27,12 +27,12 @@ export const REGISTRY: RegistryEntry[] = [
     capability: "design",
     tier: "high",
     byBackend: {
-      web: { provider: "anthropic", model: "claude-fable-5" },
+      web: { provider: "anthropic", model: "claude-fable-5-1" },
       api: { provider: "openai", model: "gpt-5.6-sol" },
     },
     ask: true,
-    evidence: "Design Arena Elo — Fable 5 #2, GPT-5.6 Sol #3",
-    updated: "2026-07-15",
+    evidence: "Design Arena Elo — Fable 5 #2, GPT-5.6 Sol #3; Sol repriced to $4/$20 (Sept 2026)",
+    updated: "2026-09-15",
   },
 
   // --- CODE (development) ---
@@ -40,30 +40,32 @@ export const REGISTRY: RegistryEntry[] = [
     capability: "code",
     tier: "high",
     byBackend: {
-      web: { provider: "anthropic", model: "claude-fable-5" }, // free -> 95% SWE-bench ceiling
-      api: { provider: "anthropic", model: "claude-opus-4-8" }, // paid -> 88.6% value pick
+      web: { provider: "anthropic", model: "claude-fable-5-1" },
+      api: { provider: "anthropic", model: "claude-opus-5" }, // same price as Opus 4.8, 96% SWE-bench V
     },
     ask: true,
-    evidence: "SWE-bench Verified — Fable 5 95%, Opus 4.8 88.6%",
-    updated: "2026-07-15",
+    evidence: "SWE-bench Verified — Opus 5 96% (Opus 4.8 was 88.6%), same $5/$25",
+    updated: "2026-09-15",
   },
   {
     capability: "code",
     tier: "mid",
     byBackend: {
-      web: { provider: "anthropic", model: "claude-opus-4-8" },
-      api: { provider: "anthropic", model: "claude-sonnet-4-6" },
+      web: { provider: "anthropic", model: "claude-opus-5" },
+      api: { provider: "anthropic", model: "claude-sonnet-5" },
     },
-    updated: "2026-07-15",
+    evidence: "Sonnet 5 — 85.2% SWE-bench V, beats Opus 4.8 on Terminal-Bench 2.1, $2/$10 in Pi's table",
+    updated: "2026-09-15",
   },
   {
     capability: "code",
     tier: "fast",
     byBackend: {
-      web: { provider: "anthropic", model: "claude-sonnet-4-6" },
-      api: { provider: "anthropic", model: "claude-haiku-4-5" },
+      web: { provider: "anthropic", model: "claude-sonnet-5" },
+      api: { provider: "google", model: "gemini-3.8-flash" },
     },
-    updated: "2026-07-15",
+    evidence: "Gemini 3.8 Flash — 90.8% Terminal-Bench 2.1 at $0.75/$3.75",
+    updated: "2026-09-15",
   },
 
   // --- REVIEW (read-only wiring check before the tester; one row -> every difficulty is cheap) ---
@@ -71,10 +73,10 @@ export const REGISTRY: RegistryEntry[] = [
     capability: "review",
     tier: "fast",
     byBackend: {
-      web: { provider: "google", model: "gemini-3.1-pro-preview" },
-      api: { provider: "google", model: "gemini-3-flash-preview" },
+      web: { provider: "google", model: "gemini-3.8-flash" },
+      api: { provider: "google", model: "gemini-3.8-flash" },
     },
-    evidence: "Read-only static check; cheapest tier is adequate, same picks as test",
+    evidence: "Read-only wiring check; strongest cheap model, same pick as test",
     updated: "2026-09-15",
   },
 
@@ -84,10 +86,10 @@ export const REGISTRY: RegistryEntry[] = [
     tier: "fast",
     byBackend: {
       web: { provider: "google", model: "gemini-3.1-pro-preview" },
-      api: { provider: "google", model: "gemini-3-flash-preview" },
+      api: { provider: "google", model: "gemini-3.8-flash" },
     },
-    evidence: "Fast tier ~5x cheaper for high-volume review",
-    updated: "2026-07-15",
+    evidence: "Gemini 3.8 Flash — 90.8% Terminal-Bench 2.1; +50% over 3 Flash for a much stronger tester",
+    updated: "2026-09-15",
   },
 
   // --- OPS (Runner: terminal / CI / file-driving autonomy) ---
@@ -98,8 +100,8 @@ export const REGISTRY: RegistryEntry[] = [
       web: { provider: "openai", model: "gpt-5.6-sol" },
       api: { provider: "openai", model: "gpt-5.6-sol" },
     },
-    evidence: "GPT-5.6 Sol leads Terminal-Bench 2.1",
-    updated: "2026-07-15",
+    evidence: "GPT-5.6 Sol on Terminal-Bench; GPT-6 Astra scores higher (57.9 vs 37.3 on TB 4.0) but 2.5x the price — ops tasks are rare",
+    updated: "2026-09-15",
   },
 ];
 

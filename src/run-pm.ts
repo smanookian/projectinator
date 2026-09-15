@@ -5,11 +5,10 @@
 //
 // Live decomposition needs an API key (PM routes to an OpenAI model by default).
 
-import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_POLICY, routeBacklog } from "./router.js";
 import { findEntry } from "./registry.js";
-import { resolvePiModel } from "./executor.js";
+import { piRuntime, resolvePiModel } from "./executor.js"
 import { decomposeIdea, pmSystemPrompt } from "./pm.js";
 
 const args = process.argv.slice(2);
@@ -26,13 +25,12 @@ const idea = args.filter((a) => !consumed.has(a)).join(" ").trim() ||
 const backend = "api" as const; // web-login backend not built yet
 const money = (n: number) => `$${n.toFixed(2)}`;
 
-const auth = AuthStorage.create();
-const registry = ModelRegistry.create(auth);
+const runtime = await piRuntime();
 const { entry } = findEntry("plan", "mid");
 const pick = pmOverride
   ? { provider: pmOverride.split("/")[0] as typeof entry.byBackend[typeof backend]["provider"], model: pmOverride.split("/").slice(1).join("/") }
   : entry.byBackend[backend];
-const pm = resolvePiModel(registry, pick.provider, pick.model); // offline
+const pm = resolvePiModel(runtime, pick.provider, pick.model); // offline
 
 console.log(`\n  Projectinator — Phase 3 PM decomposer   [${live ? "LIVE" : "DRY"}]\n`);
 console.log(`  Idea:    ${idea}`);

@@ -7,15 +7,13 @@
 // scoring) is a later step.
 
 import {
-  AuthStorage,
-  ModelRegistry,
   createAgentSession,
   defineTool,
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
 import type { Capability, Difficulty, Provider, Task } from "./types.js";
-import { resolvePiModel } from "./executor.js";
+import { piRuntime, resolvePiModel } from "./executor.js"
 import { buildRolePrompt } from "./roles.js";
 import { estimateTokens } from "./estimate.js";
 import { addSessionCost } from "./session-cost.js";
@@ -72,13 +70,11 @@ const id = (c: Candidate) => `${c.provider}/${c.model}`;
 async function runCandidate(task: Task, cand: Candidate): Promise<BakeoffEntry> {
   const base: BakeoffEntry = { provider: cand.provider, model: cand.model, output: "", cost: 0, ms: 0, outputTokens: 0 };
   try {
-    const authStorage = AuthStorage.create();
-    const registry = ModelRegistry.create(authStorage);
-    const model = resolvePiModel(registry, cand.provider, cand.model);
+    const runtime = await piRuntime();
+    const model = resolvePiModel(runtime, cand.provider, cand.model);
     const { session } = await createAgentSession({
       model,
-      authStorage,
-      modelRegistry: registry,
+      modelRuntime: runtime,
       thinkingLevel: "medium",
       noTools: "all",
     });
@@ -144,14 +140,12 @@ async function judge(task: Task, entries: BakeoffEntry[], judgeCand: Candidate):
 
   const letters = scored.map((_, i) => String.fromCharCode(65 + i)); // A, B, C…
   const blocks = scored.map((e, i) => `### Option ${letters[i]}\n${e.output}`).join("\n\n");
-  const authStorage = AuthStorage.create();
-  const registry = ModelRegistry.create(authStorage);
-  const model = resolvePiModel(registry, judgeCand.provider, judgeCand.model);
+  const runtime = await piRuntime();
+  const model = resolvePiModel(runtime, judgeCand.provider, judgeCand.model);
   const { tool, get } = buildJudgeTool();
   const { session } = await createAgentSession({
     model,
-    authStorage,
-    modelRegistry: registry,
+    modelRuntime: runtime,
     thinkingLevel: "medium",
     noTools: "all",
     customTools: [tool],

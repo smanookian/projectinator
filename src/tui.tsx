@@ -8,9 +8,13 @@ import { applyKeysToEnv } from "./tui/config.js";
 import { listProjects } from "./tui/engine.js";
 import { sessionCost } from "./session-cost.js";
 import { closeWebSessions } from "./web/session.js";
+import { warmBuiltinOpenRouterModels } from "./openrouter.js";
 
 // Load any keys saved via Settings into the environment so Pi picks them up.
 applyKeysToEnv();
+// Pi's catalog is async; fill the OpenRouter pricing memo in the background so the
+// sync cost estimator can price OpenRouter slugs by the time a plan is shown.
+void warmBuiltinOpenRouterModels();
 
 const AMBER = "\x1b[38;2;224;167;45m";
 const DIM = "\x1b[2m";

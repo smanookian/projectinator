@@ -5,8 +5,6 @@
 // the orchestrator's feedback loop depends on.
 
 import {
-  AuthStorage,
-  ModelRegistry,
   createAgentSession,
   defineTool,
   type AgentSession,
@@ -24,7 +22,7 @@ import {
   type TaskLimits,
   type Verdict,
 } from "./types.js";
-import { resolvePiModel } from "./executor.js";
+import { piRuntime, resolvePiModel } from "./executor.js"
 import { renderCheck, chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
@@ -161,10 +159,10 @@ function buildVerdictTool(runtimeChecked: () => boolean) {
 // that provider's sensible model, so route() resolves everything to it.
 
 const PROVIDER_MODELS: Record<Provider, { strong: string; mid: string; cheap: string }> = {
-  anthropic: { strong: "claude-opus-4-8", mid: "claude-sonnet-4-6", cheap: "claude-haiku-4-5" },
+  anthropic: { strong: "claude-opus-5", mid: "claude-sonnet-5", cheap: "claude-haiku-4-5" },
   openai: { strong: "gpt-5.6-sol", mid: "gpt-5.6-terra", cheap: "gpt-5.6-luna" },
-  google: { strong: "gemini-3.1-pro-preview", mid: "gemini-3.1-pro-preview", cheap: "gemini-3-flash-preview" },
-  openrouter: { strong: "anthropic/claude-opus-4.8", mid: "anthropic/claude-sonnet-4.6", cheap: "openai/gpt-5.6-luna" },
+  google: { strong: "gemini-3.1-pro-preview", mid: "gemini-3.1-pro-preview", cheap: "gemini-3.8-flash" },
+  openrouter: { strong: "anthropic/claude-opus-5", mid: "anthropic/claude-sonnet-5", cheap: "google/gemini-3.8-flash" },
 };
 
 const CAP_STRENGTH: Record<Capability, "strong" | "mid" | "cheap"> = {
@@ -201,7 +199,6 @@ export function lockRegistryToProvider(provider: Provider): RegistryEntry[] {
 export interface PiExecutorOptions {
   workspace: string;
   backend: Backend;
-  authStorage?: AuthStorage;
   thinkingLevel?: "off" | "low" | "medium" | "high";
   onEvent?: Parameters<AgentSession["subscribe"]>[0];
   /** Called when a task falls back from its routed provider to another one. */
@@ -280,8 +277,6 @@ function listFiles(dir: string): string[] {
 /** Build a real RoleExecutor backed by Pi. Each call spends money. Falls back to
  *  another key-holding provider when the routed one errors or returns 0 tokens. */
 export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
-  const authStorage = opts.authStorage ?? AuthStorage.create();
-
   // One attempt on a specific provider/model. Returns the result + total tokens
   // (0 tokens = the provider call didn't really happen → treat as a failure).
   const runOnce = async (
@@ -291,8 +286,8 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     modelId: string,
     limits: TaskLimits,
   ): Promise<{ result: RoleResult; tokensTotal: number }> => {
-    const registry = ModelRegistry.create(authStorage);
-    const model = resolvePiModel(registry, provider, modelId);
+    const runtime = await piRuntime();
+    const model = resolvePiModel(runtime, provider, modelId);
 
     const isTest = task.capability === "test";
     const isReview = task.capability === "review";
@@ -303,8 +298,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     const { session } = await createAgentSession({
       model,
       cwd: opts.workspace,
-      authStorage,
-      modelRegistry: registry,
+      modelRuntime: runtime,
       thinkingLevel: opts.thinkingLevel ?? "medium",
       ...(isTest
         ? { customTools: [verdictTool!.tool, checkTool!.tool], tools: ["read", "bash", "ls", "grep", "find", "check_app", "submit_verdict"] }
