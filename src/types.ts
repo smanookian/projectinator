@@ -188,6 +188,8 @@ export interface RoleResult {
   error?: string;
   /** Test runs only: screenshot paths (relative to the workspace) from check_app. */
   screenshots?: string[];
+  /** Test runs only: % of pixels changed vs the previous screenshot of this task. */
+  visualDelta?: number;
 }
 
 /** Executor injected into the orchestrator. Real impl runs Pi; tests pass a fake. */

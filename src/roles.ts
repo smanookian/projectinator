@@ -25,12 +25,13 @@ import {
 import { piRuntime, resolvePiModel } from "./executor.js"
 import { renderCheck, interactCheck, chromiumAvailable, CHROMIUM_INSTALL_HINT, INTERACT_MAX_STEPS, type InteractStep } from "./preview.js";
 import { describeFacts } from "./a11y.js";
+import { visualDeltaPct } from "./visual-diff.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
 import { addSessionCost } from "./session-cost.js";
 import { recordActual } from "./calibration.js";
 import { getLocalModels } from "./local-models.js";
-import { readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 // ---- role prompts ----
@@ -401,6 +402,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     const isTest = task.capability === "test";
     const isReview = task.capability === "review";
     const chromium = isTest ? await chromiumAvailable() : false;
+    if (isTest && round === 0) keepPreviousShot(opts.workspace, task.id);
     const checkTool = isTest ? buildCheckTool(opts.workspace, chromium, `${task.id}-r${round}`) : undefined;
     const interactTool = isTest ? buildInteractTool(opts.workspace, chromium, `${task.id}-r${round}`, checkTool!.shotList) : undefined;
     // A review never runs the app, so its verdict is never "runtime checked".
@@ -468,12 +470,14 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
         recordActual(task.capability, task.difficulty, inputTotal, stats.tokens.output, inputTotal > 0 ? stats.tokens.cacheRead / inputTotal : 0, modelId, Date.now() - t0);
       }
       const shots = checkTool?.screenshots() ?? [];
+      const visualDelta = shots.length ? visualDeltaVsPrevious(opts.workspace, task.id, round) : undefined;
       const result: RoleResult = {
         finalText: lastAssistantText(session),
         files: listFiles(opts.workspace),
         cost: round2(stats.cost),
         verdict,
         ...(shots.length ? { screenshots: shots.map((p) => relative(opts.workspace, p)) } : {}),
+        ...(visualDelta !== undefined ? { visualDelta } : {}),
       };
       return { result, tokensTotal: stats.tokens.total };
     } finally {
@@ -504,6 +508,37 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     }
     throw lastErr instanceof Error ? lastErr : new Error("all providers failed");
   };
+}
+
+/** On a rebuild (round 0 again), rename the last existing 1280px shot for this task to
+ *  *-prev-1280.png so the new round 0 has something to compare against. */
+function keepPreviousShot(workspace: string, taskId: string): void {
+  const dir = join(workspace, ".checks");
+  if (!existsSync(dir)) return;
+  const rounds = readdirSync(dir).map((f) => new RegExp(`^${taskId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-r(\\d+)-1280\\.png$`).exec(f)).filter((m): m is RegExpExecArray => !!m).map((m) => Number(m[1]));
+  if (!rounds.length) return;
+  const last = join(dir, `${taskId}-r${Math.max(...rounds)}-1280.png`);
+  try { renameSync(last, join(dir, `${taskId}-prev-1280.png`)); } catch { /* best effort */ }
+}
+
+/** % of pixels changed between this round's 1280px screenshot and the most recent earlier
+ *  one for the same task (previous feedback round, or an earlier build on a change). */
+function visualDeltaVsPrevious(workspace: string, taskId: string, round: number): number | undefined {
+  const dir = join(workspace, ".checks");
+  const current = join(dir, `${taskId}-r${round}-1280.png`);
+  if (!existsSync(current)) return undefined;
+  let prev: string | undefined;
+  for (let r = round - 1; r >= 0 && !prev; r--) {
+    const p = join(dir, `${taskId}-r${r}-1280.png`);
+    if (existsSync(p)) prev = p;
+  }
+  if (!prev) {
+    // Round 0 of a rebuild: the previous build's last shot was renamed to *-prev-1280.png.
+    const p = join(dir, `${taskId}-prev-1280.png`);
+    if (existsSync(p)) prev = p;
+  }
+  if (!prev) return undefined;
+  return visualDeltaPct(readFileSync(prev), readFileSync(current));
 }
 
 function round2(n: number): number {

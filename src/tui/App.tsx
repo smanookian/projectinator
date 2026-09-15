@@ -1034,7 +1034,11 @@ export default function App(): React.ReactElement {
           <Box marginTop={1}>
             <SelectInput
               items={[
-                ...commits.slice(0, 20).map((c) => ({ label: `${c.hash}  ${c.msg}`, value: c.hash })),
+                ...commits.slice(0, 20).map((c) => {
+                  const taskId = c.msg.split(":")[0]?.trim();
+                  const delta = [...selected.state.outcomes].reverse().find((o) => o.taskId === taskId && o.visualDelta !== undefined)?.visualDelta;
+                  return { label: `${c.hash}  ${c.msg}${delta !== undefined ? `   ▲ ${delta}% visual` : ""}`, value: c.hash };
+                }),
                 ...(commits.length ? [] : [{ label: "No history yet (this project predates git-per-build, or git isn't installed).", value: "back" }]),
                 ...(canUndo ? [{ label: "Undo last task (revert files + reopen it to rebuild)", value: "undo" }] : []),
                 { label: "Back", value: "back" },
@@ -1102,7 +1106,7 @@ export default function App(): React.ReactElement {
               <SelectInput
                 items={[
                   ...outcomes.map((o, i) => ({
-                    label: `${o.taskId.padEnd(6)} ${ROLE_META[o.capability].emoji} ${o.capability.padEnd(7)}${o.round ? ` r${o.round}` : "   "}  $${o.cost.toFixed(2).padStart(5)}  ${o.error ? "ABORTED" : o.verdict ? verdictLabel(o.verdict, o.capability) : ""}`.padEnd(40) + `  ${(titleById.get(o.taskId) ?? "").slice(0, 40)}`,
+                    label: `${o.taskId.padEnd(6)} ${ROLE_META[o.capability].emoji} ${o.capability.padEnd(7)}${o.round ? ` r${o.round}` : "   "}  $${o.cost.toFixed(2).padStart(5)}  ${o.error ? "ABORTED" : o.verdict ? verdictLabel(o.verdict, o.capability) : ""}${o.visualDelta !== undefined ? ` ▲${o.visualDelta}%` : ""}`.padEnd(40) + `  ${(titleById.get(o.taskId) ?? "").slice(0, 40)}`,
                     value: String(i),
                   })),
                   { label: "Back", value: "back" },
@@ -1135,6 +1139,7 @@ export default function App(): React.ReactElement {
     lines.push(...(o.finalText.trim() || "(the role produced no text — files only)").split("\n"));
     if (o.files.length) lines.push("", `Files after this run: ${o.files.join(", ")}`);
     const shots = o.screenshots ?? [];
+    if (o.visualDelta !== undefined) lines.push("", `Visual change vs previous run: ${o.visualDelta}% of pixels`);
     if (shots.length) lines.push("", `Screenshots: ${shots.map((s, i) => `[${i + 1}] ${s.replace(/^\.checks\//, "")}`).join("  ")}  — press the number to open`);
     const page = Math.max(4, termRows - 18);
     const scroll = Math.min(transcript.scroll, Math.max(0, lines.length - page));

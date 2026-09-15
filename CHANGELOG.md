@@ -14,6 +14,9 @@
   (fill inputs, click, expect text/visibility/URL) and run it in the browser. A failing step
   is reported with what was actually shown, and is a high-severity bug in the verdict. This is
   where "the button doesn't do anything" gets caught. Tester-only; the Reviewer stays static.
+- **Visual change on rebuild**: each test run's desktop screenshot is compared with the previous
+  one for that task (feedback round or earlier build); the % of changed pixels shows in
+  Transcripts and next to the commit in History. No dependency — a small PNG decoder on zlib.
 
 ## 0.5.0 — 2026-09-15
 
