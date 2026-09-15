@@ -65,7 +65,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [x] Webhook notify on done/halt — Settings → Build defaults → **Webhook**; POSTs `{event:"build.finished", status, haltReason?, idea, totalCost, files, workspace, at}` from both the cockpit and `projectinator build` (which also emits a `webhook` NDJSON event with `ok`). 5 s timeout, never throws.
 - [x] Headless JSON CLI mode — shipped as `projectinator build --json` (NDJSON: plan, every orchestrator event, done, webhook).
 - [x] Model-choice cost matrix on the plan screen — `costMatrix()` prices the backlog under the current roster and each key-holding provider locked, cheapest first, current row marked ▶. Shown only when there's more than one option.
-- [ ] Tier-bump escalation — on a failed test round, re-run the **Dev only, one tier up**; tester stays on its routed model
+- [x] Tier-bump escalation — `route()` takes `tierBump`; the feedback loop re-runs the developer with `tierBump: 1` (fast→mid→high, capped; registry nearest-tier fallback covers single-row capabilities). The judge (review/test) keeps its routed model. Decision trail says "escalated from <tier>".
 - [ ] "Stuck task" indicator — elapsed vs bucket median (needs per-task timing from the timeout work)
 - [ ] Compiled `dist` — drop runtime `tsx`; `bin` switches entry
 - [ ] Import an existing folder as a project — copy-in + `git init`; `buildProjectContext` already summarizes

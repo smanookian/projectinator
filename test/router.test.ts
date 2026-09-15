@@ -54,6 +54,23 @@ describe("backend-conditional model selection", () => {
   });
 });
 
+describe("tier escalation (tierBump)", () => {
+  const codeLow: Task = { ...designTask, id: "C", capability: "code", difficulty: "low" }; // -> mid
+  it("bumps one tier and says so; capped at high", () => {
+    const base = route(codeLow, { policy: policy({ backendMode: "api" }) });
+    const up = route(codeLow, { policy: policy({ backendMode: "api" }), tierBump: 1 });
+    expect(base.tier).toBe("mid");
+    expect(up.tier).toBe("high");
+    expect(up.model.id).toBe(pick("code", "high", "api"));
+    expect(up.reasons.some((r) => r.includes("escalated from mid"))).toBe(true);
+    expect(route(codeLow, { policy: policy({ backendMode: "api" }), tierBump: 5 }).tier).toBe("high");
+  });
+  it("a capability with one row still resolves (tier fallback) when bumped", () => {
+    const t: Task = { ...designTask, id: "R", capability: "review", difficulty: "trivial" };
+    expect(route(t, { policy: policy({ backendMode: "api" }), tierBump: 1 }).model.id).toBe(pick("review", "fast", "api"));
+  });
+});
+
 describe("per-role model override on API", () => {
   it("uses chooseModel when entry.ask and backend is api", () => {
     const d = route(designTask, {

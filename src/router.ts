@@ -11,6 +11,7 @@ import type {
   RouteDecision,
   RoutingPolicy,
   Task,
+  Tier,
 } from "./types.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
@@ -31,7 +32,12 @@ export interface RouteContext {
   prompts?: RouterPrompts;
   /** Cumulative spend before this task, USD. */
   runningTotalBefore?: number;
+  /** Escalate the model tier by this many steps (fast→mid→high, capped). Used by the
+   *  feedback loop: a developer that failed review/test retries one tier up. */
+  tierBump?: number;
 }
+
+const TIERS: Tier[] = ["fast", "mid", "high"];
 
 /** Resolve which backend to use from the policy (and a prompt, if "ask"). */
 export function resolveBackend(policy: RoutingPolicy, task: Task, prompts?: RouterPrompts): Backend {
@@ -60,9 +66,10 @@ export function route(task: Task, ctx: RouteContext): RouteDecision {
   const backend = resolveBackend(policy, task, ctx.prompts);
   reasons.push(`backend=${backend} (mode=${policy.backendMode})`);
 
-  // 2. Difficulty -> tier.
-  const tier = policy.difficultyToTier[task.difficulty];
-  reasons.push(`difficulty=${task.difficulty} -> tier=${tier}`);
+  // 2. Difficulty -> tier (+ escalation).
+  const base = policy.difficultyToTier[task.difficulty];
+  const tier = TIERS[Math.min(TIERS.length - 1, TIERS.indexOf(base) + (ctx.tierBump ?? 0))]!;
+  reasons.push(`difficulty=${task.difficulty} -> tier=${tier}${tier !== base ? ` (escalated from ${base})` : ""}`);
 
   // 3. Registry lookup (with tier fallback).
   const { entry, exactTier } = findEntry(task.capability, tier, registry);

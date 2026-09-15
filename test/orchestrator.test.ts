@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 import { toposort, runBacklog } from "../src/orchestrator.js";
 import { lockRegistryToProvider } from "../src/roles.js";
 import { DEFAULT_POLICY } from "../src/router.js";
+import { REGISTRY, findEntry } from "../src/registry.js";
 import { TaskLimitError, type RoleExecutor, type RoutingPolicy, type Task, type Verdict } from "../src/types.js";
 
 const t = (id: string, capability: Task["capability"], dependsOn: string[] = [], difficulty: Task["difficulty"] = "low"): Task => ({
@@ -114,6 +115,31 @@ describe("runBacklog — Reviewer in the loop", () => {
     // C, R, T(fail), C(fix), T(pass) — the fix round goes to C even though T depends only on R.
     expect(calls.map((c) => c.id)).toEqual(["C", "R", "T", "C", "T"]);
     expect(calls.filter((c) => c.id === "C")[1]!.round).toBe(1);
+  });
+});
+
+describe("runBacklog — developer retries escalate one tier", () => {
+  it("the fix round runs the dev on the next tier up; the judge keeps its model", async () => {
+    // code/low -> mid tier; the retry must land on the high-tier model. Uses the real
+    // registry: the provider-lock one maps every code tier to the same model.
+    const tasks = [t("C", "code", [], "low"), t("T", "test", ["C"], "low")];
+    const models: { id: string; model: string }[] = [];
+    const exec: RoleExecutor = async ({ task, decision, round }) => {
+      models.push({ id: task.id, model: decision.model.id });
+      const verdict = task.capability === "test" ? { passed: round > 0, bugs: round > 0 ? [] : [{ severity: "high" as const, description: "x" }], runtimeChecked: true } : undefined;
+      return { finalText: "", files: [], cost: 0.1, verdict };
+    };
+    await runBacklog(tasks, { policy: policy(), execute: exec, registry: REGISTRY });
+    const mid = findEntry("code", "mid", REGISTRY).entry.byBackend.api.model;
+    const high = findEntry("code", "high", REGISTRY).entry.byBackend.api.model;
+    const testModel = findEntry("test", "mid", REGISTRY).entry.byBackend.api.model;
+    expect(mid).not.toBe(high); // otherwise this test proves nothing
+    expect(models).toEqual([
+      { id: "C", model: mid },
+      { id: "T", model: testModel },
+      { id: "C", model: high },
+      { id: "T", model: testModel },
+    ]);
   });
 });
 

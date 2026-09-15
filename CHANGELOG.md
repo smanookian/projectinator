@@ -17,6 +17,9 @@
   cockpit and by `projectinator build`.
 - **Cost matrix** on the plan screen: the same backlog priced under every provider you hold a
   key for, cheapest first, so you can see what a provider lock would save before building.
+- **Escalation on failure**: when a review or test fails, the developer retries **one model
+  tier up** (e.g. Sonnet → Opus) instead of repeating on the same model. The reviewer/tester
+  keeps its own model. Shown in the routing reasons as "escalated from …".
 - **Headless CLI** — `projectinator doctor | build | projects | models`, routed by the launcher
   (`src/cli.ts`, same engine and workspace as the cockpit).
   - `doctor`: Node ≥ 22.19, per-provider keys (env or app config), Pi catalog resolves every

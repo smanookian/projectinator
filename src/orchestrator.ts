@@ -135,8 +135,8 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
     return { outcomes: [], totalCost: 0, halted: true, haltReason: message };
   }
 
-  const runOne = async (task: Task, round: number, contextOverride?: string): Promise<TaskOutcome> => {
-    const decision = route(task, { policy, registry, runningTotalBefore: running });
+  const runOne = async (task: Task, round: number, contextOverride?: string, tierBump = 0): Promise<TaskOutcome> => {
+    const decision = route(task, { policy, registry, runningTotalBefore: running, tierBump });
     emit({ type: "task_start", task, round, provider: decision.provider, modelId: decision.model.id });
     const contextText = contextOverride ?? gatherContext(task, outcomes);
     const meta = { taskId: task.id, capability: task.capability, provider: decision.provider, modelId: decision.model.id, round };
@@ -187,7 +187,9 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
         const fixContext = bugReport(outcome.verdict.bugs);
         for (const dep of codeDeps) {
           emit({ type: "retry_dev", taskId: dep.id, forTest: task.id, round });
-          if ((await runOne(dep, round, fixContext)).error) break fix;
+          // Escalation: the developer that just failed review/test retries one tier up.
+          // The judge (review/test) stays on its routed model.
+          if ((await runOne(dep, round, fixContext, 1)).error) break fix;
         }
         outcome = await runOne(task, round); // re-test
         if (outcome.error) break;
