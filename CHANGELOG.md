@@ -2,6 +2,9 @@
 
 ## 0.3.0 — 2026-09-15
 
+### Added
+- `projectinator --version` / `-v` and `--help` / `-h`. Unknown options exit 2 with a hint.
+
 ### Changed
 - **Model roster refreshed (Sept 2026).** API picks: Developer high → **Claude Opus 5**
   (96% SWE-bench Verified, same $5/$25 as Opus 4.8); Developer mid → **Claude Sonnet 5**
