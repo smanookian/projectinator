@@ -60,6 +60,7 @@ import { deploy, DEPLOY_META, type DeployTarget } from "./deploy.js";
 import { startStaticServer, CHROMIUM_INSTALL_HINT, type StaticServer } from "../preview.js";
 import type { Capability, Task, TaskOutcome } from "../types.js";
 import { completedIds } from "../build-state.js";
+import { commitDiff } from "../git.js";
 import type { Verdict } from "../types.js";
 
 /** Board label: PASS* = a TEST that passed without ever running the app (Chromium missing).
@@ -68,7 +69,7 @@ const verdictLabel = (v: Verdict, capability: Capability): "PASS" | "PASS*" | "F
   !v.passed ? "FAIL" : v.runtimeChecked || capability !== "test" ? "PASS" : "PASS*";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "transcripts" | "transcript" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "diff" | "transcripts" | "transcript" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions"
   | "idea" | "change" | "stack" | "assessing" | "intake" | "planMode" | "council" | "approveEpics" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
@@ -122,6 +123,7 @@ export default function App(): React.ReactElement {
   } | null>(null);
   const [preview, setPreview] = useState<{ server: StaticServer; error?: string } | { error: string } | null>(null);
   const [transcript, setTranscript] = useState<{ outcome: TaskOutcome; scroll: number } | null>(null);
+  const [diffView, setDiffView] = useState<{ hash: string; msg: string; lines: string[]; scroll: number } | null>(null);
 
   const termRows = useTermRows();
 
@@ -183,6 +185,7 @@ export default function App(): React.ReactElement {
       case "exportMenu": return setPhase("projectActions");
       case "deployMenu": return setPhase("projectActions");
       case "history": return setPhase("projectActions");
+      case "diff": setDiffView(null); return setPhase("history");
       case "transcripts": return setPhase("projectActions");
       case "transcript": setTranscript(null); return setPhase("transcripts");
       case "retro": return setPhase("projectActions");
@@ -214,10 +217,15 @@ export default function App(): React.ReactElement {
     if (key.ctrl && input === "c") return exit();
     if (input === "q" && !typing) return exit();
     if (key.escape) goBack();
-    if (phase === "transcript" && transcript) {
+    // Pagers share one key handler; the page size matches the viewer's (frame chrome + 1 slack).
+    const pager = phase === "transcript" && transcript ? transcript : phase === "diff" && diffView ? diffView : null;
+    if (pager) {
       const page = Math.max(4, termRows - 18);
       const step = key.upArrow ? -1 : key.downArrow ? 1 : key.pageUp ? -page : key.pageDown ? page : 0;
-      if (step) setTranscript({ ...transcript, scroll: Math.max(0, transcript.scroll + step) });
+      if (!step) return;
+      const scroll = Math.max(0, pager.scroll + step);
+      if (phase === "transcript") setTranscript({ ...transcript!, scroll });
+      else setDiffView({ ...diffView!, scroll });
     }
   });
 
@@ -992,20 +1000,13 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Panel title={`History — ${selected.idea}`}>
-          <Text color={C.textMuted}>One commit per finished task, newest first. Diff/checkout in the project folder with git.</Text>
+          <Text color={C.textMuted}>One commit per finished task, newest first. Pick one to see its diff.</Text>
           {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
-          <Box marginTop={1} flexDirection="column">
-            {commits.length ? (
-              commits.slice(0, 20).map((c) => (
-                <Text key={c.hash} wrap="truncate-end"><Text color={C.accent}>{c.hash}</Text>  {c.msg}</Text>
-              ))
-            ) : (
-              <Text color={C.textMuted}>No history yet (this project predates git-per-build, or git isn't installed).</Text>
-            )}
-          </Box>
           <Box marginTop={1}>
             <SelectInput
               items={[
+                ...commits.slice(0, 20).map((c) => ({ label: `${c.hash}  ${c.msg}`, value: c.hash })),
+                ...(commits.length ? [] : [{ label: "No history yet (this project predates git-per-build, or git isn't installed).", value: "back" }]),
                 ...(canUndo ? [{ label: "Undo last task (revert files + reopen it to rebuild)", value: "undo" }] : []),
                 { label: "Back", value: "back" },
               ]}
@@ -1014,12 +1015,46 @@ export default function App(): React.ReactElement {
                   const r = undoLastTask(dir);
                   reselect(dir);
                   setFlash(r.ok ? `Undid ${r.taskId ?? "last task"}. Resume the build to rebuild it.` : (r.error ?? "Undo failed."));
-                } else {
+                } else if (i.value === "back") {
                   setFlash("");
                   setPhase("projectActions");
+                } else {
+                  const c = commits.find((x) => x.hash === i.value)!;
+                  const d = commitDiff(dir, c.hash);
+                  const lines = d.stat.length ? [...d.stat, "", ...d.patch] : ["(empty commit — no file changes)"];
+                  setFlash("");
+                  setDiffView({ hash: c.hash, msg: c.msg, lines, scroll: 0 });
+                  setPhase("diff");
                 }
               }}
             />
+          </Box>
+        </Panel>
+      </Box>
+    );
+  }
+
+  if (phase === "diff" && selected && diffView) {
+    const page = Math.max(4, termRows - 18);
+    const { lines } = diffView;
+    const scroll = Math.min(diffView.scroll, Math.max(0, lines.length - page));
+    const color = (l: string) =>
+      l.startsWith("+++") || l.startsWith("---") ? C.textMuted
+      : l.startsWith("+") ? C.good
+      : l.startsWith("-") ? C.bad
+      : l.startsWith("@@") ? C.accent
+      : l.startsWith("diff ") ? C.textSubtle
+      : C.text;
+    return (
+      <Box flexDirection="column">
+        <Panel title={`${diffView.hash} · ${diffView.msg}`}>
+          <Text bold wrap="truncate-end">{selected.idea}</Text>
+          <Box marginTop={1} flexDirection="column">
+            {lines.slice(scroll, scroll + page).map((l, i) => <Text key={scroll + i} color={color(l)} wrap="truncate-end">{l || " "}</Text>)}
+          </Box>
+          <Box marginTop={1}>
+            <Text color={C.textSubtle}>{lines.length > page ? `lines ${scroll + 1}–${Math.min(scroll + page, lines.length)} of ${lines.length}   ` : ""}</Text>
+            <KeyHint hints={[{ keys: "↑↓ PgUp PgDn", label: "scroll" }, { keys: "Esc", label: "back" }]} />
           </Box>
         </Panel>
       </Box>

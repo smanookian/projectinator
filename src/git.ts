@@ -70,3 +70,15 @@ export function history(dir: string): Commit[] {
     return i < 0 ? { hash: line, msg: "" } : { hash: line.slice(0, i), msg: line.slice(i + 1) };
   });
 }
+
+export interface CommitDiff { stat: string[]; patch: string[]; }
+
+/** `--stat` summary + the full patch for one commit (vs its parent). Untracked
+ *  binaries show as "Binary files differ". Lines, not one blob, so the TUI can page. */
+export function commitDiff(dir: string, hash: string): CommitDiff {
+  if (!isRepo(dir)) return { stat: [], patch: [] };
+  const stat = git(dir, ["show", "--stat", "--format=", "--no-color", hash]);
+  const patch = git(dir, ["show", "--format=", "--no-color", hash]);
+  const lines = (o: GitOut) => (o.ok && o.out ? o.out.split("\n") : []);
+  return { stat: lines(stat), patch: lines(patch) };
+}

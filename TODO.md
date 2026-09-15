@@ -60,7 +60,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 
 ### Small (independently shippable; reuse existing seams)
 - [x] Per-task transcript view — project → Reports → **Transcripts**: every outcome (retries included) with role/model/cost/verdict; pick one to read the role's final text, verdict bugs, and files. ↑↓/PgUp/PgDn scroll. Page size is `termRows − 18` (measured frame chrome + 1 slack; less and Yoga squeezes a row).
-- [ ] Per-commit diff viewer — `git.ts` history + `git show --stat` / paged diff
+- [x] Per-commit diff viewer — History rows are now selectable; pick a commit → `--stat` + full patch, colored (+ green / − red / @@ amber), same pager as Transcripts. `git.ts` `commitDiff()`.
 - [ ] Per-model calibration — bucket key `cap/diff/model`, fallback to today's `cap/diff`
 - [ ] Webhook notify on done/halt (URL in prefs; alongside desktop notify)
 - [ ] Headless JSON CLI mode — `run-build --json` emits orchestrator events as NDJSON (CI)
