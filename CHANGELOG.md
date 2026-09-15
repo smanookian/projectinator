@@ -7,6 +7,9 @@
   desktop (1280) widths, and is told when the page overflows a viewport or renders blank at
   that width — the classic broken-phone-layout bug. Screenshots are kept in the project's
   `.checks/` folder (never shipped/deployed) and listed in Transcripts; press 1–3 to open one.
+- **Accessibility & basics check**: in the same render, the Tester is told about missing
+  `<title>`/`lang`/`<h1>`, images without alt text, unlabeled form controls, and text that fails
+  WCAG AA contrast (body + headings). Deterministic, no model tokens, no Lighthouse.
 
 ### Added
 - **Local models** (Settings → Local models): point Projectinator at an Ollama / LM Studio /

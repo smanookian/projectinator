@@ -12,6 +12,7 @@
 import { createServer, type Server } from "node:http";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import type { Browser } from "playwright";
+import { PAGE_FACTS_SCRIPT, type PageFacts } from "./a11y.js";
 import { extname, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -116,6 +117,8 @@ export interface RenderReport {
   screenshotPath?: string;
   /** One entry per checked width (phone/tablet/desktop) when `checksDir` was given. */
   viewports: ViewportResult[];
+  /** Deterministic quality facts from the http render (undefined if evaluation failed). */
+  facts?: PageFacts;
   // The way a non-technical user opens the folder: double-click → file://.
   // ES modules + relative imports (and fetch of local assets) die here even
   // though they work over a server — so we render BOTH and compare.
@@ -161,13 +164,13 @@ async function renderViewports(
   return out;
 }
 
-interface OneRender { title: string; text: string; errors: string[]; }
+interface OneRender { title: string; text: string; errors: string[]; facts?: PageFacts; }
 
 /** Render a single URL and capture title, visible text, and errors. */
 async function renderOne(
   browser: Browser,
   url: string,
-  opts: { screenshotPath?: string; timeoutMs?: number } = {},
+  opts: { screenshotPath?: string; timeoutMs?: number; facts?: boolean } = {},
 ): Promise<OneRender> {
   const errors: string[] = [];
   const page = await browser.newPage();
@@ -184,7 +187,8 @@ async function renderOne(
     if (opts.screenshotPath) {
       try { await page.screenshot({ path: opts.screenshotPath, fullPage: true }); } catch { /* non-fatal */ }
     }
-    return { title, text, errors };
+    const facts = opts.facts ? await page.evaluate(PAGE_FACTS_SCRIPT).then((f) => f as PageFacts).catch(() => undefined) : undefined;
+    return { title, text, errors, facts };
   } finally {
     await page.close();
   }
@@ -221,7 +225,7 @@ export async function renderCheck(
     throw e;
   }
   try {
-    const http = await renderOne(browser, `${server.url}/${file}`, opts);
+    const http = await renderOne(browser, `${server.url}/${file}`, { ...opts, facts: true });
     const viewports = opts.checksDir
       ? await renderViewports(browser, `${server.url}/${file}`, opts.checksDir, opts.checksPrefix ?? "check", opts.timeoutMs ?? 15_000)
       : [];
@@ -243,6 +247,7 @@ export async function renderCheck(
       errors: http.errors,
       screenshotPath: opts.screenshotPath,
       viewports,
+      facts: http.facts,
       fileOk,
       fileText: fileR.text,
       fileErrors: fileR.errors,

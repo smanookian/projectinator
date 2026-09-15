@@ -24,6 +24,7 @@ import {
 } from "./types.js";
 import { piRuntime, resolvePiModel } from "./executor.js"
 import { renderCheck, chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
+import { describeFacts } from "./a11y.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
 import { addSessionCost } from "./session-cost.js";
@@ -135,6 +136,7 @@ function buildCheckTool(workspace: string, chromium: boolean, checksPrefix = "ch
           `errors: ${r.errors.length ? "\n  - " + r.errors.join("\n  - ") : "none"}`,
           `opened as a file (double-click / file://): ${doubleClick}`,
           ...(viewportLines.length ? [`responsive check (screenshots saved for the human reviewer):\n${viewportLines.join("\n")}`] : []),
+          ...(r.facts ? [(() => { const p = describeFacts(r.facts); return `accessibility & basics: ${p.length ? "\n  - " + p.join("\n  - ") : "no issues found (title, lang, h1, alt text, labels, contrast all OK)"}`; })()] : []),
           `visible text:\n${r.text || "(empty page — nothing rendered)"}`,
         ].join("\n");
         return { content: [{ type: "text", text }], details: {} };
