@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.1 — 2026-09-15
+## 0.4.0 — 2026-09-15
 
 ### Added
 - **Transcripts** (project → Reports): browse every run of a build — role, model, cost,
@@ -23,12 +23,21 @@
 - **Slow-task indicator**: running cards on the live board show an elapsed clock and turn
   amber with `slow` once a task runs past twice its usual time (learned from your builds)
   or half its timeout. Purely informational — the per-task timeout still enforces.
-- **Compiled package**: `npm install -g projectinator` now gets prebuilt JavaScript — no `tsx`
-  at runtime, faster start, `tsx` moved to devDependencies. Dev clones still run from source.
-- `projectinator … | head` no longer dies with EPIPE.
 - **Import an existing folder** (Home menu): bring any folder in as a project — files copied
   (junk dirs skipped), versioned, and ready for "Add to backlog" so the PM plans changes
   against what's actually there.
+
+### Changed
+- **Compiled package**: `npm install -g projectinator` now gets prebuilt JavaScript — no `tsx`
+  at runtime, faster start, `tsx` moved to devDependencies. Dev clones still run from source.
+
+### Fixed
+- `projectinator … | head` no longer dies with EPIPE.
+- Two README feature bullets that had been mangled.
+
+## 0.3.1 — 2026-09-15
+
+### Added
 - **Headless CLI** — `projectinator doctor | build | projects | models`, routed by the launcher
   (`src/cli.ts`, same engine and workspace as the cockpit).
   - `doctor`: Node ≥ 22.19, per-provider keys (env or app config), Pi catalog resolves every
