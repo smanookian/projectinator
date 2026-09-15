@@ -353,19 +353,21 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     return (
       <Box flexDirection="column">
         <Panel title="Estimate accuracy">
-        <Text color={C.textMuted}>Measured output tokens vs the static baseline, per role/difficulty. Self-calibration</Text>
-        <Text color={C.textMuted}>replaces the baseline once a bucket has ≥2 samples (✓ active).</Text>
+        <Text color={C.textMuted}>Measured output tokens vs the static baseline, per role/difficulty — and per model that</Text>
+        <Text color={C.textMuted}>ran it (indented). Calibration replaces the baseline once a row has ≥2 samples (✓ live);</Text>
+        <Text color={C.textMuted}>the router uses the model row when it exists.</Text>
         <Box marginTop={1} flexDirection="column">
           {rows.length === 0 ? (
             <Text color={C.dim}>No data yet — run some builds and this fills in.</Text>
           ) : (
             <>
-              <Text color={C.dim}>{"role/diff".padEnd(16)}{"base".padEnd(8)}{"actual".padEnd(8)}{"Δ".padEnd(8)}{"n".padEnd(4)}live</Text>
+              <Text color={C.dim}>{"role/diff · model".padEnd(34)}{"base".padEnd(8)}{"actual".padEnd(8)}{"Δ".padEnd(8)}{"n".padEnd(4)}live</Text>
               {rows.map((r) => {
                 const delta = r.baseOutput > 0 ? Math.round(((r.actualOutput - r.baseOutput) / r.baseOutput) * 100) : 0;
+                const label = r.model ? `  ↳ ${r.model}` : `${r.capability}/${r.difficulty}`;
                 return (
-                  <Text key={`${r.capability}/${r.difficulty}`}>
-                    {`${r.capability}/${r.difficulty}`.padEnd(16)}
+                  <Text key={`${r.capability}/${r.difficulty}/${r.model ?? ""}`}>
+                    <Text color={r.model ? C.dim : C.text}>{label.slice(0, 33).padEnd(34)}</Text>
                     {String(r.baseOutput).padEnd(8)}
                     <Text color={C.accent}>{String(r.actualOutput).padEnd(8)}</Text>
                     <Text color={Math.abs(delta) > 40 ? C.warn : C.dim}>{`${delta >= 0 ? "+" : ""}${delta}%`.padEnd(8)}</Text>

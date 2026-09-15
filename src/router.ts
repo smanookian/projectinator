@@ -15,6 +15,7 @@ import type {
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
 import { findEntry, REGISTRY } from "./registry.js";
+import { modelCalibratedTokens } from "./calibration.js";
 
 export interface RouterPrompts {
   /** Ask the user which backend to use. Called only when backendMode === "ask". */
@@ -79,8 +80,10 @@ export function route(task: Task, ctx: RouteContext): RouteDecision {
   const model = getModel(modelId);
   reasons.push(`model=${model.id} (${model.provider})`);
 
-  // 5. Cost.
-  const cost = estimateCost(task.estTokens, model);
+  // 5. Cost. Once real runs exist for this model, their average beats the PM-time estimate.
+  const est = modelCalibratedTokens(task.capability, task.difficulty, model.id) ?? task.estTokens;
+  const cost = estimateCost(est, model);
+  if (est !== task.estTokens) reasons.push(`tokens from measured runs on ${model.id}`);
   const runningTotal = Math.round(((ctx.runningTotalBefore ?? 0) + cost) * 10_000) / 10_000;
   const overCap = runningTotal > policy.budgetCapUSD;
   if (overCap) reasons.push(`OVER CAP: running $${runningTotal} > cap $${policy.budgetCapUSD}`);

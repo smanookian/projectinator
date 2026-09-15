@@ -8,6 +8,10 @@
   with ↑↓ / PgUp / PgDn.
 - **Diffs** (project → Reports → History): pick any task commit to see its `--stat` and
   colored patch, paged like Transcripts.
+- **Per-model calibration** — measured token usage is now also tracked per model. Once a
+  model has ≥2 runs of a role/difficulty, cost estimates for that model use its own average
+  (Settings → Estimate accuracy shows the per-model rows). Other models keep the generic
+  estimate, so a Haiku history no longer skews an Opus estimate.
 - **Headless CLI** — `projectinator doctor | build | projects | models`, routed by the launcher
   (`src/cli.ts`, same engine and workspace as the cockpit).
   - `doctor`: Node ≥ 22.19, per-provider keys (env or app config), Pi catalog resolves every

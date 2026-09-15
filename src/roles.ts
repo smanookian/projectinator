@@ -354,7 +354,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
       // Feed real usage back to sharpen estimates — but only for a real run.
       if (stats.tokens.total > 0) {
         const inputTotal = stats.tokens.input + stats.tokens.cacheRead;
-        recordActual(task.capability, task.difficulty, inputTotal, stats.tokens.output, inputTotal > 0 ? stats.tokens.cacheRead / inputTotal : 0);
+        recordActual(task.capability, task.difficulty, inputTotal, stats.tokens.output, inputTotal > 0 ? stats.tokens.cacheRead / inputTotal : 0, modelId);
       }
       const result: RoleResult = {
         finalText: lastAssistantText(session),

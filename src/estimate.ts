@@ -14,7 +14,7 @@
 // These stay heuristic; wire measured actuals back in for self-calibration later.
 
 import type { Capability, Difficulty, TokenEstimate } from "./types.js";
-import { calibratedTokens, allSamples } from "./calibration.js";
+import { calibratedTokens, modelCalibratedTokens, allSamples } from "./calibration.js";
 
 type Bucket = { input: number; output: number };
 
@@ -78,6 +78,8 @@ export function baselineTokens(capability: Capability, difficulty: Difficulty): 
 export interface AccuracyRow {
   capability: Capability;
   difficulty: Difficulty;
+  /** Set for per-model rows; undefined for the generic bucket. */
+  model?: string;
   baseOutput: number;
   actualOutput: number;
   baseInput: number;
@@ -86,25 +88,30 @@ export interface AccuracyRow {
   active: boolean; // true once calibration overrides the baseline (enough samples)
 }
 
-/** Baseline vs measured tokens for every bucket that has real samples. */
+/** Baseline vs measured tokens for every bucket that has real samples — the generic
+ *  bucket first, then each model that ran it. */
 export function estimateAccuracy(): AccuracyRow[] {
   const samples = allSamples();
   const rows: AccuracyRow[] = [];
   for (const cap of Object.keys(BUCKETS) as Capability[]) {
     for (const diff of Object.keys(BUCKETS[cap]) as Difficulty[]) {
-      const s = samples[`${cap}/${diff}`];
-      if (!s) continue;
       const b = BUCKETS[cap][diff];
-      rows.push({
-        capability: cap,
-        difficulty: diff,
-        baseOutput: b.output,
-        actualOutput: Math.round(s.output),
-        baseInput: b.input,
-        actualInput: Math.round(s.input),
-        n: s.n,
-        active: !!calibratedTokens(cap, diff),
-      });
+      const prefix = `${cap}/${diff}`;
+      for (const k of Object.keys(samples).filter((k) => k === prefix || k.startsWith(`${prefix}/`)).sort()) {
+        const s = samples[k]!;
+        const model = k === prefix ? undefined : k.slice(prefix.length + 1);
+        rows.push({
+          capability: cap,
+          difficulty: diff,
+          model,
+          baseOutput: b.output,
+          actualOutput: Math.round(s.output),
+          baseInput: b.input,
+          actualInput: Math.round(s.input),
+          n: s.n,
+          active: !!(model ? modelCalibratedTokens(cap, diff, model) : calibratedTokens(cap, diff)),
+        });
+      }
     }
   }
   return rows;
