@@ -213,10 +213,17 @@ export const CHROMIUM_INSTALL_HINT = "run `npx playwright install chromium` to e
 export async function renderCheck(
   dir: string,
   file = "index.html",
-  opts: { screenshotPath?: string; timeoutMs?: number; checksDir?: string; checksPrefix?: string } = {},
+  opts: {
+    screenshotPath?: string; timeoutMs?: number; checksDir?: string; checksPrefix?: string;
+    /** Folder to serve (a build's outDir); default the project itself. */
+    serveDir?: string;
+    /** Whether the file:// double-click check applies (static stacks only; default true). */
+    doubleClick?: boolean;
+  } = {},
 ): Promise<RenderReport> {
   const { chromium } = await import("playwright");
-  const server = await startStaticServer(dir);
+  const serveDir = opts.serveDir ?? dir;
+  const server = await startStaticServer(serveDir);
   let browser;
   try {
     browser = await chromium.launch({ headless: true });
@@ -229,15 +236,14 @@ export async function renderCheck(
     const viewports = opts.checksDir
       ? await renderViewports(browser, `${server.url}/${file}`, opts.checksDir, opts.checksPrefix ?? "check", opts.timeoutMs ?? 15_000)
       : [];
-    // file:// gets no screenshot — the http render is the one we keep.
-    const fileUrl = pathToFileURL(join(dir, file)).href;
-    const fileR = await renderOne(browser, fileUrl, { timeoutMs: opts.timeoutMs });
-
     const ok = http.errors.length === 0;
+    // file:// (double-click) only matters for static stacks; a built app is served.
+    const checkFile = opts.doubleClick ?? true;
+    const fileR = checkFile ? await renderOne(browser, pathToFileURL(join(serveDir, file)).href, { timeoutMs: opts.timeoutMs }) : { title: "", text: http.text, errors: [] };
     const fileHasContent = fileR.text.length > 0;
     const fileOk = fileR.errors.length === 0 && fileHasContent;
     // Broken-on-double-click = works served, but blank or erroring as a file.
-    const doubleClickBroken = ok && http.text.length > 0 && !fileOk;
+    const doubleClickBroken = checkFile && ok && http.text.length > 0 && !fileOk;
 
     return {
       ok,
@@ -299,10 +305,10 @@ export async function interactCheck(
   dir: string,
   file: string,
   steps: InteractStep[],
-  opts: { screenshotPath?: string } = {},
+  opts: { screenshotPath?: string; serveDir?: string } = {},
 ): Promise<InteractReport> {
   const { chromium } = await import("playwright");
-  const server = await startStaticServer(dir);
+  const server = await startStaticServer(opts.serveDir ?? dir);
   let browser;
   try {
     browser = await chromium.launch({ headless: true });

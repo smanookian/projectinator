@@ -5,6 +5,8 @@
 import { spawn } from "node:child_process";
 import { cpSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { PROFILES, type StackProfile } from "../stack.js";
+import { prepareForTest } from "../prepare.js";
 
 export type DeployTarget = "cloudflare" | "vercel" | "netlify";
 
@@ -52,16 +54,25 @@ export function deploySlug(name: string): string {
   return (name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40)) || "projectinator-app";
 }
 
-/** Copy servable web files into <dir>/.deploy, dropping internal metadata. */
-export function stageForDeploy(dir: string): string {
+/** Copy servable web files into <dir>/.deploy, dropping internal metadata. For a build
+ *  stack the source is the built outDir (after install+build); a backend can't be deployed
+ *  as a static site and throws with a pointer. */
+export function stageForDeploy(dir: string, profile: StackProfile = PROFILES.static): string {
+  if (!profile.deployable) throw new Error(`${profile.label} needs a server host (Railway / Fly / Render) — static deploy doesn't apply. Publish to GitHub and deploy from there.`);
+  let source = dir;
+  if (profile.install || profile.build) {
+    const prep = prepareForTest(dir, profile);
+    if (!prep.ok) throw new Error(`The project failed to ${prep.failedStep}:\n${prep.output}`);
+    source = prep.serveDir;
+  }
   const staging = join(dir, ".deploy");
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(staging, { recursive: true });
   let copied = 0;
-  for (const name of readdirSync(dir)) {
+  for (const name of readdirSync(source)) {
     if (name.startsWith(".")) continue; // .deploy, hidden files
     if (INTERNAL.has(name)) continue;
-    cpSync(join(dir, name), join(staging, name), { recursive: true });
+    cpSync(join(source, name), join(staging, name), { recursive: true });
     copied++;
   }
   if (copied === 0) throw new Error("No web files to deploy — build the app first.");
@@ -91,11 +102,12 @@ export function deploy(
   dir: string,
   projectName: string,
   onLog: (line: string) => void,
+  profile: StackProfile = PROFILES.static,
 ): Promise<DeployResult> {
   return new Promise((resolve, reject) => {
     let staging: string;
     try {
-      staging = stageForDeploy(dir);
+      staging = stageForDeploy(dir, profile);
     } catch (e) {
       reject(e);
       return;

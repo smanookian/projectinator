@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.7.0 — 2026-09-16
+
+### Added
+- **Vite stack** (stack picker → *Vite + React + TypeScript* / *Vite + vanilla TypeScript*;
+  CLI `--stack vite`). The Developer scaffolds a real npm project; the Tester runs
+  `npm ci --ignore-scripts` + `npm run build` (cached by lockfile/source hash) and tests the
+  built `dist/` in Chromium; an install/build failure is reported verbatim as a high-severity
+  finding. Deploy stages `dist/`; Share excludes `node_modules`/`dist`; the README gets the
+  real run commands. Verified live: the model produced a Vite+React+TS tip calculator that
+  built cleanly and passed the interaction probe ($100 + 15 % → $115.00).
+- **Node server stack** (picker → *Backend*; `--stack node`): planned and coded with the
+  right instructions; the Tester's spawn-and-probe for servers lands in a later release.
+- Per-project **"allow install scripts"** switch (project → Manage) — `npm ci` blocks package
+  scripts by default; the Tester's reply says so when that's the likely cause of a failure.
+- `doctor` reports npm; `--help` documents `--stack`.
+- Dev clones: the launcher runs the TypeScript sources when they are newer than `dist/`, so a
+  stale compile can't silently run old code.
+
+### Design
+- Every pipeline stage now reads a **stack profile** (`docs/STACKS.md`) instead of assuming
+  a static folder; the static profile is a no-op, so existing builds are unchanged.
+
 ## 0.6.0 — 2026-09-16
 
 ### Added

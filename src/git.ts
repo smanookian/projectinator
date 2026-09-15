@@ -26,24 +26,24 @@ export function isRepo(dir: string): boolean {
  *  left alone and a pushed repo never carries build-state or screenshots. */
 const EXCLUDE = [".deploy/", ".checks/", "build-state.json", "export.md", "export.csv", "export-jira.csv", "export-trello.csv"];
 
-function writeExclude(dir: string): void {
+function writeExclude(dir: string, extra: string[] = []): void {
   try {
     const p = join(dir, ".git", "info", "exclude");
     mkdirSync(join(dir, ".git", "info"), { recursive: true });
     const cur = existsSync(p) ? readFileSync(p, "utf8") : "";
-    const missing = EXCLUDE.filter((l) => !cur.split("\n").includes(l));
+    const missing = [...EXCLUDE, ...extra].filter((l) => !cur.split("\n").includes(l));
     if (missing.length) writeFileSync(p, `${cur.trimEnd()}\n# projectinator\n${missing.join("\n")}\n`);
   } catch { /* best effort */ }
 }
 
 /** git init + a local identity + an initial commit. Idempotent: an existing repo (e.g. an
  *  imported one) is kept as is, only the exclude list is added. Returns success. */
-export function initRepo(dir: string): boolean {
-  if (isRepo(dir)) { writeExclude(dir); return true; }
+export function initRepo(dir: string, extraExclude: string[] = []): boolean {
+  if (isRepo(dir)) { writeExclude(dir, extraExclude); return true; }
   const gi = join(dir, ".gitignore");
   if (!existsSync(gi)) writeFileSync(gi, ".deploy/\n.checks/\nbuild-state.json\nnode_modules/\n");
   if (!git(dir, ["init", "-b", "main"]).ok) return false; // GitHub's default; ignore the machine's init.defaultBranch
-  writeExclude(dir);
+  writeExclude(dir, extraExclude);
   // Local identity so commits work even when the user has no global git config.
   git(dir, ["config", "user.email", "bot@projectinator.local"]);
   git(dir, ["config", "user.name", "Projectinator"]);

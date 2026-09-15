@@ -24,6 +24,7 @@ import { decomposeIdea } from "../pm.js";
 import { assessIntake, type IntakeQuestion } from "../intake.js";
 import { councilEpics, type Epic, type CouncilResult } from "../council.js";
 import { newBuildState, loadState, saveState, completedIds, type BuildState } from "../build-state.js";
+import { PROFILES, profileWithScripts, type StackProfile, type StackProfileId } from "../stack.js";
 
 const PROVIDER_KEYS: Record<Exclude<Provider, "local">, string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
@@ -530,6 +531,16 @@ export function setProjectBudget(dir: string, cap: number | undefined): void {
   saveState(state, statePath);
 }
 
+/** Per-project opt-in for npm install scripts (STACKS.md decision 1). */
+export function setAllowInstallScripts(dir: string, allow: boolean): void {
+  const statePath = join(dir, "build-state.json");
+  const state = loadState(statePath);
+  if (!state) return;
+  state.allowInstallScripts = allow || undefined;
+  saveState(state, statePath);
+  rmSync(join(dir, ".checks", "prepare.json"), { force: true }); // force a fresh install next time
+}
+
 /** Undo the last task: revert its file changes (git reset) AND roll back the
  *  build-state so the task is no longer "done" and can be rebuilt via Resume. */
 export function undoLastTask(dir: string): { ok: boolean; taskId?: string; error?: string } {
@@ -664,7 +675,7 @@ export function importProject(rawSrc: string, idea?: string): { ok: true; dir: s
  *  Excludes build-state, git, deploy staging and node_modules. Written next to the project. */
 export function shareBuild(dir: string): { ok: true; path: string; format: "zip" | "tar.gz" } | { ok: false; error: string } {
   const slug = basename(dir);
-  const exclude = ["build-state.json", ".git", ".deploy", ".checks", "node_modules", "export.md", "export.csv"];
+  const exclude = ["build-state.json", ".git", ".deploy", ".checks", "node_modules", "dist", ".venv", "export.md", "export.csv"];
   const out = join(dirname(dir), `${slug}.zip`);
   const zip = spawnSync("zip", ["-r", "-q", out, ".", ...exclude.flatMap((e) => ["-x", e, `${e}/*`])], { cwd: dir, encoding: "utf8" });
   if (zip.status === 0) return { ok: true, path: out, format: "zip" };
@@ -731,6 +742,8 @@ export function startBuild(
     /** A change to an existing project. On a project with a GitHub remote the build runs on
      *  its own branch so it can become a pull request (never straight onto the base). */
     changeIdea?: string;
+    /** Stack profile for a NEW project. Existing projects keep the one in their state. */
+    stack?: StackProfileId;
   },
 ): RunHandle {
   const workspace = opts.workspace ?? join(projectRoot(), ".workspace", "tui", slugify(idea));
@@ -747,12 +760,14 @@ export function startBuild(
     state.mode = opts.mode ?? state.mode;
   }
   state.budgetCapUSD = opts.budgetCapUSD; // remember this project's cap
+  if (!prior && opts.stack) state.stack = opts.stack;
+  const profile = state.allowInstallScripts ? profileWithScripts(PROFILES[state.stack ?? "static"]) : PROFILES[state.stack ?? "static"];
 
-  const executor = makePiExecutor({ workspace, backend: "api" });
+  const executor = makePiExecutor({ workspace, backend: "api", profile });
   const policy = { ...DEFAULT_POLICY, backendMode: "api" as const, budgetCapUSD: opts.budgetCapUSD, taskLimits: opts.taskLimits };
 
   // Version the workspace: init a repo, then commit after each finished task.
-  initRepo(workspace);
+  initRepo(workspace, profile.exclude);
   const branch = opts.changeIdea ? startChangeBranch(workspace, opts.changeIdea) : undefined;
   const titleById = new Map(plan.tasks.map((t) => [t.id, t.title]));
   const onProgress = (e: OrchestratorEvent) => {
@@ -779,7 +794,7 @@ export function startBuild(
     state.status = result.halted ? "halted" : "complete";
     state.haltReason = result.haltReason; // keep why it stopped (budget cap / gate)
     saveState(state, statePath);
-    if (!result.halted) ensureRunInstructions(workspace); // finished builds ship with how-to-run
+    if (!result.halted) ensureRunInstructions(workspace, profile); // finished builds ship with how-to-run
     return {
       totalCost: result.totalCost,
       halted: result.halted,
@@ -797,11 +812,16 @@ export function startBuild(
  *  rewrite their code here, but we can guarantee the folder tells them how to run
  *  it — so the export is never a mystery. No-op if there's no index.html or a
  *  README already exists. */
-function ensureRunInstructions(workspace: string): void {
-  const index = join(workspace, "index.html");
-  if (!existsSync(index)) return; // not a static site → nothing to say
+function ensureRunInstructions(workspace: string, profile: StackProfile = PROFILES.static): void {
   const hasReadme = ["README.md", "readme.md", "README.txt"].some((n) => existsSync(join(workspace, n)));
   if (hasReadme) return; // the developer/tester already documented it
+  if (profile.id !== "static") {
+    const cmds = [profile.install, profile.build ? ["npm", "run", "dev"] : profile.serve].filter((c): c is string[] => !!c).map((c) => c.join(" ").replace(" --ignore-scripts --no-audit --no-fund", ""));
+    writeFileSync(join(workspace, "README.md"), ["# Your app", "", `Built by Projectinator (${profile.label}).`, "", "## Run it", "", "```", ...cmds, "```", ""].join("\n"));
+    return;
+  }
+  const index = join(workspace, "index.html");
+  if (!existsSync(index)) return; // not a static site → nothing to say
 
   let usesModules = false;
   try {

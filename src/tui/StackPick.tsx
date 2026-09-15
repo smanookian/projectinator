@@ -21,12 +21,14 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
           <SelectInput
             items={[
               { label: "Web", value: "web" },
+              { label: "Backend  (Node server — Express / Hono)", value: "backend" },
               { label: "Mobile  (builds as a web app for now)", value: "mobile" },
               { label: "Desktop  (builds as a web app for now)", value: "desktop" },
             ]}
             onSelect={(i) => {
               const p = i.value as Platform;
               if (p === "web") setPlatform("web");
+              else if (p === "backend") onDone({ platform: "backend", framework: "node" });
               else onDone({ platform: p, framework: "ai" }); // web fallback, let PM decide
             }}
           />
@@ -50,7 +52,7 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
           />
         </Box>
         <Box flexDirection="column" marginTop={1}>
-          <Text color={C.dim}>Name it — must run with no build step.</Text>
+          <Text color={C.dim}>Name it — treated as a static site (must run with no build step).</Text>
           <KeyHint hints={[{ keys: "Enter", label: "continue" }]} />
         </Box>
       </Box>

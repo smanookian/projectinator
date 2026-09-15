@@ -2,7 +2,7 @@
 // Launcher for `projectinator` / `npx github:smanookian/projectinator`.
 // Runs the compiled app from dist/ (published), or the TypeScript sources via tsx (dev clone).
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -45,9 +45,21 @@ if (args.length && !COMMANDS.has(args[0])) {
 }
 
 // Published package: run the compiled JS in-process (no tsx, fast start).
-// Dev clone without `npm run compile`: fall back to tsx on the TypeScript sources.
+// Dev clone: if any source file is newer than the compiled entry, run the sources via tsx
+// instead — a stale dist/ silently running old code is worse than a slower start.
 const dist = join(root, "dist");
-if (existsSync(join(dist, "cli.js")) && existsSync(join(dist, "tui.js"))) {
+const srcDir = join(root, "src");
+function newestMtime(dir) {
+  let m = 0;
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    m = Math.max(m, e.isDirectory() ? newestMtime(p) : statSync(p).mtimeMs);
+  }
+  return m;
+}
+const distFresh = existsSync(join(dist, "cli.js")) && existsSync(join(dist, "tui.js"))
+  && (!existsSync(srcDir) || newestMtime(srcDir) <= statSync(join(dist, "cli.js")).mtimeMs);
+if (distFresh) {
   process.chdir(root);
   if (args.length) {
     const { main } = await import(pathToFileURL(join(dist, "cli.js")).href);

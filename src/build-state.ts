@@ -17,6 +17,10 @@ export interface BuildState {
   totalCost: number;
   status: "running" | "complete" | "halted";
   haltReason?: string;
+  /** Stack profile (docs/STACKS.md). Missing = static, today's behaviour. */
+  stack?: "static" | "vite" | "node";
+  /** Allow npm install scripts for this project (off by default; see STACKS.md decision 1). */
+  allowInstallScripts?: boolean;
   /** Per-project budget cap (USD). Overrides the global default when set. */
   budgetCapUSD?: number;
   /** Cached AI retro narrative (generated on demand). */

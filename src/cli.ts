@@ -23,6 +23,7 @@ import { chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
 import { applyKeysToEnv, getPrefs, getWebhookUrl, loadConfig, ENV_VAR, type KeyedProvider } from "./tui/config.js";
 import { getLocalModels } from "./local-models.js";
 import { postWebhook } from "./tui/notify.js";
+import { stackInstruction, type StackChoice, type StackProfileId } from "./stack.js";
 import {
   availableProviders,
   effectiveRoster,
@@ -110,6 +111,8 @@ async function doctor(): Promise<number> {
   const chromium = await chromiumAvailable();
   checks.push({ label: "Headless Chromium", ok: chromium, detail: chromium ? "installed — tester runs the app" : `missing — tests will be code-reading only (PASS*); ${CHROMIUM_INSTALL_HINT}` });
 
+  const npm = spawnSync("npm", ["--version"], { encoding: "utf8" });
+  checks.push({ label: "npm", ok: npm.status === 0, detail: npm.status === 0 ? `v${npm.stdout.trim()} — Vite / Node stacks can install and build` : "not found — Vite / Node stacks won't build (static is unaffected)" });
   const git = spawnSync("git", ["--version"], { encoding: "utf8" });
   checks.push({ label: "git", ok: git.status === 0, detail: git.status === 0 ? git.stdout.trim() : "not found — builds won't be versioned (undo/history disabled)" });
 
@@ -172,6 +175,10 @@ async function build(argv: Argv): Promise<number> {
   const json = argv.flags.json === true;
   const yes = json || argv.flags.yes === true || argv.flags.y === true;
   const dry = argv.flags["dry-run"] === true;
+  const stackFlag = argv.flags.stack;
+  const stack: StackProfileId = stackFlag === "vite" || stackFlag === "node" ? stackFlag : "static";
+  if (typeof stackFlag === "string" && stackFlag !== stack) { console.error(`  build: unknown --stack "${stackFlag}" (static | vite | node)`); return 2; }
+  const stackChoice: StackChoice | undefined = stack === "vite" ? { platform: "web", framework: "vite-react" } : stack === "node" ? { platform: "backend", framework: "node" } : undefined;
   const emit = (o: Record<string, unknown>) => { if (json) process.stdout.write(JSON.stringify(o) + "\n"); };
   const say = (s: string) => { if (!json) console.log(s); };
 
@@ -195,7 +202,7 @@ async function build(argv: Argv): Promise<number> {
   };
 
   say(`\n  Planning with the PM (${providers.join("/")})…`);
-  const plan = await planBuild(idea, providers);
+  const plan = await planBuild(idea + (stackChoice ? stackInstruction(stackChoice) : ""), providers);
   emit({ event: "plan", provider: plan.provider, modelId: plan.modelId, estCost: plan.estCost, tasks: plan.tasks });
   say(`\n  ${plan.tasks.length} tasks · estimated ${money(plan.estCost)} · cap ${money(budget)}${plan.lock ? ` · locked to ${plan.lock}` : ""}\n`);
   for (const t of plan.tasks) {
@@ -224,7 +231,7 @@ async function build(argv: Argv): Promise<number> {
   };
 
   say(`\n  Building…\n`);
-  const handle = startBuild(idea, plan, { concurrency, budgetCapUSD: budget, taskLimits, onEvent, mode: "auto" });
+  const handle = startBuild(idea, plan, { concurrency, budgetCapUSD: budget, taskLimits, onEvent, mode: "auto", stack });
   const r = await handle.promise;
   emit({ event: "done", halted: r.halted, haltReason: r.haltReason, totalCost: r.totalCost, files: r.files, workspace: handle.workspace });
   const hook = getWebhookUrl();
@@ -252,6 +259,7 @@ const USAGE = `Usage: projectinator <command> [options]
       --concurrency <n>         tasks at once            (default: your prefs)
       --task-cap <usd>          per-task cost ceiling    (default: your prefs; 0 = off)
       --task-timeout <min>      per-task timeout         (default: your prefs; 0 = off)
+      --stack static|vite|node  static (default), Vite+React+TS, or a Node server
   projects                      list past builds with status and cost
   models                        the roster as it will run, with prices
 

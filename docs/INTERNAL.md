@@ -49,10 +49,11 @@ The brief the planner sees is composed **purely** from state:
 | `bakeoff.ts` | run one task across models + LLM judge |
 | `narrate.ts` | AI retro narrative |
 | `retro.ts` / `burndown.ts` | pure analytics from build-state |
-| `stack.ts` | platform/framework → brief instruction |
+| `stack.ts` | platform/framework → brief instruction; **stack profiles** (install/build/serve/outDir/deployable/doubleClick) every stage reads |
 | `local-models.ts` | owns the `local` provider entry in Pi's `~/.pi/agent/models.json` (Ollama/LM Studio/vLLM): probe, read, write |
 | `stuck.ts` | pure "slow task" rule (2× typical, ½ timeout, 60 s floor) |
 | `visual-diff.ts` | zero-dependency PNG decode + pixel delta between two screenshots |
+| `prepare.ts` | install/build for build-stack projects (npm ci --ignore-scripts, vite build), cached by lockfile+source hash; failures returned as text for the Tester |
 | `github.ts` | Publish / PR / Issues via `gh` (injectable runner); ownership rule; `prBody` |
 | `a11y.ts` | WCAG contrast math + the in-page quality sweep (`PAGE_FACTS_SCRIPT`) the Tester reads |
 | `session-cost.ts` | per-session $ accumulator |
@@ -79,7 +80,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (238)
+npm test                  # vitest (240)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 

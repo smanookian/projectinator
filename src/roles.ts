@@ -26,6 +26,8 @@ import { piRuntime, resolvePiModel } from "./executor.js"
 import { renderCheck, interactCheck, chromiumAvailable, CHROMIUM_INSTALL_HINT, INTERACT_MAX_STEPS, type InteractStep } from "./preview.js";
 import { describeFacts } from "./a11y.js";
 import { visualDeltaPct } from "./visual-diff.js";
+import { PROFILES, type StackProfile } from "./stack.js";
+import { prepareForTest, type PrepareResult } from "./prepare.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
 import { addSessionCost } from "./session-cost.js";
@@ -57,9 +59,28 @@ const ROLE_INTRO: Record<Capability, string> = {
   ops: "You are OPS. Perform the operational task (build, config, deploy prep) using your tools. Report what you did as text.",
 };
 
-export function buildRolePrompt(task: Task, contextText: string): string {
+/** Extra instruction per role for a non-static stack (empty for static). */
+function stackLine(capability: Capability, profile: StackProfile): string {
+  if (profile.id === "static") return "";
+  const cmd = (c?: string[]) => (c ? `\`${c.join(" ")}\`` : "");
+  const common = `This project uses the ${profile.label} stack.`;
+  switch (capability) {
+    case "code":
+      return `${common} Install dependencies with ${cmd(profile.install)} before you need packages${profile.build ? `, and make ${cmd(profile.build)} pass before you finish` : ""}. Never commit ${profile.exclude.join(" or ")}. The "runs on double-click" rule does NOT apply; a README with the run commands does.`;
+    case "review":
+      return `${common} Also check: package.json has the scripts the stack needs (${[profile.install, profile.build, profile.serve].filter(Boolean).map((c) => c![c!.length - 1]).join(", ")}), a lockfile exists, and every import resolves to a listed dependency or a local file. Do not run anything.`;
+    case "test":
+      return `${common} check_app installs and ${profile.build ? "builds" : "starts"} the project before rendering; an install/build/start failure is reported to you verbatim and is a HIGH-severity bug. The double-click rule does NOT apply here.`;
+    default:
+      return common;
+  }
+}
+
+export function buildRolePrompt(task: Task, contextText: string, profile: StackProfile = PROFILES.static): string {
+  const stack = stackLine(task.capability, profile);
   const lines = [
     ROLE_INTRO[task.capability],
+    stack,
     "",
     `Task ${task.id}: ${task.title}`,
     contextText ? `\n${contextText}` : "",
@@ -90,9 +111,12 @@ type VerdictRaw = Static<typeof VerdictSchema>;
 
 /** check_app + a flag telling whether a render actually happened this task, and the
  *  screenshot paths it produced (kept on the outcome for the Transcripts screen). */
-function buildCheckTool(workspace: string, chromium: boolean, checksPrefix = "check") {
+function buildCheckTool(workspace: string, chromium: boolean, checksPrefix = "check", profile: StackProfile = PROFILES.static) {
   let rendered = false;
   const screenshots: string[] = [];
+  /** Install/build once per task; later calls (and interact_app) reuse the result. */
+  let prepared: PrepareResult | undefined;
+  const prepare = () => (prepared ??= prepareForTest(workspace, profile));
   const tool = defineTool({
     name: "check_app",
     label: "Run the app",
@@ -111,8 +135,14 @@ function buildCheckTool(workspace: string, chromium: boolean, checksPrefix = "ch
           details: {},
         };
       }
+      const prep = prepare();
+      if (!prep.ok) {
+        rendered = true; // we DID try to run it; the failure is the finding
+        const hint = prep.scriptsBlocked ? "\n(install scripts are blocked by default for safety; if this package genuinely needs them, the user can allow them for this project in Settings.)" : "";
+        return { content: [{ type: "text", text: `check_app: the project failed to ${prep.failedStep} — this is a HIGH-severity bug. Output (last lines):\n${prep.output}${hint}` }], details: {} };
+      }
       try {
-        const r = await renderCheck(workspace, params.file || "index.html", { checksDir: join(workspace, ".checks"), checksPrefix });
+        const r = await renderCheck(workspace, params.file || (profile.entry || "index.html"), { checksDir: join(workspace, ".checks"), checksPrefix, serveDir: prep.serveDir, doubleClick: profile.doubleClick });
         rendered = true;
         screenshots.push(...r.viewports.map((v) => v.screenshotPath).filter(Boolean));
         const doubleClick = r.doubleClickBroken
@@ -132,10 +162,11 @@ function buildCheckTool(workspace: string, chromium: boolean, checksPrefix = "ch
           return `  - ${label} ${v.width}px: ${flags || "OK"}${v.screenshotPath ? `  (${relative(workspace, v.screenshotPath)})` : ""}`;
         });
         const text = [
+          ...(prep.log.length ? [`prepare: ${prep.log.join("; ")}${profile.outDir ? ` — serving ${profile.outDir}/` : ""}`] : []),
           `rendered (served over http): ${r.ok ? "OK (no JS errors)" : "with errors"}`,
           `title: ${r.title || "(none)"}`,
           `errors: ${r.errors.length ? "\n  - " + r.errors.join("\n  - ") : "none"}`,
-          `opened as a file (double-click / file://): ${doubleClick}`,
+          ...(profile.doubleClick ? [`opened as a file (double-click / file://): ${doubleClick}`] : ["opened as a file: not applicable (build-step stack; a README with run commands is required instead)"]),
           ...(viewportLines.length ? [`responsive check (screenshots saved for the human reviewer):\n${viewportLines.join("\n")}`] : []),
           ...(r.facts ? [(() => { const p = describeFacts(r.facts); return `accessibility & basics: ${p.length ? "\n  - " + p.join("\n  - ") : "no issues found (title, lang, h1, alt text, labels, contrast all OK)"}`; })()] : []),
           `visible text:\n${r.text || "(empty page — nothing rendered)"}`,
@@ -149,7 +180,7 @@ function buildCheckTool(workspace: string, chromium: boolean, checksPrefix = "ch
       }
     },
   });
-  return { tool, rendered: () => rendered, screenshots: () => [...screenshots], shotList: screenshots };
+  return { tool, rendered: () => rendered, screenshots: () => [...screenshots], shotList: screenshots, serveDir: () => (prepared?.ok ? prepared.serveDir : undefined) };
 }
 
 // ---- tester "use the app" tool: a short click/fill/expect script ----
@@ -181,7 +212,7 @@ function toStep(raw: Static<typeof StepSchema>): InteractStep | undefined {
   return undefined;
 }
 
-function buildInteractTool(workspace: string, chromium: boolean, checksPrefix: string, screenshots: string[]) {
+function buildInteractTool(workspace: string, chromium: boolean, checksPrefix: string, screenshots: string[], serveDir: () => string | undefined = () => undefined) {
   let calls = 0;
   const tool = defineTool({
     name: "interact_app",
@@ -207,7 +238,7 @@ function buildInteractTool(workspace: string, chromium: boolean, checksPrefix: s
       calls++;
       const shot = join(workspace, ".checks", `${checksPrefix}-interact${calls}.png`);
       try {
-        const r = await interactCheck(workspace, params.file || "index.html", steps, { screenshotPath: shot });
+        const r = await interactCheck(workspace, params.file || "index.html", steps, { screenshotPath: shot, serveDir: serveDir() });
         if (r.screenshotPath) screenshots.push(r.screenshotPath);
         const lines = r.steps.map((s) => `  ${s.ok ? "✓" : "✗"} ${s.step}. ${s.detail}`);
         const text = [
@@ -305,6 +336,8 @@ export function lockRegistryToProvider(provider: Provider): RegistryEntry[] {
 export interface PiExecutorOptions {
   workspace: string;
   backend: Backend;
+  /** Stack profile; default static (docs/STACKS.md). */
+  profile?: StackProfile;
   thinkingLevel?: "off" | "low" | "medium" | "high";
   onEvent?: Parameters<AgentSession["subscribe"]>[0];
   /** Called when a task falls back from its routed provider to another one. */
@@ -403,8 +436,8 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     const isReview = task.capability === "review";
     const chromium = isTest ? await chromiumAvailable() : false;
     if (isTest && round === 0) keepPreviousShot(opts.workspace, task.id);
-    const checkTool = isTest ? buildCheckTool(opts.workspace, chromium, `${task.id}-r${round}`) : undefined;
-    const interactTool = isTest ? buildInteractTool(opts.workspace, chromium, `${task.id}-r${round}`, checkTool!.shotList) : undefined;
+    const checkTool = isTest ? buildCheckTool(opts.workspace, chromium, `${task.id}-r${round}`, opts.profile) : undefined;
+    const interactTool = isTest ? buildInteractTool(opts.workspace, chromium, `${task.id}-r${round}`, checkTool!.shotList, checkTool!.serveDir) : undefined;
     // A review never runs the app, so its verdict is never "runtime checked".
     const verdictTool = isTest || isReview ? buildVerdictTool(checkTool ? checkTool.rendered : () => false) : undefined;
     const t0 = Date.now();
@@ -453,7 +486,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
         }
       }
       // An aborted prompt may reject with Pi's own error; the breach is the real cause.
-      await session.prompt(buildRolePrompt(task, fullContext)).catch((e: unknown) => { if (!breach) throw e; });
+      await session.prompt(buildRolePrompt(task, fullContext, opts.profile)).catch((e: unknown) => { if (!breach) throw e; });
       if (breach) throw breach;
 
       let verdict = verdictTool?.get();

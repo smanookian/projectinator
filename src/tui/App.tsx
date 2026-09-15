@@ -20,7 +20,7 @@ import { Intake, type Answer } from "./Intake.js";
 import { enrichBrief } from "../intake.js";
 import type { IntakeQuestion } from "../intake.js";
 import { StackPick } from "./StackPick.js";
-import { stackInstruction, type StackChoice } from "../stack.js";
+import { stackInstruction, profileFor, PROFILES, type StackChoice } from "../stack.js";
 import type { Epic, CouncilResult } from "../council.js";
 import { allTemplates, saveUserTemplate, deleteUserTemplate, exportTemplate, importTemplate, type Template } from "./templates.js";
 import { getPrefs, getDefaultMode, getNotify, getWebhookUrl, getPreferredStack, type WorkflowMode } from "./config.js";
@@ -32,6 +32,7 @@ import {
   assessBuild,
   councilBuild,
   setProjectBudget,
+  setAllowInstallScripts,
   startBuild,
   estimateTasks,
   costMatrix,
@@ -372,6 +373,7 @@ export default function App(): React.ReactElement {
       mode,
       onGate,
       changeIdea: scope === "change" ? idea : undefined,
+      stack: profileFor(stackChoice).id,
     });
     let alive = true;
     handle.promise
@@ -603,6 +605,7 @@ export default function App(): React.ReactElement {
       ] },
       { title: "Manage", items: [
         { label: `Budget cap: ${selected.state.budgetCapUSD != null ? `$${selected.state.budgetCapUSD}` : "global default"}`, value: "cap" },
+        ...((selected.state.stack ?? "static") !== "static" ? [{ label: `Stack: ${PROFILES[selected.state.stack ?? "static"].label} · install scripts ${selected.state.allowInstallScripts ? "allowed" : "blocked"}`, value: "scripts" }] : []),
         { label: "Save as template", value: "saveTpl" },
         { label: "Rename", value: "rename" },
         { label: "Duplicate", value: "duplicate" },
@@ -649,6 +652,11 @@ export default function App(): React.ReactElement {
               else if (i.value === "transcripts") { setFlash(""); setPhase("transcripts"); }
               else if (i.value === "retro") { setFlash(""); setNarr({ loading: false, text: getRetroNarrative(selected.dir) ?? "", error: "" }); setPhase("retro"); }
               else if (i.value === "burndown") { setFlash(""); setPhase("burndown"); }
+              else if (i.value === "scripts") {
+                setAllowInstallScripts(selected.dir, !selected.state.allowInstallScripts);
+                reselect(selected.dir);
+                setFlash(`Install scripts ${selected.state.allowInstallScripts ? "blocked" : "allowed"} for this project (npm ci ${selected.state.allowInstallScripts ? "--ignore-scripts" : "with scripts"}). Applies to the next build/test.`);
+              }
               else if (i.value === "cap") { setCapReturn("projectActions"); setCapDraft(selected.state.budgetCapUSD != null ? String(selected.state.budgetCapUSD) : ""); setPhase("setCap"); }
               else if (i.value === "saveTpl") { setFlash(""); setTplName(selected.idea.slice(0, 40)); setPhase("saveTemplate"); }
               else if (i.value === "preview") {
@@ -828,7 +836,7 @@ export default function App(): React.ReactElement {
       setPhase("deploying");
       deploy(target, dir, name, (line) =>
         setDeployState((prev) => (prev ? { ...prev, log: [...prev.log.slice(-60), line] } : prev)),
-      )
+      PROFILES[selected.state.stack ?? "static"])
         .then((res) => setDeployState((prev) => (prev ? { ...prev, status: "done", url: res.url } : prev)))
         .catch((e) => setDeployState((prev) => (prev ? { ...prev, status: "error", error: e instanceof Error ? e.message : String(e) } : prev)));
     };
