@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 — 2026-09-15
+## 0.5.1 — 2026-09-15
 
 ### Added (tester)
 - **Responsive check**: the Tester now screenshots the app at phone (390), tablet (820) and
@@ -10,6 +10,8 @@
 - **Accessibility & basics check**: in the same render, the Tester is told about missing
   `<title>`/`lang`/`<h1>`, images without alt text, unlabeled form controls, and text that fails
   WCAG AA contrast (body + headings). Deterministic, no model tokens, no Lighthouse.
+
+## 0.5.0 — 2026-09-15
 
 ### Added
 - **Local models** (Settings → Local models): point Projectinator at an Ollama / LM Studio /
