@@ -294,7 +294,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     const checkTool = isTest ? buildCheckTool(opts.workspace, await chromiumAvailable()) : undefined;
     // A review never runs the app, so its verdict is never "runtime checked".
     const verdictTool = isTest || isReview ? buildVerdictTool(checkTool ? checkTool.rendered : () => false) : undefined;
-
+    const t0 = Date.now();
     const { session } = await createAgentSession({
       model,
       cwd: opts.workspace,
@@ -354,7 +354,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
       // Feed real usage back to sharpen estimates — but only for a real run.
       if (stats.tokens.total > 0) {
         const inputTotal = stats.tokens.input + stats.tokens.cacheRead;
-        recordActual(task.capability, task.difficulty, inputTotal, stats.tokens.output, inputTotal > 0 ? stats.tokens.cacheRead / inputTotal : 0, modelId);
+        recordActual(task.capability, task.difficulty, inputTotal, stats.tokens.output, inputTotal > 0 ? stats.tokens.cacheRead / inputTotal : 0, modelId, Date.now() - t0);
       }
       const result: RoleResult = {
         finalText: lastAssistantText(session),

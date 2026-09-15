@@ -21,6 +21,9 @@ export interface BoardTask {
   assignee?: string;
   /** Human annotation from the board editor. */
   notes?: string;
+  /** For running tasks: seconds since it started, and whether it's over its expected time. */
+  elapsedSec?: number;
+  stuck?: boolean;
 }
 
 type Col = "backlog" | "notStarted" | "inProgress" | "done";
@@ -74,6 +77,13 @@ function Card({ t }: { t: BoardTask }): React.ReactElement {
   );
 }
 
+/** mm:ss for a running card. */
+function clock(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 /** One-line card for the compact (live-build) board. */
 function MiniCard({ t }: { t: BoardTask }): React.ReactElement {
   const running = t.status === "running";
@@ -82,6 +92,7 @@ function MiniCard({ t }: { t: BoardTask }): React.ReactElement {
       {running ? <Text color="cyan"><Spinner type="dots" /> </Text> : t.status === "failed" ? <Text color={C.bad}>✗ </Text> : <Text>{ROLE_META[t.capability].emoji} </Text>}
       <Text color={C.dim}>{t.id} </Text>
       <Text color={running ? "cyan" : C.text} wrap="truncate-end">{t.title}</Text>
+      {running && t.elapsedSec !== undefined ? <Text color={t.stuck ? C.warn : C.dim}> {clock(t.elapsedSec)}{t.stuck ? " slow" : ""}</Text> : null}
       {t.cost ? <Text color={C.dim}> ${t.cost.toFixed(2)}</Text> : null}
     </Text>
   );

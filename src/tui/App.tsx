@@ -61,6 +61,7 @@ import { deploy, DEPLOY_META, type DeployTarget } from "./deploy.js";
 import { startStaticServer, CHROMIUM_INSTALL_HINT, type StaticServer } from "../preview.js";
 import type { Capability, Task, TaskOutcome } from "../types.js";
 import { completedIds } from "../build-state.js";
+import { isStuck } from "../stuck.js";
 import { commitDiff } from "../git.js";
 import type { Verdict } from "../types.js";
 
@@ -123,6 +124,13 @@ export default function App(): React.ReactElement {
     log: string[];
   } | null>(null);
   const [preview, setPreview] = useState<{ server: StaticServer; error?: string } | { error: string } | null>(null);
+  // Wall clock for the live board (elapsed per running task); ticks only while building.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (phase !== "building") return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [phase]);
   const [transcript, setTranscript] = useState<{ outcome: TaskOutcome; scroll: number } | null>(null);
   const [diffView, setDiffView] = useState<{ hash: string; msg: string; lines: string[]; scroll: number } | null>(null);
 
@@ -309,7 +317,7 @@ export default function App(): React.ReactElement {
     if (phase !== "building" || !plan) return;
     const onEvent = (e: OrchestratorEvent) => {
       if (e.type === "task_start") {
-        setTasks((ts) => ts.map((t) => (t.id === e.task.id ? { ...t, status: "running", model: e.modelId } : t)));
+        setTasks((ts) => ts.map((t) => (t.id === e.task.id ? { ...t, status: "running", model: e.modelId, startedAt: Date.now() } : t)));
       } else if (e.type === "task_done") {
         setSpent(e.runningTotal);
         setTasks((ts) =>
@@ -1710,25 +1718,34 @@ export default function App(): React.ReactElement {
 
   if (phase === "building") {
     const running = tasks.filter((t) => t.status === "running").length;
-    const metaById = new Map((plan?.tasks ?? []).map((t) => [t.id, { deps: t.dependsOn ?? [], epic: t.epic, notes: t.notes }]));
-    const board: BoardTask[] = tasks.map((t) => ({
-      id: t.id,
-      capability: t.capability,
-      title: t.title,
-      epic: metaById.get(t.id)?.epic,
-      dependsOn: metaById.get(t.id)?.deps,
-      notes: metaById.get(t.id)?.notes,
-      status: t.status,
-      cost: t.cost,
-      verdict: t.verdict,
-      assignee: t.model ? modelLabel(t.model) : undefined,
-    }));
+    const metaById = new Map((plan?.tasks ?? []).map((t) => [t.id, { deps: t.dependsOn ?? [], epic: t.epic, notes: t.notes, difficulty: t.difficulty }]));
+    const timeoutMs = getPrefs().taskTimeoutMin * 60_000;
+    const board: BoardTask[] = tasks.map((t) => {
+      const meta = metaById.get(t.id);
+      const elapsedMs = t.status === "running" && t.startedAt ? now - t.startedAt : undefined;
+      return {
+        id: t.id,
+        capability: t.capability,
+        title: t.title,
+        epic: meta?.epic,
+        dependsOn: meta?.deps,
+        notes: meta?.notes,
+        status: t.status,
+        cost: t.cost,
+        verdict: t.verdict,
+        assignee: t.model ? modelLabel(t.model) : undefined,
+        elapsedSec: elapsedMs !== undefined ? Math.floor(elapsedMs / 1000) : undefined,
+        stuck: elapsedMs !== undefined && isStuck(elapsedMs, t.capability, meta?.difficulty ?? "medium", t.model, timeoutMs),
+      };
+    });
+    const slow = board.filter((b) => b.stuck).length;
     return (
       <Box flexDirection="column">
         <Box>
           <Text color="cyan"><InkSpinner type="dots" /></Text>
           <Text bold>{"  "}Building</Text>
           <Text color={C.textSubtle}>{`     ${running} running`}</Text>
+          {slow ? <Text color={C.warn}>{`  · ${slow} slow (over the usual time — the per-task timeout still applies)`}</Text> : null}
         </Box>
         {gate ? (
           <Box marginTop={1}>

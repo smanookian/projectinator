@@ -20,6 +20,9 @@
 - **Escalation on failure**: when a review or test fails, the developer retries **one model
   tier up** (e.g. Sonnet → Opus) instead of repeating on the same model. The reviewer/tester
   keeps its own model. Shown in the routing reasons as "escalated from …".
+- **Slow-task indicator**: running cards on the live board show an elapsed clock and turn
+  amber with `slow` once a task runs past twice its usual time (learned from your builds)
+  or half its timeout. Purely informational — the per-task timeout still enforces.
 - **Headless CLI** — `projectinator doctor | build | projects | models`, routed by the launcher
   (`src/cli.ts`, same engine and workspace as the cockpit).
   - `doctor`: Node ≥ 22.19, per-provider keys (env or app config), Pi catalog resolves every

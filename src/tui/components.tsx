@@ -263,6 +263,8 @@ export interface TaskView {
   model?: string;
   /** "PASS*" = passed, but the tester never ran the app (no Chromium). */
   verdict?: "PASS" | "PASS*" | "FAIL";
+  /** Epoch ms when the current run started (running tasks only). */
+  startedAt?: number;
 }
 
 const CAP_LABEL: Record<Capability, string> = {
