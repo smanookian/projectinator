@@ -3,10 +3,10 @@
 // if git isn't available or a command fails, builds carry on uninterrupted.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-interface GitOut { ok: boolean; out: string; }
+export interface GitOut { ok: boolean; out: string; }
 
 function git(dir: string, args: string[]): GitOut {
   try {
@@ -21,18 +21,63 @@ export function isRepo(dir: string): boolean {
   return existsSync(join(dir, ".git"));
 }
 
-/** git init + a local identity + an initial commit. Idempotent. Returns success. */
+/** Files that are project bookkeeping, never source. Kept out of every project repo via
+ *  .git/info/exclude (per-clone, never committed) so an imported repo's own .gitignore is
+ *  left alone and a pushed repo never carries build-state or screenshots. */
+const EXCLUDE = [".deploy/", ".checks/", "build-state.json", "export.md", "export.csv", "export-jira.csv", "export-trello.csv"];
+
+function writeExclude(dir: string): void {
+  try {
+    const p = join(dir, ".git", "info", "exclude");
+    mkdirSync(join(dir, ".git", "info"), { recursive: true });
+    const cur = existsSync(p) ? readFileSync(p, "utf8") : "";
+    const missing = EXCLUDE.filter((l) => !cur.split("\n").includes(l));
+    if (missing.length) writeFileSync(p, `${cur.trimEnd()}\n# projectinator\n${missing.join("\n")}\n`);
+  } catch { /* best effort */ }
+}
+
+/** git init + a local identity + an initial commit. Idempotent: an existing repo (e.g. an
+ *  imported one) is kept as is, only the exclude list is added. Returns success. */
 export function initRepo(dir: string): boolean {
-  if (isRepo(dir)) return true;
+  if (isRepo(dir)) { writeExclude(dir); return true; }
   const gi = join(dir, ".gitignore");
   if (!existsSync(gi)) writeFileSync(gi, ".deploy/\n.checks/\nbuild-state.json\nnode_modules/\n");
-  if (!git(dir, ["init"]).ok) return false;
+  if (!git(dir, ["init", "-b", "main"]).ok) return false; // GitHub's default; ignore the machine's init.defaultBranch
+  writeExclude(dir);
   // Local identity so commits work even when the user has no global git config.
   git(dir, ["config", "user.email", "bot@projectinator.local"]);
   git(dir, ["config", "user.name", "Projectinator"]);
   git(dir, ["add", "-A"]);
   git(dir, ["commit", "-m", "chore: initial workspace", "--allow-empty"]);
   return true;
+}
+
+/** Name of the checked-out branch, or undefined (no repo / detached). */
+export function currentBranch(dir: string): string | undefined {
+  const r = git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  return r.ok && r.out && r.out !== "HEAD" ? r.out : undefined;
+}
+
+/** Create and switch to a new branch at HEAD. Returns success. */
+export function checkoutNewBranch(dir: string, name: string): boolean {
+  return git(dir, ["checkout", "-b", name]).ok;
+}
+
+/** URL of the `origin` remote, or undefined. */
+export function remoteUrl(dir: string): string | undefined {
+  const r = git(dir, ["remote", "get-url", "origin"]);
+  return r.ok && r.out ? r.out : undefined;
+}
+
+/** `git push -u origin <branch>`. */
+export function push(dir: string, branch: string): GitOut {
+  return git(dir, ["push", "-u", "origin", branch]);
+}
+
+/** Commits on `branch` that aren't on `base` (both local refs). 0 when unknown. */
+export function commitsAhead(dir: string, base: string, branch = "HEAD"): number {
+  const r = git(dir, ["rev-list", "--count", `${base}..${branch}`]);
+  return r.ok ? Number(r.out) || 0 : 0;
 }
 
 /** Commit whatever a task produced. Returns the short hash, or null on failure. */

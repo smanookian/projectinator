@@ -25,7 +25,7 @@ function sourceFolder(): string {
 }
 
 describe("importProject", () => {
-  it("copies the files, skips node_modules/.git, writes an empty complete backlog, and is planable", () => {
+  it("copies the files, skips node_modules, keeps .git, writes an empty complete backlog, and is planable", () => {
     const src = sourceFolder();
     const r = importProject(`"${src}"`, "my old site"); // quoted, like a dragged path
     expect(r.ok).toBe(true);
@@ -35,8 +35,8 @@ describe("importProject", () => {
     expect(readFileSync(join(r.dir, "index.html"), "utf8")).toContain("IMPORTED-MARKER");
     expect(existsSync(join(r.dir, "css", "site.css"))).toBe(true);
     expect(existsSync(join(r.dir, "node_modules"))).toBe(false);
-    // our own repo, not the source's
-    expect(readFileSync(join(r.dir, ".git", "HEAD"), "utf8")).not.toContain("refs/heads/main\n\n");
+    // an existing .git is preserved verbatim (history + remote survive the import)
+    expect(readFileSync(join(r.dir, ".git", "HEAD"), "utf8")).toBe("ref: refs/heads/main");
     const s = loadState(join(r.dir, "build-state.json"))!;
     expect(s.idea).toBe("my old site");
     expect(s.tasks).toEqual([]);

@@ -80,7 +80,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [ ] Sprints — group tasks, velocity, burndown per sprint
 - [ ] Auto-scout from an OpenRouter rankings/pricing feed → proposed registry diff (scout is already pure; it lacks a source)
 - [ ] Bake-off upgrades — cross-provider, code bake-off scored by the real tester, quality/$ Pareto
-- [ ] GitHub push + PR per build; export backlog to GitHub Issues
+- [x] GitHub push + PR per build; export backlog to GitHub Issues — `github.ts` over `gh`: Publish (create+push), change builds on published/imported projects run on a `projectinator/…` branch → Open PR (body = task table + cost), Issues export (epic = label, idempotent). Owned repos push `main`; pre-existing remotes are branch+PR only. Bookkeeping excluded via `.git/info/exclude`. Verified live on a throwaway repo (PR #1, issue, clean tree).
 - [ ] MCP server exposing Projectinator
 - [x] Local models (Ollama/LM Studio/vLLM) — verified: Pi loads `~/.pi/agent/models.json`; we own one entry, provider id `local` (`local-models.ts`). Settings screen probes `GET /models`, user picks ids; `Provider` gains `"local"`; `$0`; available without a key; never a cloud fallback; `lockRegistryToProvider("local")` picks the biggest-looking id for strong slots.
 - [ ] Homebrew / Docker packaging

@@ -66,6 +66,8 @@ import type { Capability, Task, TaskOutcome } from "../types.js";
 import { completedIds } from "../build-state.js";
 import { isStuck } from "../stuck.js";
 import { commitDiff } from "../git.js";
+import { ghStatus, githubInfo, publish, openPullRequest, prBody, exportIssues, repoSlug } from "../github.js";
+import { loadState } from "../build-state.js";
 import type { Verdict } from "../types.js";
 
 /** Board label: PASS* = a TEST that passed without ever running the app (Chromium missing).
@@ -74,7 +76,7 @@ const verdictLabel = (v: Verdict, capability: Capability): "PASS" | "PASS*" | "F
   !v.passed ? "FAIL" : v.runtimeChecked || capability !== "test" ? "PASS" : "PASS*";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "diff" | "transcripts" | "transcript" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions" | "importProject"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "diff" | "transcripts" | "transcript" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions" | "importProject" | "publish"
   | "idea" | "change" | "stack" | "assessing" | "intake" | "planMode" | "council" | "approveEpics" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
 
 export default function App(): React.ReactElement {
@@ -90,7 +92,7 @@ export default function App(): React.ReactElement {
   const [tasks, setTasks] = useState<TaskView[]>([]);
   const [spent, setSpent] = useState(0);
   const [gate, setGate] = useState<{ resolve: (d: "continue" | "stop") => void } | null>(null);
-  const [buildResult, setBuildResult] = useState<{ halted: boolean; haltReason?: string; files: string[]; workspace: string } | null>(null);
+  const [buildResult, setBuildResult] = useState<{ halted: boolean; haltReason?: string; files: string[]; workspace: string; branch?: string } | null>(null);
 
   // Existing-project context (open/resume/make-changes).
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
@@ -188,6 +190,7 @@ export default function App(): React.ReactElement {
       case "saveTemplate": return setPhase("projectActions");
       case "importTemplate": setFlash(""); return setPhase("templates");
       case "importProject": return setPhase("home");
+      case "publish": setFlash(""); return setPhase("projectActions");
       case "myTemplates": setFlash(""); return setPhase("templates");
       case "tplActions": return setPhase("myTemplates");
       case "change": return setPhase(selected ? "projectActions" : buildResult ? "done" : "home");
@@ -368,13 +371,14 @@ export default function App(): React.ReactElement {
       seedOutcomes: seed,
       mode,
       onGate,
+      changeIdea: scope === "change" ? idea : undefined,
     });
     let alive = true;
     handle.promise
       .then((r) => {
         if (!alive) return;
         setSpent(r.totalCost);
-        setBuildResult({ halted: r.halted, haltReason: r.haltReason, files: r.files, workspace: handle.workspace });
+        setBuildResult({ halted: r.halted, haltReason: r.haltReason, files: r.files, workspace: handle.workspace, branch: handle.branch });
         setPhase("done");
         if (getNotify()) {
           notifyBuildDone(
@@ -593,6 +597,9 @@ export default function App(): React.ReactElement {
         { label: "Deploy (Cloudflare, Vercel, Netlify)", value: "deploy" },
         { label: "Export (Markdown, CSV, Jira, Trello)", value: "export" },
         { label: "Share (zip the built files)", value: "share" },
+        ...(() => { const gh = githubInfo(selected.dir); return [gh
+          ? (gh.createdByProjectinator ? { label: `Push to GitHub (${gh.url.replace(/^https:\/\/github\.com\//, "")})`, value: "gh-push" } : { label: `Open a pull request (${gh.url.replace(/^https:\/\/github\.com\//, "")})`, value: "gh-pr" })
+          : { label: "Publish to GitHub (create a repo & push)", value: "publish" }]; })(),
       ] },
       { title: "Manage", items: [
         { label: `Budget cap: ${selected.state.budgetCapUSD != null ? `$${selected.state.budgetCapUSD}` : "global default"}`, value: "cap" },
@@ -625,6 +632,15 @@ export default function App(): React.ReactElement {
               else if (i.value === "share") {
                 const r = shareBuild(selected.dir);
                 setFlash(r.ok ? `Archived → ${r.path}` : r.error);
+              }
+              else if (i.value === "publish") { setFlash(""); setPhase("publish"); }
+              else if (i.value === "gh-push") {
+                const r = publish(selected.dir, selected.idea, "private");
+                setFlash(r.ok ? `Pushed → ${r.url}` : r.error);
+              }
+              else if (i.value === "gh-pr") {
+                const r = openPullRequest(selected.dir, `Projectinator: ${selected.idea.slice(0, 60)}`, prBody(selected.state, selected.state.tasks.map((t) => t.id)));
+                setFlash(r.ok ? `Pull request → ${r.url}` : r.error);
               }
               else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
               else if (i.value === "filter") setPhase("filterEpic");
@@ -717,6 +733,41 @@ export default function App(): React.ReactElement {
     );
   }
 
+  if (phase === "publish" && selected) {
+    const gh = ghStatus();
+    return (
+      <Box flexDirection="column">
+        <Panel title="Publish to GitHub">
+          {gh.ok ? (
+            <Text color={C.textMuted}>Creates a repository under <Text color={C.accent}>{gh.user}</Text> from this project and pushes it (one commit per task). Later changes push to main; nothing else on your account is touched.</Text>
+          ) : (
+            <StatusMessage variant="error">{gh.error}</StatusMessage>
+          )}
+          {flash ? <Box marginTop={1}><StatusMessage variant="error">{flash}</StatusMessage></Box> : null}
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                ...(gh.ok ? [
+                  { label: `Create private repo “${repoSlug(selected.idea)}” and push`, value: "private" },
+                  { label: `Create public repo “${repoSlug(selected.idea)}” and push`, value: "public" },
+                ] : []),
+                { label: "Back", value: "back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "back") { setFlash(""); return setPhase("projectActions"); }
+                const r = publish(selected.dir, selected.idea, i.value as "private" | "public");
+                if (!r.ok) { setFlash(r.error); return; }
+                reselect(selected.dir);
+                setFlash(`Published → ${r.url}`);
+                setPhase("projectActions");
+              }}
+            />
+          </Box>
+        </Panel>
+      </Box>
+    );
+  }
+
   if (phase === "exportMenu" && selected) {
     const dir = selected.dir;
     const run = (fn: () => string | string[], done: () => void) => {
@@ -741,11 +792,18 @@ export default function App(): React.ReactElement {
                 { label: "Jira CSV (Jira → External System Import → CSV)", value: "jira" },
                 { label: "Trello CSV (Trello CSV-import Power-Up)", value: "trello" },
                 { label: "All formats", value: "all" },
+                ...(githubInfo(dir) ? [{ label: "GitHub Issues (one per task, epics as labels)", value: "issues" }] : []),
                 { label: "Back", value: "back" },
               ]}
               onSelect={(i) => {
                 const back = () => setPhase("projectActions");
                 if (i.value === "back") return back();
+                if (i.value === "issues") {
+                  const r = exportIssues(dir);
+                  reselect(dir);
+                  setFlash(r.ok ? `GitHub Issues: ${r.created} created${r.skipped ? `, ${r.skipped} already existed` : ""}` : r.error);
+                  return back();
+                }
                 if (i.value === "md") return run(() => { const { md, csv } = exportProject(dir); return [md, csv]; }, back);
                 if (i.value === "jira") return run(() => exportJira(dir), back);
                 if (i.value === "trello") return run(() => exportTrello(dir), back);
@@ -1875,12 +1933,15 @@ export default function App(): React.ReactElement {
             </Box>
             <Text color={C.textSubtle} wrap="truncate-end">Location: {buildResult.workspace}</Text>
             {buildResult.halted && <Text color={C.textMuted}>Choose “Resume build” from your projects to continue.</Text>}
+            {buildResult.branch && <Text color={C.textMuted}>Built on branch {buildResult.branch} — open a pull request below.</Text>}
+            {flash ? <Text color={flash.startsWith("Pull request") ? C.good : C.bad}>{flash}</Text> : null}
           </Panel>
         </Box>
         <Box marginTop={1}>
           <SelectInput
             items={[
               ...(buildResult.files.some((f) => f.endsWith(".html")) ? [{ label: "Open in browser", value: "open" }] : []),
+              ...(buildResult.branch ? [{ label: `Open a pull request (${buildResult.branch})`, value: "pr" }] : []),
               { label: "Add to backlog (describe it, the PM plans it)", value: "change" },
               { label: "Add a file / image", value: "asset" },
               { label: "New build", value: "new" },
@@ -1889,6 +1950,11 @@ export default function App(): React.ReactElement {
             ]}
             onSelect={(i) => {
               if (i.value === "open") openInBrowser(mainFileOf(buildResult.workspace));
+              else if (i.value === "pr") {
+                const st = loadState(join(buildResult.workspace, "build-state.json"));
+                const r = st ? openPullRequest(buildResult.workspace, `Projectinator: ${idea.slice(0, 60)}`, prBody(st, plan?.tasks.map((t) => t.id) ?? [])) : { ok: false as const, error: "No project data." };
+                setFlash(r.ok ? `Pull request → ${r.url}` : r.error);
+              }
               else if (i.value === "asset") {
                 setTargetWorkspace(buildResult.workspace);
                 setAssetPath("");

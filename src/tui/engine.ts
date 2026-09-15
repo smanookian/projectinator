@@ -15,7 +15,8 @@ import { loadConfig } from "./config.js";
 import { getLocalModels } from "../local-models.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
 import { runBacklog, type OrchestratorEvent } from "../orchestrator.js";
-import { initRepo, commitTask, undoLastCommit, history as gitHistory, type Commit } from "../git.js";
+import { initRepo, commitTask, undoLastCommit, history as gitHistory, remoteUrl, type Commit } from "../git.js";
+import { startChangeBranch } from "../github.js";
 import { computeRetro, type RetroReport } from "../retro.js";
 import { computeBurndown, type Burndown } from "../burndown.js";
 import { narrateRetro } from "../narrate.js";
@@ -621,13 +622,15 @@ export function addAsset(dir: string, rawSrc: string): { ok: true; name: string 
   }
 }
 
-/** Folders never worth copying into a project (huge, regenerable, or another repo's state). */
-const IMPORT_SKIP = new Set(["node_modules", ".git", "dist", ".next", ".cache", ".workspace"]);
+/** Folders never worth copying into a project (huge or regenerable). `.git` IS copied when
+ *  present: the imported project keeps its history and remote, so changes can become pull
+ *  requests against the user's real repository (github.ts never pushes to its base branch). */
+const IMPORT_SKIP = new Set(["node_modules", "dist", ".next", ".cache", ".workspace"]);
 
 /** Bring an existing folder in as a project: copy its files into a fresh workspace,
  *  write an empty backlog (the PM plans changes against the real files via
  *  buildProjectContext), and version it. Returns the new project dir. */
-export function importProject(rawSrc: string, idea?: string): { ok: true; dir: string; files: number } | { ok: false; error: string } {
+export function importProject(rawSrc: string, idea?: string): { ok: true; dir: string; files: number; remote?: string } | { ok: false; error: string } {
   const src = normalizeUserPath(rawSrc);
   try {
     if (!existsSync(src)) return { ok: false, error: `Folder not found: ${src}` };
@@ -642,15 +645,15 @@ export function importProject(rawSrc: string, idea?: string): { ok: true; dir: s
       filter: (p) => {
         const name = basename(p);
         if (IMPORT_SKIP.has(name)) return false;
-        if (p !== src && !statSync(p).isDirectory()) files++;
+        if (p !== src && !p.includes("/.git/") && name !== ".git" && !statSync(p).isDirectory()) files++;
         return true;
       },
     });
     const state = newBuildState(basename(dir), [], label, "auto");
     state.status = "complete"; // nothing to build yet; "Add to backlog" plans the first change
     saveState(state, join(dir, "build-state.json"));
-    initRepo(dir);
-    return { ok: true, dir, files };
+    initRepo(dir); // keeps an imported repo as is (adds our exclude list), else inits one
+    return { ok: true, dir, files, remote: remoteUrl(dir) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
@@ -705,6 +708,8 @@ export async function breakdownEpic(
 
 export interface RunHandle {
   workspace: string;
+  /** Set when the build runs on its own git branch (change to a published project). */
+  branch?: string;
   promise: Promise<{ totalCost: number; halted: boolean; haltReason?: string; files: string[] }>;
 }
 
@@ -723,6 +728,9 @@ export function startBuild(
     seedOutcomes?: TaskOutcome[];
     mode?: "auto" | "approval";
     onGate?: (info: { stage: string }) => Promise<"continue" | "stop">;
+    /** A change to an existing project. On a project with a GitHub remote the build runs on
+     *  its own branch so it can become a pull request (never straight onto the base). */
+    changeIdea?: string;
   },
 ): RunHandle {
   const workspace = opts.workspace ?? join(projectRoot(), ".workspace", "tui", slugify(idea));
@@ -745,6 +753,7 @@ export function startBuild(
 
   // Version the workspace: init a repo, then commit after each finished task.
   initRepo(workspace);
+  const branch = opts.changeIdea ? startChangeBranch(workspace, opts.changeIdea) : undefined;
   const titleById = new Map(plan.tasks.map((t) => [t.id, t.title]));
   const onProgress = (e: OrchestratorEvent) => {
     opts.onEvent(e);
@@ -779,7 +788,7 @@ export function startBuild(
     };
   });
 
-  return { workspace, promise };
+  return { workspace, branch, promise };
 }
 
 /** After a static web build, make sure the folder ships with how-to-run notes.

@@ -21,6 +21,10 @@ export interface BuildState {
   budgetCapUSD?: number;
   /** Cached AI retro narrative (generated on demand). */
   retroNarrative?: string;
+  /** GitHub repo this project is published to (see github.ts for the ownership rule). */
+  github?: { url: string; createdByProjectinator: boolean; base: string };
+  /** Task id → issue URL, for "export backlog as issues" (so re-runs only add new tasks). */
+  githubIssues?: Record<string, string>;
 }
 
 export function newBuildState(id: string, tasks: Task[], idea?: string, mode?: "auto" | "approval"): BuildState {

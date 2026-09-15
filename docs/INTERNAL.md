@@ -53,6 +53,7 @@ The brief the planner sees is composed **purely** from state:
 | `local-models.ts` | owns the `local` provider entry in Pi's `~/.pi/agent/models.json` (Ollama/LM Studio/vLLM): probe, read, write |
 | `stuck.ts` | pure "slow task" rule (2× typical, ½ timeout, 60 s floor) |
 | `visual-diff.ts` | zero-dependency PNG decode + pixel delta between two screenshots |
+| `github.ts` | Publish / PR / Issues via `gh` (injectable runner); ownership rule; `prBody` |
 | `a11y.ts` | WCAG contrast math + the in-page quality sweep (`PAGE_FACTS_SCRIPT`) the Tester reads |
 | `session-cost.ts` | per-session $ accumulator |
 | `run-*.ts` | dev CLI entries (build with fixed mini/fan backlogs, pm, dev, scout, research, bakeoff, web) |
@@ -78,7 +79,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (231)
+npm test                  # vitest (238)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 

@@ -53,6 +53,7 @@ const PHASE_LABEL: Record<string, string> = {
   transcripts: "Transcripts",
   transcript: "Transcript",
   importProject: "Import folder",
+  publish: "Publish",
 };
 
 /** Slim top bar (OpenCode-style header): brand ▌ + project · phase on the left,

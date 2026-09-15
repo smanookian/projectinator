@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.6.0 — 2026-09-16
+
+### Added
+- **GitHub** (needs GitHub CLI, `gh auth login`; no tokens stored):
+  - **Publish** (project → Ship): create a private or public repo from a build and push it —
+    one commit per task, nothing else. Later builds push to `main`.
+  - **Pull requests**: a change to a project that has a GitHub remote runs on its own
+    `projectinator/<change>-<stamp>` branch; the done screen (and Ship) opens a PR with a
+    summary table of tasks, results and cost.
+  - **Issues** (project → Export): one issue per task, epic as a label; re-running adds only
+    new tasks.
+  - Safety rules: a repo Projectinator created is pushed to on `main`; a repo that already had
+    a remote (an imported clone) is **never** pushed to on its base branch — branch + PR only.
+    `build-state.json`, `.checks/`, `.deploy/` and exports are kept out of every repo via
+    `.git/info/exclude`, so an imported project's own `.gitignore` is untouched.
+- **Import keeps git history**: importing a folder that is a git repo now preserves `.git`
+  (history and remote) instead of starting fresh.
+
+### Changed
+- New project repos are created on `main` regardless of the machine's `init.defaultBranch`.
+
 ## 0.5.1 — 2026-09-15
 
 ### Added (tester)
