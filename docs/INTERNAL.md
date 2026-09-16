@@ -46,7 +46,7 @@ The brief the planner sees is composed **purely** from state:
 | `orchestrator.ts` | toposort + run backlog + Tester→Dev loop + ready-set scheduler (`isolate` for worktree-parallel code, `control` for pause/inject/remove/stop, `replan` for the escalation ladder's PM split) + budget halt + limit-breach → failed outcome & halt |
 | `build-state.ts` | checkpoint/restore (save & resume) |
 | `preview.ts` | static server (+live-reload) and `renderCheck` (headless render + viewports + a11y facts) and `interactCheck` (step script) |
-| `bakeoff.ts` | run one task across models + LLM judge |
+| `bakeoff.ts` | one task across the roster: LLM judge (text) or scratch-dir build + real Tester verdict (code); Pareto frontier |
 | `narrate.ts` | AI retro narrative |
 | `retro.ts` / `burndown.ts` / `sprints.ts` | pure analytics from build-state (sprints: per-run outcome slice → done/retries/cost/velocity) |
 | `scout-feed.ts` | pure: OpenRouter catalog → price drift, new models, findings for `scout.ts` |
