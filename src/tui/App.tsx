@@ -8,7 +8,7 @@ import { Spinner, StatusMessage } from "@inkjs/ui";
 import InkSpinner from "ink-spinner"; // a Text-based spinner, safe as an inline glyph inside <Text>
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
-import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, ROLE_META, type TaskView, type MenuGroup } from "./components.js";
+import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, useTermRows, TextField as TextInput, ROLE_META, type TaskView, type MenuGroup } from "./components.js";
 import { roleGlyph } from "./icons.js";
 import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
@@ -867,7 +867,6 @@ export default function App(): React.ReactElement {
             />
           </Box>
         </Panel>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -908,7 +907,6 @@ export default function App(): React.ReactElement {
             ))}
           </Box>
         </Panel>
-        <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
       </Box>
     );
   }
@@ -1233,7 +1231,6 @@ export default function App(): React.ReactElement {
           </Box>
           <Box marginTop={1}>
             <Text color={C.textSubtle}>{lines.length > page ? `lines ${scroll + 1}–${Math.min(scroll + page, lines.length)} of ${lines.length}   ` : ""}</Text>
-            <KeyHint hints={[{ keys: "↑↓ PgUp PgDn", label: "scroll" }, { keys: "Esc", label: "back" }]} />
           </Box>
         </Panel>
       </Box>
@@ -1298,7 +1295,6 @@ export default function App(): React.ReactElement {
           </Box>
           <Box marginTop={1}>
             <Text color={C.textSubtle}>{lines.length > page ? `lines ${scroll + 1}–${Math.min(scroll + page, lines.length)} of ${lines.length}   ` : ""}</Text>
-            <KeyHint hints={[{ keys: "↑↓ PgUp PgDn", label: "scroll" }, ...(shots.length ? [{ keys: `1–${shots.length}`, label: "open screenshot" }] : []), { keys: "Esc", label: "back" }]} />
           </Box>
         </Panel>
       </Box>
@@ -1372,7 +1368,6 @@ export default function App(): React.ReactElement {
               }}
             />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "go back" }]} /></Box>
         </Panel>
       </Box>
     );
@@ -1430,7 +1425,6 @@ export default function App(): React.ReactElement {
               }}
             />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "add" }, { keys: "Esc", label: "go back" }]} /></Box>
         </Panel>
       </Box>
     );
@@ -1461,7 +1455,6 @@ export default function App(): React.ReactElement {
               }}
             />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "import" }, { keys: "Esc", label: "back" }]} /></Box>
         </Panel>
       </Box>
     );
@@ -1481,7 +1474,6 @@ export default function App(): React.ReactElement {
               placeholder="make the header dark blue and add a footer with a copyright line"
             />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "continue" }, { keys: "Esc", label: "go back" }]} /></Box>
         </Panel>
       </Box>
     );
@@ -1506,7 +1498,6 @@ export default function App(): React.ReactElement {
               }}
             />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "cancel" }]} /></Box>
         </Panel>
       </Box>
     );
@@ -1535,7 +1526,6 @@ export default function App(): React.ReactElement {
               }}
             />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "import" }, { keys: "Esc", label: "cancel" }]} /></Box>
         </Panel>
       </Box>
     );
@@ -1558,8 +1548,7 @@ export default function App(): React.ReactElement {
               setPhase("tplActions");
             }}
           />
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
-        </Panel>
+          </Panel>
       </Box>
     );
   }
@@ -1615,8 +1604,7 @@ export default function App(): React.ReactElement {
               }}
             />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Esc", label: "go back" }]} /></Box>
-        </Panel>
+          </Panel>
       </Box>
     );
   }
@@ -1629,7 +1617,6 @@ export default function App(): React.ReactElement {
             <Text color={C.accent}>{"› "}</Text>
             <TextInput value={idea} onChange={setIdea} onSubmit={() => idea.trim() && setPhase("stack")} placeholder="a landing page for a coffee shop with a menu and contact form" />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "continue" }, { keys: "Esc", label: "go back" }]} /></Box>
         </Panel>
       </Box>
     );
@@ -1703,7 +1690,6 @@ export default function App(): React.ReactElement {
           />
           <Box flexDirection="column" marginTop={1}>
             <Text color={C.textSubtle}>Deep plan is worth it for bigger/complex builds.</Text>
-            <KeyHint hints={[{ keys: "Esc", label: "go back" }]} />
           </Box>
         </Panel>
       </Box>
@@ -1786,7 +1772,6 @@ export default function App(): React.ReactElement {
               }}
             />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "cancel" }]} /></Box>
         </Panel>
       </Box>
     );

@@ -174,11 +174,10 @@ export interface Hint {
   label: string;
 }
 
-/** The one place we render keyboard shortcuts, styled after inkui's KeyHint:
- *  each key sits in a small bordered keycap (amber) with its dim action label
- *  beside it, keycaps laid out in a wrapping row. Use this everywhere instead
- *  of ad-hoc "Enter to save · Esc to back" prose so hints look identical across
- *  every screen. */
+/** An in-panel keycap legend. The standard keys (↑↓ / Enter / Esc) live in the status bar
+ *  (Frame.tsx PHASE_HINTS) so EVERY screen shows them the same way — use this only for a
+ *  screen whose key set the footer can't express: the board editors' full legend, a
+ *  MultiSelect's Space, the prefs form's field-by-field Enter. */
 export function KeyHint({ hints }: { hints: Hint[] }): React.ReactElement {
   return (
     <Box flexWrap="wrap">

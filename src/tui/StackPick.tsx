@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { Box, Text } from "ink";
-import { C, Panel, Menu as SelectInput, KeyHint, TextField as TextInput } from "./components.js";
+import { C, Panel, Menu as SelectInput, TextField as TextInput } from "./components.js";
 import { WEB_FRAMEWORKS, type Platform, type StackChoice } from "../stack.js";
 
 const OTHER = "__other__";
@@ -35,7 +35,6 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
             }}
           />
         </Panel>
-        <KeyHint hints={[{ keys: "Esc", label: "cancel the build" }]} />
       </Box>
     );
   }
@@ -55,7 +54,6 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
         </Box>
         <Box flexDirection="column" marginTop={1}>
           <Text color={C.dim}>Name it — treated as a static site (must run with no build step).</Text>
-          <KeyHint hints={[{ keys: "Enter", label: "continue" }]} />
         </Box>
       </Box>
     );

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.20.0 — 2026-09-16
+
+### Changed
+- **Keyboard hints are consistent everywhere.** They used to be per-screen, so some screens
+  carried a heavy in-panel keycap legend (Local models) and others showed nothing at all
+  (Preferred provider). The standard keys now live in the **status bar**, driven by one
+  `PHASE_HINTS` table next to the existing phase labels — so every screen shows its keys, in
+  the same place, in the same wording: `↑↓ pick · Enter confirm · Esc back · q quit`.
+  Context-aware per screen: text fields show `Enter confirm · Esc back`, the transcript/diff
+  pagers show scroll keys, the build screen shows `p pause · a add a task · r remove · x stop`,
+  the sprint view shows `←/→ sprint`.
+- Removed the 15 now-duplicated in-panel keycap rows. An in-panel legend is kept only where
+  the footer can't express the key set: the two board editors' full legends, a MultiSelect's
+  `Space`, and the prefs form's field-by-field `Enter`.
+
 ## 0.19.2 — 2026-09-16
 
 ### Fixed

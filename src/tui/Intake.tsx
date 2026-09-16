@@ -59,7 +59,6 @@ export function Intake({
         </Box>
         <Box flexDirection="column" marginTop={1}>
           <Text color={C.dim}>Type your answer.</Text>
-          <KeyHint hints={[{ keys: "Enter", label: "continue" }]} />
         </Box>
       </Box>
     );
@@ -105,7 +104,6 @@ export function Intake({
           }}
         />
       </Panel>
-      <KeyHint hints={[{ keys: "Esc", label: "cancel & go back" }]} />
     </Box>
   );
 }

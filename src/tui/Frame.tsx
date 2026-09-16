@@ -12,6 +12,29 @@ function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
+// Contextual keys, in ONE place, so every screen shows its shortcuts the same way instead
+// of some screens carrying an in-panel legend and others nothing at all. Screens with a big
+// screen-specific key set (the board editors) keep their own legend as well.
+const NAV = "↑↓ pick · Enter confirm · Esc back";
+const TYPING = "Enter confirm · Esc back";
+const PAGER = "↑↓ / PgUp PgDn scroll · Esc back";
+
+const PHASE_HINTS: Record<string, string> = {
+  setup: NAV, home: NAV, projects: NAV, projectActions: NAV, settings: NAV,
+  templates: NAV, myTemplates: NAV, tplActions: NAV, importTemplate: TYPING,
+  exportMenu: NAV, deployMenu: NAV, filterEpic: NAV, confirmDelete: NAV, publish: NAV,
+  planMode: NAV, approveEpics: NAV, plan: NAV, kanban: NAV, stack: NAV, bakeoff: NAV,
+  retro: NAV, history: NAV, transcripts: NAV, done: NAV, error: NAV, preview: NAV,
+  burndown: "←/→ sprint · Esc back",
+  idea: TYPING, change: TYPING, rename: TYPING, addAsset: TYPING, setCap: TYPING,
+  importProject: TYPING, saveTemplate: TYPING, intake: TYPING,
+  transcript: `${PAGER} · 1-9 open a screenshot`,
+  diff: PAGER,
+  board: "↑↓ pick · Enter build · Esc back · legend below",
+  editBoard: "↑↓ pick · Enter save · Esc back · legend below",
+  building: "p pause · a add a task · r remove · x stop",
+};
+
 /** A short, human label for the current phase — shown faintly in the status bar. */
 const PHASE_LABEL: Record<string, string> = {
   setup: "Setup",
@@ -89,9 +112,9 @@ export function TopBar({
   );
 }
 
-/** Bottom status bar: a global shortcut hint on the left, session cost + budget
- *  cap on the right, with a subtle rule on top. Full width. */
-export function StatusBar(): React.ReactElement {
+/** Bottom status bar: the current screen's keys on the left, session cost + budget cap on
+ *  the right, with a subtle rule on top. Full width. */
+export function StatusBar({ phase }: { phase?: string }): React.ReactElement {
   const cols = useTermCols();
   const spent = sessionCost();
   const cap = getPrefs().budgetCapUSD;
@@ -108,9 +131,10 @@ export function StatusBar(): React.ReactElement {
       paddingX={1}
       justifyContent="space-between"
     >
-      <Box>
-        <Text color={C.textSubtle}>q</Text>
-        <Text color={C.textSubtle}> quit</Text>
+      <Box flexShrink={1}>
+        <Text color={C.textSubtle} wrap="truncate-end">
+          {`${phase && PHASE_HINTS[phase] ? `${PHASE_HINTS[phase]} · ` : ""}q quit`}
+        </Text>
       </Box>
       <Box>
         <Text color={C.textSubtle}>session </Text>
@@ -141,7 +165,7 @@ export function AppFrame({
     <Box flexDirection="column" height={rows} overflow="hidden" backgroundColor={C.bg}>
       <TopBar projectName={projectName} phase={phase} />
       <Box flexGrow={1} flexDirection="column" paddingX={1} paddingTop={1} overflow="hidden">{children}</Box>
-      <StatusBar />
+      <StatusBar phase={phase} />
     </Box>
   );
 }

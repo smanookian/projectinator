@@ -167,11 +167,6 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
               />
             </Box>
           )}
-          <Box marginTop={1}>
-            <KeyHint hints={localEditing
-              ? [{ keys: "Enter", label: "connect" }, { keys: "Esc", label: "cancel" }]
-              : [{ keys: "↑↓", label: "pick" }, { keys: "Enter", label: "choose" }, { keys: "Esc", label: "back" }]} />
-          </Box>
         </Panel>
       </Box>
     );
@@ -505,7 +500,6 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
               }}
             />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "save" }, { keys: "Esc", label: "back" }]} /></Box>
         </Panel>
       </Box>
     );
