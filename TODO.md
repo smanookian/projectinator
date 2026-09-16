@@ -81,6 +81,6 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [x] Auto-scout — `scout-feed.ts` over the OpenRouter catalog (pricing + `created`): drift >10%, new routed-vendor models, one finding per slot → `proposeUpdate`. `projectinator scout [--findings f]`. Rankings have no public API; catalog only.
 - [x] Bake-off upgrades — `bakeoffCandidates()` from the connected roster (+local); code bake-off in scratch dirs with `noFallback`, Tester verdict → `scoreVerdict`; `paretoFront` (★ + best value ≥6). Live-verified.
 - [x] GitHub push + PR per build; export backlog to GitHub Issues — `github.ts` over `gh`: Publish (create+push), change builds on published/imported projects run on a `projectinator/…` branch → Open PR (body = task table + cost), Issues export (epic = label, idempotent). Owned repos push `main`; pre-existing remotes are branch+PR only. Bookkeeping excluded via `.git/info/exclude`. Verified live on a throwaway repo (PR #1, issue, clean tree).
-- [ ] MCP server exposing Projectinator
+- [x] MCP server — `mcp.ts` over stdio: plan, build (async), build_status, build_control, projects, models. Tested with a real SDK client.
 - [x] Local models (Ollama/LM Studio/vLLM) — verified: Pi loads `~/.pi/agent/models.json`; we own one entry, provider id `local` (`local-models.ts`). Settings screen probes `GET /models`, user picks ids; `Provider` gains `"local"`; `$0`; available without a key; never a cloud fallback; `lockRegistryToProvider("local")` picks the biggest-looking id for strong slots.
 - [ ] Homebrew / Docker packaging

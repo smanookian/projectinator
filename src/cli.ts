@@ -297,6 +297,7 @@ const USAGE = `Usage: projectinator <command> [options]
   projects                      list past builds with status and cost
   models                        the roster as it will run, with prices
   scout [--findings <file>]     live OpenRouter catalog: price drift, new models, proposed registry diff
+  mcp                           MCP server on stdio (tools: plan, build, build_status, build_control, projects, models)
 
 Exit codes: 0 ok · 1 environment problem · 2 bad usage · 3 build halted`;
 
@@ -309,6 +310,7 @@ export async function main(args: string[]): Promise<number> {
     case "projects": return projects();
     case "models": return models();
     case "scout": return scout(argv);
+    case "mcp": { const { serveStdio } = await import("./mcp.js"); await serveStdio(); await new Promise(() => {}); return 0; }
     case "build": return build(argv);
     case undefined: case "help": console.log(USAGE); return cmd ? 0 : 2;
     default: console.error(`projectinator: unknown command "${cmd}".\n\n${USAGE}`); return 2;

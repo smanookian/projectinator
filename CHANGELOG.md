@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.15.0 — 2026-09-16
+
+### Added
+- **MCP server.** `projectinator mcp` serves Projectinator over stdio to any MCP client
+  (Claude Desktop, Cursor, Pi, …). Tools: `plan` (idea → backlog + estimate, one PM call),
+  `build` (starts a real build, returns the workspace at once), `build_status` (per-task
+  status, spend, halt reason — any project folder), `build_control` (pause / resume / stop /
+  add work, for builds started by that server), `projects`, `models`. Descriptions say what
+  spends money. `src/mcp.ts`; dependency `@modelcontextprotocol/sdk` + `zod`.
+
+### Fixed
+- The published `projectinator` launcher rejected `scout` (added in 0.13.0) as an unknown
+  command; the allow-list now includes `scout` and `mcp`.
+
 ## 0.14.0 — 2026-09-16
 
 ### Added

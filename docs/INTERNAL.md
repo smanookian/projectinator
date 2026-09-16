@@ -49,6 +49,7 @@ The brief the planner sees is composed **purely** from state:
 | `bakeoff.ts` | one task across the roster: LLM judge (text) or scratch-dir build + real Tester verdict (code); Pareto frontier |
 | `narrate.ts` | AI retro narrative |
 | `retro.ts` / `burndown.ts` / `sprints.ts` | pure analytics from build-state (sprints: per-run outcome slice → done/retries/cost/velocity) |
+| `mcp.ts` | MCP server (stdio): plan/build/build_status/build_control/projects/models over engine.ts |
 | `scout-feed.ts` | pure: OpenRouter catalog → price drift, new models, findings for `scout.ts` |
 | `stack.ts` | platform/framework → brief instruction; **stack profiles** (install/build/serve/outDir/deployable/doubleClick) every stage reads |
 | `local-models.ts` | owns the `local` provider entry in Pi's `~/.pi/agent/models.json` (Ollama/LM Studio/vLLM): probe, read, write |
@@ -82,7 +83,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (268)
+npm test                  # vitest (269)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 
