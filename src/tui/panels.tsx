@@ -49,13 +49,16 @@ export function Standup({ tasks, spent }: { tasks: BoardTask[]; spent?: number }
   );
 }
 
-const STATUS_MARK: Record<BoardTask["status"], { m: string; c: string }> = {
-  done: { m: "✓", c: C.good },
-  skipped: { m: "·", c: C.dim },
-  running: { m: "●", c: "cyan" },
-  failed: { m: "✗", c: C.bad },
-  pending: { m: "○", c: C.dim },
-};
+/** Status glyph + color, read at render (C is live) so it follows the theme. */
+function statusMark(status: BoardTask["status"]): { m: string; c: string } {
+  switch (status) {
+    case "done": return { m: "✓", c: C.good };
+    case "skipped": return { m: "·", c: C.dim };
+    case "running": return { m: "●", c: "cyan" };
+    case "failed": return { m: "✗", c: C.bad };
+    default: return { m: "○", c: C.dim };
+  }
+}
 
 /** Flat list view, grouped by epic. Read-only alternative to the board. */
 export function ListView({ tasks }: { tasks: BoardTask[] }): React.ReactElement {
@@ -66,7 +69,7 @@ export function ListView({ tasks }: { tasks: BoardTask[] }): React.ReactElement 
         <Box key={lane.epic} flexDirection="column" marginBottom={1}>
           <Text color={C.accent}>▊ {lane.epic}</Text>
           {lane.tasks.map((t) => {
-            const s = STATUS_MARK[t.status];
+            const s = statusMark(t.status);
             return (
               <Box key={t.id}>
                 <Box width={2}>

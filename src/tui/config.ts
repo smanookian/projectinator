@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from "n
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Provider } from "../types.js";
+import type { ThemeId } from "./theme.js";
 
 export type WorkflowMode = "auto" | "approval";
 
@@ -30,6 +31,8 @@ export interface AppConfig {
   notify?: boolean;
   /** Default target stack for new web builds; "ask" prompts each time. */
   preferredStack?: "ask" | "vanilla" | "react" | "ai";
+  /** Color theme (Settings → Appearance). Default dark. */
+  theme?: ThemeId;
 }
 
 /** Providers that authenticate with an API key. "local" is configured under Settings → Local models. */
@@ -62,6 +65,7 @@ export function loadConfig(): AppConfig {
       defaultMode: parsed.defaultMode,
       notify: parsed.notify,
       preferredStack: parsed.preferredStack,
+      theme: parsed.theme,
     };
   } catch {
     return { keys: {} };
@@ -85,6 +89,15 @@ export function setWebhookUrl(url: string): void {
   const v = url.trim();
   if (v) cfg.webhookUrl = v;
   else delete cfg.webhookUrl;
+  saveConfig(cfg);
+}
+
+export function getTheme(): ThemeId {
+  return loadConfig().theme ?? "dark";
+}
+export function setTheme(v: ThemeId): void {
+  const cfg = loadConfig();
+  cfg.theme = v;
   saveConfig(cfg);
 }
 

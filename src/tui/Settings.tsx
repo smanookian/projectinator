@@ -14,8 +14,10 @@ import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaul
 import { validateKey } from "./validate.js";
 import { openRouterModels, refreshOpenRouterModels } from "../openrouter.js";
 import { getLocalModels, setLocalModels, probeLocalServer, DEFAULT_LOCAL_URL } from "../local-models.js";
+import { THEMES, resolveTheme, type Theme, type ThemeId } from "./theme.js";
+import { useThemeCtx } from "./theme-context.js";
 
-type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack" | "webhook" | "local" | "localPick";
+type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack" | "webhook" | "local" | "localPick" | "theme";
 
 export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
   const [sub, setSub] = useState<Sub>("menu");
@@ -32,6 +34,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   const [localChosen, setLocalChosen] = useState<Set<string>>(() => new Set(getLocalModels()?.models ?? []));
   const [, force] = useState(0);
   const refresh = () => force((n) => n + 1);
+  const { id: themeId, theme: activeTheme, set: setThemeCtx } = useThemeCtx();
 
   // ---------- menu ----------
   if (sub === "menu") {
@@ -50,6 +53,9 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         { label: `Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
         { label: `Parallel code tasks (git worktrees): ${getPrefs().parallelCode ? "On" : "Off"}`, value: "parallelCode" },
         { label: `Webhook: ${getWebhookUrl() || "off"}`, value: "webhook" },
+      ] },
+      { title: "Appearance", items: [
+        { label: `Theme: ${activeTheme.label}`, value: "theme" },
       ] },
       // Web-login (browser automation / OAuth) is parked — vendors closed
       // third-party subscription auth in 2026. Hidden unless PROJECTINATOR_WEB=1.
@@ -530,6 +536,33 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                   setNotice(`Default stack: ${i.value}.`);
                 }
                 setSub("menu");
+              }}
+            />
+          </Box>
+        </Panel>
+      </Box>
+    );
+  }
+
+  // ---------- appearance / theme ----------
+  if (sub === "theme") {
+    return (
+      <Box flexDirection="column">
+        <Panel title="Appearance — theme">
+          <Text color={C.textMuted}>Color theme for the whole app. Dark is the default cockpit; light resolves against a light terminal.</Text>
+          <Box marginTop={1}>
+            <SelectInput
+              items={[
+                ...(Object.values(THEMES) as Theme[]).map((t) => ({ label: `${t.label}${t.id === themeId ? "  ✓" : ""}`, value: t.id })),
+                { label: "Back", value: "back" },
+              ]}
+              onSelect={(i) => {
+                if (i.value === "back") setSub("menu");
+                else {
+                  setThemeCtx(i.value as ThemeId);
+                  setNotice(`Theme: ${resolveTheme(i.value as ThemeId).label}.`);
+                  setSub("menu");
+                }
               }}
             />
           </Box>

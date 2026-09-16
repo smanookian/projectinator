@@ -35,12 +35,15 @@ function columnOf(t: BoardTask, done: Set<string>): Col {
   return ready ? "notStarted" : "backlog";
 }
 
-const COLS: { key: Col; label: string; color: string }[] = [
-  { key: "backlog", label: "BACKLOG", color: C.dim },
-  { key: "notStarted", label: "NOT STARTED", color: "cyan" },
-  { key: "inProgress", label: "IN PROGRESS", color: C.accent },
-  { key: "done", label: "DONE", color: C.good },
-];
+/** Column constants read the theme at render time (C is a live proxy), not module load. */
+function cols(): { key: Col; label: string; color: string }[] {
+  return [
+    { key: "backlog", label: "BACKLOG", color: C.dim },
+    { key: "notStarted", label: "NOT STARTED", color: "cyan" },
+    { key: "inProgress", label: "IN PROGRESS", color: C.accent },
+    { key: "done", label: "DONE", color: C.good },
+  ];
+}
 
 /** Group tasks by epic, preserving first-seen order. */
 export function groupByEpic<T extends { epic?: string }>(tasks: T[]): { epic: string; tasks: T[] }[] {
@@ -112,14 +115,14 @@ export function Kanban({ tasks, compact, maxPerCol }: { tasks: BoardTask[]; comp
     return (
       <Box flexDirection="column">
         <Box>
-          {COLS.map((col) => (
+          {cols().map((col) => (
             <Box key={col.key} flexBasis="25%" flexGrow={1} marginRight={1}>
               <Text color={col.color} bold>{col.label} <Text color={C.dim}>{counts[col.key]}</Text></Text>
             </Box>
           ))}
         </Box>
         <Box marginTop={1}>
-          {COLS.map((col) => {
+          {cols().map((col) => {
             const list = byCol[col.key];
             return (
               <Box key={col.key} flexDirection="column" flexBasis="25%" flexGrow={1} marginRight={1}>
@@ -141,7 +144,7 @@ export function Kanban({ tasks, compact, maxPerCol }: { tasks: BoardTask[]; comp
       {/* column headers */}
       <Box>
         <Box width={12} />
-        {COLS.map((col) => (
+        {cols().map((col) => (
           <Box key={col.key} flexBasis="25%" flexGrow={1} marginRight={1}>
             <Text color={col.color} bold>{col.label} <Text color={C.dim}>{counts[col.key]}</Text></Text>
           </Box>
@@ -155,7 +158,7 @@ export function Kanban({ tasks, compact, maxPerCol }: { tasks: BoardTask[]; comp
             <Text color={C.accent}>▊ {lane.epic}</Text>
             <Box>
               <Box width={12} />
-              {COLS.map((col) => (
+              {cols().map((col) => (
                 <Box key={col.key} flexDirection="column" flexBasis="25%" flexGrow={1} marginRight={1}>
                   {byCol[col.key].length === 0 ? <Text color={C.dim}>·</Text> : byCol[col.key].map((t) => <Card key={t.id} t={t} />)}
                 </Box>

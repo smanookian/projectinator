@@ -1,9 +1,8 @@
 // TUI entry — `npm start`.
 import React from "react";
 import { render } from "ink";
-import { ThemeProvider } from "@inkjs/ui";
 import App from "./tui/App.js";
-import { uiTheme } from "./tui/theme.js";
+import { ThemedApp } from "./tui/theme-context.js";
 import { applyKeysToEnv } from "./tui/config.js";
 import { listProjects } from "./tui/engine.js";
 import { sessionCost } from "./session-cost.js";
@@ -41,9 +40,9 @@ process.on("exit", restoreScreen);
 process.on("SIGTERM", () => { restoreScreen(); process.exit(0); });
 
 const app = render(
-  <ThemeProvider theme={uiTheme}>
+  <ThemedApp>
     <App />
-  </ThemeProvider>,
+  </ThemedApp>,
 );
 
 let goodbyePrinted = false;
