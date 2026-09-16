@@ -219,11 +219,13 @@ export async function renderCheck(
     serveDir?: string;
     /** Whether the file:// double-click check applies (static stacks only; default true). */
     doubleClick?: boolean;
+    /** An already-running server (backend stacks) — render this instead of serving a folder. */
+    baseUrl?: string;
   } = {},
 ): Promise<RenderReport> {
   const { chromium } = await import("playwright");
   const serveDir = opts.serveDir ?? dir;
-  const server = await startStaticServer(serveDir);
+  const server = opts.baseUrl ? { url: opts.baseUrl, close: async () => {} } : await startStaticServer(serveDir);
   let browser;
   try {
     browser = await chromium.launch({ headless: true });
@@ -232,13 +234,14 @@ export async function renderCheck(
     throw e;
   }
   try {
-    const http = await renderOne(browser, `${server.url}/${file}`, { ...opts, facts: true });
+    const pageUrl = `${server.url}/${file}`.replace(/\/+$/, opts.baseUrl && !file ? "/" : "");
+    const http = await renderOne(browser, pageUrl, { ...opts, facts: true });
     const viewports = opts.checksDir
-      ? await renderViewports(browser, `${server.url}/${file}`, opts.checksDir, opts.checksPrefix ?? "check", opts.timeoutMs ?? 15_000)
+      ? await renderViewports(browser, pageUrl, opts.checksDir, opts.checksPrefix ?? "check", opts.timeoutMs ?? 15_000)
       : [];
     const ok = http.errors.length === 0;
     // file:// (double-click) only matters for static stacks; a built app is served.
-    const checkFile = opts.doubleClick ?? true;
+    const checkFile = (opts.doubleClick ?? true) && !opts.baseUrl;
     const fileR = checkFile ? await renderOne(browser, pathToFileURL(join(serveDir, file)).href, { timeoutMs: opts.timeoutMs }) : { title: "", text: http.text, errors: [] };
     const fileHasContent = fileR.text.length > 0;
     const fileOk = fileR.errors.length === 0 && fileHasContent;
@@ -305,10 +308,10 @@ export async function interactCheck(
   dir: string,
   file: string,
   steps: InteractStep[],
-  opts: { screenshotPath?: string; serveDir?: string } = {},
+  opts: { screenshotPath?: string; serveDir?: string; baseUrl?: string } = {},
 ): Promise<InteractReport> {
   const { chromium } = await import("playwright");
-  const server = await startStaticServer(opts.serveDir ?? dir);
+  const server = opts.baseUrl ? { url: opts.baseUrl, close: async () => {} } : await startStaticServer(opts.serveDir ?? dir);
   let browser;
   try {
     browser = await chromium.launch({ headless: true });
@@ -323,7 +326,7 @@ export async function interactCheck(
   page.on("pageerror", (e) => errors.push(`uncaught: ${e.message}`));
   const deadline = Date.now() + INTERACT_TOTAL_MS;
   try {
-    await page.goto(`${server.url}/${file}`, { waitUntil: "networkidle", timeout: 15_000 });
+    await page.goto(`${server.url}/${file}`.replace(/\/+$/, "") || server.url, { waitUntil: "networkidle", timeout: 15_000 });
     for (const [i, s] of steps.slice(0, INTERACT_MAX_STEPS).entries()) {
       const n = i + 1;
       if (Date.now() > deadline) { results.push({ step: n, ok: false, detail: `${stepLabel(s)} — skipped: ${INTERACT_TOTAL_MS / 1000}s total budget exhausted` }); break; }

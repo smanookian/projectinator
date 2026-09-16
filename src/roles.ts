@@ -28,6 +28,7 @@ import { describeFacts } from "./a11y.js";
 import { visualDeltaPct } from "./visual-diff.js";
 import { PROFILES, type StackProfile } from "./stack.js";
 import { prepareForTest, type PrepareResult } from "./prepare.js";
+import { startServer, type RunningServer } from "./serve.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
 import { addSessionCost } from "./session-cost.js";
@@ -136,6 +137,34 @@ function buildCheckTool(workspace: string, chromium: boolean, checksPrefix = "ch
         };
       }
       const prep = prepare();
+      if (prep.ok && profile.serve) {
+        // Backend: start it, render against it, stop it. Never-listens = the finding.
+        let srv: RunningServer | undefined;
+        try {
+          srv = await startServer(workspace, profile);
+        } catch (e) {
+          rendered = true;
+          return { content: [{ type: "text", text: `check_app: the server failed to start — this is a HIGH-severity bug. ${e instanceof Error ? e.message : e}` }], details: {} };
+        }
+        try {
+          const r = await renderCheck(workspace, params.file || "", { checksDir: join(workspace, ".checks"), checksPrefix, baseUrl: srv.url });
+          rendered = true;
+          screenshots.push(...r.viewports.map((v) => v.screenshotPath).filter(Boolean));
+          const text = [
+            `prepare: ${prep.log.join("; ")}; server started on ${srv.url} (${profile.serve.join(" ")})`,
+            `rendered GET /: ${r.ok ? "OK (no JS errors)" : "with errors"}`,
+            `title: ${r.title || "(none)"}`,
+            `errors: ${r.errors.length ? "\n  - " + r.errors.join("\n  - ") : "none"}`,
+            ...(r.viewports.length ? [`responsive check: ${r.viewports.map((v) => `${v.width}px ${v.overflowsHorizontally ? "OVERFLOWS" : v.textLength === 0 ? "BLANK" : "OK"}`).join(", ")}`] : []),
+            ...(r.facts ? [(() => { const p = describeFacts(r.facts); return `accessibility & basics: ${p.length ? "\n  - " + p.join("\n  - ") : "no issues found"}`; })()] : []),
+            `server output (tail):\n${srv.log().split("\n").slice(-15).join("\n") || "(quiet)"}`,
+            `visible text:\n${r.text || "(empty page — nothing rendered)"}`,
+          ].join("\n");
+          return { content: [{ type: "text", text }], details: {} };
+        } finally {
+          await srv.close();
+        }
+      }
       if (!prep.ok) {
         rendered = true; // we DID try to run it; the failure is the finding
         const hint = prep.scriptsBlocked ? "\n(install scripts are blocked by default for safety; if this package genuinely needs them, the user can allow them for this project in Settings.)" : "";
@@ -212,7 +241,7 @@ function toStep(raw: Static<typeof StepSchema>): InteractStep | undefined {
   return undefined;
 }
 
-function buildInteractTool(workspace: string, chromium: boolean, checksPrefix: string, screenshots: string[], serveDir: () => string | undefined = () => undefined) {
+function buildInteractTool(workspace: string, chromium: boolean, checksPrefix: string, screenshots: string[], serveDir: () => string | undefined = () => undefined, profile: StackProfile = PROFILES.static) {
   let calls = 0;
   const tool = defineTool({
     name: "interact_app",
@@ -237,8 +266,15 @@ function buildInteractTool(workspace: string, chromium: boolean, checksPrefix: s
       if (!steps.length) return { content: [{ type: "text", text: "interact_app: no valid steps. Each step needs one of click/fill/select/press/expectText/expectVisible/expectUrl." }], details: {} };
       calls++;
       const shot = join(workspace, ".checks", `${checksPrefix}-interact${calls}.png`);
+      let srv: RunningServer | undefined;
+      if (profile.serve) {
+        const prep = prepareForTest(workspace, profile);
+        if (!prep.ok) return { content: [{ type: "text", text: `interact_app: the project failed to ${prep.failedStep}:\n${prep.output}` }], details: {} };
+        try { srv = await startServer(workspace, profile); }
+        catch (e) { return { content: [{ type: "text", text: `interact_app: the server failed to start. ${e instanceof Error ? e.message : e}` }], details: {} }; }
+      }
       try {
-        const r = await interactCheck(workspace, params.file || "index.html", steps, { screenshotPath: shot, serveDir: serveDir() });
+        const r = await interactCheck(workspace, srv ? (params.file ?? "") : (params.file || "index.html"), steps, { screenshotPath: shot, serveDir: serveDir(), baseUrl: srv?.url });
         if (r.screenshotPath) screenshots.push(r.screenshotPath);
         const lines = r.steps.map((s) => `  ${s.ok ? "✓" : "✗"} ${s.step}. ${s.detail}`);
         const text = [
@@ -250,6 +286,8 @@ function buildInteractTool(workspace: string, chromium: boolean, checksPrefix: s
         return { content: [{ type: "text", text }], details: {} };
       } catch (e) {
         return { content: [{ type: "text", text: `interact_app could not run (${e instanceof Error ? e.message : e}).` }], details: {} };
+      } finally {
+        await srv?.close();
       }
     },
   });
@@ -437,7 +475,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     const chromium = isTest ? await chromiumAvailable() : false;
     if (isTest && round === 0) keepPreviousShot(opts.workspace, task.id);
     const checkTool = isTest ? buildCheckTool(opts.workspace, chromium, `${task.id}-r${round}`, opts.profile) : undefined;
-    const interactTool = isTest ? buildInteractTool(opts.workspace, chromium, `${task.id}-r${round}`, checkTool!.shotList, checkTool!.serveDir) : undefined;
+    const interactTool = isTest ? buildInteractTool(opts.workspace, chromium, `${task.id}-r${round}`, checkTool!.shotList, checkTool!.serveDir, opts.profile) : undefined;
     // A review never runs the app, so its verdict is never "runtime checked".
     const verdictTool = isTest || isReview ? buildVerdictTool(checkTool ? checkTool.rendered : () => false) : undefined;
     const t0 = Date.now();

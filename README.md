@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 217 passing](https://img.shields.io/badge/tests-240%20passing-brightgreen.svg)
+![tests: 217 passing](https://img.shields.io/badge/tests-244%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -72,8 +72,8 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
 - **A real pipeline.** PM decomposes → Designer specs → Developer writes files → **Reviewer**
   (cheap, read-only) checks the wiring → Tester **runs the app headless and catches real
   bugs** → feedback loop re-runs the dev **one model tier up** on failure.
-- **Multi-file apps.** Vanilla HTML/CSS/JS, **React (CDN, no build)**, or **Vite + React/TypeScript**
-  with a real `npm run build` — the tester builds it and tests `dist/`.
+- **Multi-file apps.** Vanilla HTML/CSS/JS, **React (CDN, no build)**, **Vite + React/TypeScript**
+  (the tester builds it and tests `dist/`), or a **Node server** (started on a free port and tested live).
 - **The cockpit.** A polished terminal UI: editable board, Kanban, standup, per-task cost,
   live budget bar, desktop notification and optional webhook when done.
 - **Honest cost.** Live spend tracking, per-project budget cap + an alert before the cap,
@@ -152,7 +152,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 240 tests
+npm test                                          # 244 tests
 npm run typecheck
 ```
 </details>
@@ -174,8 +174,8 @@ npm run typecheck
   enforce this. It is hidden behind `PROJECTINATOR_WEB=1` and should stay that way. Use the
   API-key path.
 - **Static is the default** (runs by opening `index.html`). Vite builds run `npm ci` on your
-  machine with package scripts blocked (opt-in per project). Node servers are planned/coded
-  today; the tester doesn't spawn them yet. Mobile/desktop toolchains are future work.
+  machine with package scripts blocked (opt-in per project). Node servers are started on a free
+  port and tested live; deploy for them isn't wired (they need a server host). Mobile/desktop toolchains are future work.
 
 ## License
 

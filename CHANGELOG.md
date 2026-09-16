@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0 — 2026-09-16
+
+### Added
+- **Node server stack is now tested for real** (picker → *Backend*; `--stack node`). The Tester
+  runs `npm ci --ignore-scripts`, starts `npm start` on a free `PORT`, waits up to 20 s for it to
+  answer, renders `GET /` (viewports + a11y facts as for static apps), lets `interact_app`
+  drive it, and kills the process tree afterwards. A server that crashes on start or never
+  listens on `process.env.PORT` is reported with its output as a high-severity finding.
+
 ## 0.7.0 — 2026-09-16
 
 ### Added
