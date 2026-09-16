@@ -52,7 +52,7 @@ import {
   projectHistory,
   undoLastTask,
   projectRetro,
-  projectBurndown,
+  projectSprints,
   getRetroNarrative,
   generateRetroNarrative,
   breakdownEpic,
@@ -100,6 +100,7 @@ export default function App(): React.ReactElement {
   const [control, setControl] = useState<BuildControl | null>(null);
   const [steer, setSteer] = useState<null | { kind: "add"; text: string; busy?: boolean; error?: string } | { kind: "remove" }>(null);
   const [paused, setPaused] = useState(false);
+  const [sprintIx, setSprintIx] = useState<number | null>(null); // burndown screen: which sprint (null = latest)
   // Tasks injected mid-build. Kept apart from `plan`: the build effect re-runs when `plan`
   // changes, which would restart the build. Merged in for the board and the add-prompt.
   const [extraTasks, setExtraTasks] = useState<Task[]>([]);
@@ -246,6 +247,11 @@ export default function App(): React.ReactElement {
     if (key.escape) {
       if (phase === "building" && steer) return setSteer(null);
       goBack();
+    }
+    if (phase === "burndown" && selected && (key.leftArrow || key.rightArrow)) {
+      const n = projectSprints(selected.dir)?.sprints.length ?? 0;
+      if (n > 1) setSprintIx((i) => Math.max(0, Math.min(n - 1, (i ?? n - 1) + (key.rightArrow ? 1 : -1))));
+      return;
     }
     // Steering keys while a build runs (not while a steering prompt or the gate has the keyboard).
     if (phase === "building" && control && !steer && !gate) {
@@ -628,7 +634,7 @@ export default function App(): React.ReactElement {
       ] },
       { title: "Reports", items: [
         { label: "Retro (build summary)", value: "retro" },
-        { label: "Burndown (progress + spend)", value: "burndown" },
+        { label: "Sprints & burndown (velocity, progress, spend)", value: "burndown" },
         { label: "History (per-task commits)", value: "history" },
         { label: "Transcripts (what each role said)", value: "transcripts" },
       ] },
@@ -941,39 +947,75 @@ export default function App(): React.ReactElement {
   }
 
   if (phase === "burndown" && selected) {
-    const b = projectBurndown(selected.dir);
+    const summary = projectSprints(selected.dir);
+    const sprints = summary?.sprints ?? [];
+    const ix = sprints.length ? Math.min(sprintIx ?? sprints.length - 1, sprints.length - 1) : -1;
+    const cur = ix >= 0 ? sprints[ix]! : undefined;
+    const b = cur?.burndown;
     const W = 18;
     const money = (n: number) => `$${n.toFixed(2)}`;
+    const dur = (ms?: number) => (ms === undefined ? "running" : ms < 60_000 ? `${Math.round(ms / 1000)}s` : `${Math.round(ms / 60_000)}m`);
     const maxCost = b ? Math.max(0.0001, ...b.steps.map((s) => s.cumCost)) : 1;
     const remBar = (rem: number) => "█".repeat(Math.round((rem / (b?.taskCount || 1)) * W)).padEnd(W, "·");
     const costBar = (c: number) => "█".repeat(Math.max(0, Math.round((c / maxCost) * W))).padEnd(W, " ");
+    // The frame clips at the terminal height: show the latest steps that fit (two charts
+    // share the rows left under the sprint table and the panel chrome).
+    const chartRows = Math.max(2, Math.floor((termRows - 12 - sprints.length - 2 - 8) / 2));
+    const steps = b ? b.steps.slice(-chartRows) : [];
+    const hidden = b ? b.steps.length - steps.length : 0;
+    const stepNo = (i: number) => (hidden + i + 1).toString().padStart(2);
     return (
       <Box flexDirection="column">
-        <Panel title={`Burndown — ${selected.idea}`}>
-        {!b || b.steps.length === 0 ? (
-          <Text color={C.textMuted}>No steps yet — run the build.</Text>
+        <Box flexShrink={0}>
+        <Panel title={`Sprints — ${selected.idea}`}>
+        {!summary || sprints.length === 0 ? (
+          <Text color={C.textMuted}>No sprints yet — run the build.</Text>
         ) : (
           <Box flexDirection="column">
-            <Text color={C.textMuted}>Tasks remaining after each step (X = completion order, {b.taskCount} total)</Text>
-            {b.steps.map((s, i) => (
-              <Text key={i} wrap="truncate-end">
-                {`${(i + 1).toString().padStart(2)} ${s.taskId}`.padEnd(9)} <Text color={C.accent}>{remBar(s.remaining)}</Text> {String(s.remaining).padStart(2)}{s.retry ? <Text color={C.warn}>  ↻ retry</Text> : null}
+            <Text color={C.dim}>{"     planned  done  retries    cost   time"}</Text>
+            {sprints.map((s, i) => (
+              <Text key={s.n} color={i === ix ? C.accent : undefined}>
+                {`${i === ix ? "❯" : " "} S${s.n}`.padEnd(6)}{String(s.planned).padStart(5)}{String(s.done).padStart(6)}{String(s.retries).padStart(9)}{money(s.cost).padStart(8)}   {dur(s.durationMs)}{s.status === "halted" ? "  halted" : ""}
               </Text>
             ))}
-            <Box marginTop={1} flexDirection="column">
-              <Text color={C.dim}>Cumulative spend (total {money(b.totalCost)})</Text>
-              {b.steps.map((s, i) => (
-                <Text key={i} wrap="truncate-end">
-                  {`${(i + 1).toString().padStart(2)} ${s.taskId}`.padEnd(9)} <Text color={C.good}>{costBar(s.cumCost)}</Text> {money(s.cumCost)}
-                </Text>
-              ))}
-            </Box>
+            <Text color={C.textMuted}>
+              {summary.velocity !== undefined ? `Velocity: ${summary.velocity} tasks per sprint` : "Velocity: after the first sprint ends"}
+              {summary.costPerTask !== undefined ? ` · ${money(summary.costPerTask)} per finished task` : ""}
+              {sprints.length > 1 ? "  (←/→ pick a sprint)" : ""}
+            </Text>
           </Box>
         )}
-        <Box marginTop={1}>
-          <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => setPhase("projectActions")} />
-        </Box>
         </Panel>
+        </Box>
+        {b && cur ? (
+          <Box marginTop={1}>
+            <Panel title={`Burndown — sprint ${cur.n}`}>
+              {b.steps.length === 0 ? (
+                <Text color={C.textMuted}>No steps yet.</Text>
+              ) : (
+                <Box flexDirection="column">
+                  <Text color={C.textMuted}>Tasks remaining after each step (X = completion order, {b.taskCount} planned{hidden ? `, ${hidden} earlier steps not shown` : ""})</Text>
+                  {steps.map((s, i) => (
+                    <Text key={i} wrap="truncate-end">
+                      {`${stepNo(i)} ${s.taskId}`.padEnd(9)} <Text color={C.accent}>{remBar(s.remaining)}</Text> {String(s.remaining).padStart(2)}{s.retry ? <Text color={C.warn}>  ↻ retry</Text> : null}
+                    </Text>
+                  ))}
+                  <Box marginTop={1} flexDirection="column">
+                    <Text color={C.dim}>Cumulative spend (sprint total {money(b.totalCost)})</Text>
+                    {steps.map((s, i) => (
+                      <Text key={i} wrap="truncate-end">
+                        {`${stepNo(i)} ${s.taskId}`.padEnd(9)} <Text color={C.good}>{costBar(s.cumCost)}</Text> {money(s.cumCost)}
+                      </Text>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Panel>
+          </Box>
+        ) : null}
+        <Box marginTop={1}>
+          <SelectInput items={[{ label: "Back", value: "back" }]} onSelect={() => { setSprintIx(null); setPhase("projectActions"); }} />
+        </Box>
       </Box>
     );
   }

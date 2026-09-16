@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.0 — 2026-09-16
+
+### Added
+- **Sprints.** Every build run (first build, resume, change, board-planned sprint) is recorded
+  as a sprint in `build-state.json` (`sprints[]`: start/end, planned task ids, outcome slice).
+  Project → *Sprints & burndown* shows one row per sprint — planned, done, retries, cost, time —
+  plus velocity (tasks per ended sprint) and cost per finished task; ←/→ picks the sprint whose
+  burndown is drawn. Older projects count as one sprint. `src/sprints.ts`.
+
+### Fixed
+- Burndown screen could lose rows on short terminals (the frame clips at the terminal height
+  and Yoga shrank the panel). The table never shrinks; the charts show the latest steps that fit.
+
 ## 0.11.0 — 2026-09-16
 
 ### Added

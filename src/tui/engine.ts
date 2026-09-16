@@ -19,12 +19,12 @@ export type { BuildControl };
 import { initRepo, commitTask, undoLastCommit, history as gitHistory, remoteUrl, addWorktree, mergeWorktree, removeWorktree, pruneWorktrees, type Commit } from "../git.js";
 import { startChangeBranch } from "../github.js";
 import { computeRetro, type RetroReport } from "../retro.js";
-import { computeBurndown, type Burndown } from "../burndown.js";
+import { computeSprints, type SprintSummary } from "../sprints.js";
 import { narrateRetro } from "../narrate.js";
 import { decomposeIdea } from "../pm.js";
 import { assessIntake, type IntakeQuestion } from "../intake.js";
 import { councilEpics, type Epic, type CouncilResult } from "../council.js";
-import { newBuildState, loadState, saveState, completedIds, type BuildState } from "../build-state.js";
+import { newBuildState, loadState, saveState, completedIds, type BuildState, type Sprint } from "../build-state.js";
 import { PROFILES, profileWithScripts, type StackProfile, type StackProfileId } from "../stack.js";
 
 const PROVIDER_KEYS: Record<Exclude<Provider, "local">, string[]> = {
@@ -498,9 +498,9 @@ export function projectRetro(dir: string): RetroReport | null {
 }
 
 /** Burndown series (tasks remaining + cumulative cost per step), or null. */
-export function projectBurndown(dir: string): Burndown | null {
+export function projectSprints(dir: string): SprintSummary | null {
   const state = loadState(join(dir, "build-state.json"));
-  return state ? computeBurndown(state) : null;
+  return state ? computeSprints(state) : null;
 }
 
 /** Cached AI retro narrative for a project (null if never generated). */
@@ -846,6 +846,17 @@ export function startBuild(
       }
     : undefined;
 
+  // Sprint bookkeeping: this run is one sprint over whatever is not done yet.
+  const seedDone = new Set((opts.seedOutcomes ?? []).filter((o) => !o.error).map((o) => o.taskId));
+  const sprint: Sprint = {
+    n: (state.sprints?.length ?? 0) + 1,
+    startedAt: Date.now(),
+    taskIds: plan.tasks.filter((t) => !seedDone.has(t.id)).map((t) => t.id),
+    outcomeStart: opts.seedOutcomes?.length ?? 0,
+    status: "running",
+  };
+  state.sprints = [...(state.sprints ?? []), sprint];
+
   const control = createBuildControl();
   const promise = runBacklog(plan.tasks, {
     policy,
@@ -869,6 +880,10 @@ export function startBuild(
     state.totalCost = result.totalCost;
     state.status = result.halted ? "halted" : "complete";
     state.haltReason = result.haltReason; // keep why it stopped (budget cap / gate)
+    sprint.endedAt = Date.now();
+    sprint.outcomeEnd = result.outcomes.length;
+    sprint.status = state.status;
+    for (const t of result.tasks) if (!sprint.taskIds.includes(t.id) && !seedDone.has(t.id)) sprint.taskIds.push(t.id); // injected mid-build
     saveState(state, statePath);
     if (!result.halted) ensureRunInstructions(workspace, profile); // finished builds ship with how-to-run
     return {

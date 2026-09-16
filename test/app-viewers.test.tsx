@@ -188,3 +188,42 @@ describe("import an existing folder", () => {
     }
   });
 });
+
+describe("sprints & burndown", () => {
+  it("shows one row per sprint with velocity, and ←/→ switches the burndown between sprints", async () => {
+    const dir = fixtureDir("test-sprints-fixture");
+    mkdirSync(dir, { recursive: true });
+    const task = (id: string) => ({ id, title: id, capability: "code", difficulty: "low", dependsOn: [], estTokens: { input: 1, output: 1 } });
+    const out = (taskId: string, cost: number) => ({ taskId, capability: "code", provider: "anthropic", modelId: "m", round: 0, cost, files: [], finalText: "" });
+    writeFileSync(join(dir, "build-state.json"), JSON.stringify({
+      id: "test-sprints-fixture", idea: "sprints fixture", status: "complete", totalCost: 0.3,
+      tasks: [task("S1-A"), task("S1-B"), task("S2-C")],
+      outcomes: [out("S1-A", 0.1), out("S1-B", 0.1), out("S2-C", 0.1)],
+      sprints: [
+        { n: 1, startedAt: 1000, endedAt: 121_000, taskIds: ["S1-A", "S1-B", "S2-C"], outcomeStart: 0, outcomeEnd: 2, status: "halted" },
+        { n: 2, startedAt: 200_000, endedAt: 230_000, taskIds: ["S2-C"], outcomeStart: 2, outcomeEnd: 3, status: "complete" },
+      ],
+    }));
+    const app = mountApp();
+    try {
+      await tick(150);
+      await app.pick("Start a build");
+      await app.pick("Projects (");
+      await app.pick("sprints fixture");
+      await app.pick("Sprints & burndown");
+      const f = app.frame();
+      expect(f).toMatch(/S1\s+3\s+2\s+0\s+\$0\.20\s+2m\s+halted/);
+      expect(f).toMatch(/❯ S2\s+1\s+1\s+0\s+\$0\.10\s+30s/);
+      expect(f).toContain("Velocity: 1.5 tasks per sprint");
+      expect(f).toContain("Burndown — sprint 2"); // latest by default
+      expect(f).toContain("S2-C");
+      app.stdin.write("\u001b[D"); // ←
+      await until(() => app.frame().includes("Burndown — sprint 1"), app.frame);
+      expect(app.frame()).toContain("S1-B");
+      expect(app.frame()).not.toContain("S2-C ");
+    } finally {
+      app.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

@@ -5,6 +5,19 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { Task, TaskOutcome } from "./types.js";
 
+/** One build run over the (un-parked) backlog. Outcomes are append-only, so a sprint is a
+ *  contiguous slice of `outcomes`: [outcomeStart, outcomeEnd). */
+export interface Sprint {
+  n: number;
+  startedAt: number; // epoch ms
+  endedAt?: number;
+  /** Tasks the sprint set out to do (not yet done at start). */
+  taskIds: string[];
+  outcomeStart: number;
+  outcomeEnd?: number; // absent while running
+  status: "running" | "complete" | "halted";
+}
+
 export interface BuildState {
   id: string;
   /** The original idea/request text, for display in the projects list. */
@@ -25,6 +38,9 @@ export interface BuildState {
   budgetCapUSD?: number;
   /** Cached AI retro narrative (generated on demand). */
   retroNarrative?: string;
+  /** One entry per build run (first build, resume, change, sprint). Missing on old states:
+   *  every outcome then counts as sprint 1. */
+  sprints?: Sprint[];
   /** GitHub repo this project is published to (see github.ts for the ownership rule). */
   github?: { url: string; createdByProjectinator: boolean; base: string };
   /** Task id → issue URL, for "export backlog as issues" (so re-runs only add new tasks). */
