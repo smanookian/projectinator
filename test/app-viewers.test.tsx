@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import App from "../src/tui/App.js";
-import { projectRoot } from "../src/tui/engine.js";
+import { projectRoot, tuiRoot } from "../src/tui/engine.js";
 import { initRepo, commitTask, history, commitDiff } from "../src/git.js";
 
 const DOWN = "\u001b[B";
@@ -65,7 +65,7 @@ function mountApp() {
   return { frame, stdin, pick, close };
 }
 
-const fixtureDir = (slug: string) => join(projectRoot(), ".workspace", "tui", slug);
+const fixtureDir = (slug: string) => join(tuiRoot(), slug);
 
 describe("transcript viewer", () => {
   it("renders every line intact inside the frame and pages", async () => {
@@ -179,7 +179,7 @@ describe("import an existing folder", () => {
       const f = app.frame();
       expect(f).toContain("Add to backlog");
       expect(f).toContain("Imported: tui-import-src");
-      dir = join(projectRoot(), ".workspace", "tui", "imported-tui-import-src");
+      dir = join(tuiRoot(), "imported-tui-import-src");
       expect(existsSync(join(dir, "index.html"))).toBe(true);
     } finally {
       app.close();

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.0 — 2026-09-16
+
+### Added
+- **Docker.** `Dockerfile` on the official Playwright image (Node + headless Chromium + git);
+  `docker build -t projectinator .` then `docker run -it -e OPENROUTER_API_KEY -v projectinator-home:/data projectinator`.
+  Keys, prefs and every build live on the `/data` volume. Verified: `doctor` inside the
+  container reports Chromium, npm, git and the data dir on the volume.
+- **Homebrew.** `homebrew/projectinator.rb` formula (node@22 + git, npm tarball) for the tap
+  `smanookian/homebrew-projectinator`; `scripts/brew-formula.sh` refreshes url/sha per release.
+- **`PROJECTINATOR_HOME`** — where projects are stored (`$PROJECTINATOR_HOME/projects`).
+  Default is still inside the package folder; set it for global installs/containers so
+  builds survive upgrades. `projectinator projects` prints the folder.
+
 ## 0.15.0 — 2026-09-16
 
 ### Added

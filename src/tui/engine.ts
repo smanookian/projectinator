@@ -279,8 +279,12 @@ export interface ProjectInfo {
   state: BuildState;
 }
 
-function tuiRoot(): string {
-  return join(projectRoot(), ".workspace", "tui");
+/** Where projects live. Default: `<package root>/.workspace/tui` (a clone keeps them next to
+ *  the code). `PROJECTINATOR_HOME` overrides — a global install or a container mounts a
+ *  volume there so builds survive upgrades. */
+export function tuiRoot(): string {
+  const home = process.env.PROJECTINATOR_HOME?.trim();
+  return home ? join(home, "projects") : join(projectRoot(), ".workspace", "tui");
 }
 
 /** List past builds, newest first. */
@@ -833,7 +837,7 @@ export function startBuild(
     parallelCode?: boolean;
   },
 ): RunHandle {
-  const workspace = opts.workspace ?? join(projectRoot(), ".workspace", "tui", slugify(idea));
+  const workspace = opts.workspace ?? join(tuiRoot(), slugify(idea));
   mkdirSync(workspace, { recursive: true });
   const statePath = join(workspace, "build-state.json");
   // Reuse the existing state when resuming/changing an existing project so we keep

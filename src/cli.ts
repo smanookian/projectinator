@@ -33,6 +33,7 @@ import {
   effectiveRoster,
   listProjects,
   planBuild,
+  tuiRoot,
   startBuild,
   PROVIDER_LABEL,
 } from "./tui/engine.js";
@@ -147,7 +148,7 @@ function projects(): number {
     console.log(`  ${mark} ${p.slug.padEnd(40)} ${p.status.padEnd(9)} ${money(p.totalCost).padStart(8)}  ${done}/${p.taskCount} tasks`);
     console.log(`      ${p.idea.slice(0, 90)}${p.idea.length > 90 ? "…" : ""}`);
   }
-  console.log(`\n  ${list.length} project${list.length === 1 ? "" : "s"} · ${money(list.reduce((a, p) => a + p.totalCost, 0))} all time · ${join(homedir(), "…")}\n`);
+  console.log(`\n  ${list.length} project${list.length === 1 ? "" : "s"} · ${money(list.reduce((a, p) => a + p.totalCost, 0))} all time · ${tuiRoot()}\n`);
   return 0;
 }
 

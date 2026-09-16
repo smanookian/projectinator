@@ -42,6 +42,20 @@ Then, inside the app: **Settings → API keys** and paste an Anthropic, OpenAI, 
 Ollama / LM Studio server for free, private runs. That's it — pick **New build** and go.
 
 <details>
+<summary>Docker or Homebrew instead</summary>
+
+```sh
+# Docker — Chromium + git included; keys/prefs/builds on the /data volume
+docker build -t projectinator https://github.com/smanookian/projectinator.git
+docker run -it --rm -e OPENROUTER_API_KEY -v projectinator-home:/data projectinator
+
+# Homebrew
+brew tap smanookian/projectinator && brew install projectinator
+export PROJECTINATOR_HOME=~/.projectinator   # keep builds across upgrades
+```
+</details>
+
+<details>
 <summary>Run from source instead</summary>
 
 ```bash
