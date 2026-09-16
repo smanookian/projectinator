@@ -225,6 +225,10 @@ async function build(argv: Argv): Promise<number> {
     else if (e.type === "task_failed") console.log(`    ⛔ ${e.outcome.taskId} aborted: ${e.outcome.error} — billed ${money(e.outcome.cost)}`);
     else if (e.type === "task_skipped") console.log(`    · ${e.taskId} skipped`);
     else if (e.type === "merge_conflict") console.log(`    ⇄ ${e.taskId} conflicted with a parallel task on ${e.conflicts.join(", ")} — rebuilding serially`);
+    else if (e.type === "task_added") console.log(`    + ${e.task.id} ${e.task.title} (added mid-build)`);
+    else if (e.type === "task_removed") console.log(`    − ${e.taskId} removed`);
+    else if (e.type === "paused") console.log(`    ‖ paused`);
+    else if (e.type === "resumed") console.log(`    ▶ resumed`);
     else if (e.type === "test_failed") console.log(`    ✗ ${e.taskId} failed (${e.bugs} bugs) — round ${e.round}`);
     else if (e.type === "retry_dev") console.log(`    ↻ re-running ${e.taskId} to fix ${e.forTest}`);
     else if (e.type === "budget_halt") console.log(`    ⚠ budget halt at ${money(e.runningTotal)} (cap ${money(e.cap)})`);

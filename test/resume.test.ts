@@ -57,12 +57,14 @@ describe("resume via seedOutcomes", () => {
     expect(contexts["B"]).toContain("THE SPEC");
   });
 
-  it("fires a checkpoint after each executed task", async () => {
+  it("checkpoints after each executed task, and the last checkpoint carries every outcome", async () => {
     const tasks = [t("A", "design"), t("B", "code", ["A"])];
     const { exec } = counter();
-    const onCheckpoint = vi.fn();
-    await runBacklog(tasks, { policy: policy(), execute: exec, registry: anthropic, onCheckpoint });
-    expect(onCheckpoint).toHaveBeenCalledTimes(2);
+    const seen: number[] = [];
+    await runBacklog(tasks, { policy: policy(), execute: exec, registry: anthropic, onCheckpoint: (o) => seen.push(o.length) });
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+    expect(seen).toContain(1); // after A
+    expect(seen.at(-1)).toBe(2); // final state has both
   });
 });
 

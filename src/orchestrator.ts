@@ -52,6 +52,38 @@ export interface Isolation {
   discard: () => void;
 }
 
+/** Mid-build steering. All methods are safe to call at any time; the scheduler consults the
+ *  control between launches. In-flight tasks always finish; nothing is killed. */
+export interface BuildControl {
+  /** Don't launch anything new until resume(). */
+  pause(): void;
+  resume(): void;
+  paused(): boolean;
+  /** Add tasks to the backlog (deps may point at existing or other new tasks). Picked up at
+   *  the next scheduling pass; unknown deps are dropped. */
+  inject(tasks: Task[]): void;
+  /** Remove a not-yet-started task (and anything that depended only on it keeps its other deps). */
+  remove(taskId: string): boolean;
+  /** Finish what is running, then stop (halted, resumable). */
+  stop(): void;
+}
+
+export function createBuildControl(): BuildControl & { _queue: Task[]; _removed: Set<string>; _stop: boolean; _wake: () => Promise<void> } {
+  let paused = false;
+  // The scheduler waits on this while paused with nothing running; any steering call wakes it.
+  let waiter = Promise.withResolvers<void>();
+  const wake = () => { waiter.resolve(); waiter = Promise.withResolvers<void>(); };
+  const c = {
+    _queue: [] as Task[], _removed: new Set<string>(), _stop: false,
+    _wake: () => waiter.promise,
+    pause: () => { paused = true; wake(); }, resume: () => { paused = false; wake(); }, paused: () => paused,
+    inject: (tasks: Task[]) => { c._queue.push(...tasks); wake(); },
+    remove: (taskId: string) => { c._removed.add(taskId); wake(); return true; },
+    stop: () => { c._stop = true; wake(); },
+  };
+  return c;
+}
+
 export interface RunOptions {
   policy: RoutingPolicy;
   execute: RoleExecutor;
@@ -69,6 +101,8 @@ export interface RunOptions {
   /** Give a parallel code task its own directory (git worktree). Absent = code tasks
    *  serialize on the shared workspace. Only consulted when another code task is running. */
   isolate?: (task: Task) => Isolation | undefined;
+  /** Steering handle (createBuildControl). Absent = no steering. */
+  control?: ReturnType<typeof createBuildControl>;
 }
 
 export type OrchestratorEvent =
@@ -77,6 +111,10 @@ export type OrchestratorEvent =
   | { type: "task_failed"; outcome: TaskOutcome; runningTotal: number }
   | { type: "task_skipped"; taskId: string }
   | { type: "merge_conflict"; taskId: string; conflicts: string[] }
+  | { type: "paused" }
+  | { type: "resumed" }
+  | { type: "task_added"; task: Task }
+  | { type: "task_removed"; taskId: string }
   | { type: "test_failed"; taskId: string; bugs: number; round: number }
   | { type: "retry_dev"; taskId: string; forTest: string; round: number }
   | { type: "budget_halt"; runningTotal: number; cap: number }
@@ -84,6 +122,8 @@ export type OrchestratorEvent =
   | { type: "cycle_or_error"; message: string };
 
 export interface RunResult {
+  /** The backlog as it ended — including injected tasks, minus removed ones. */
+  tasks: Task[];
   outcomes: TaskOutcome[];
   totalCost: number;
   halted: boolean;
@@ -144,7 +184,7 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     emit({ type: "cycle_or_error", message });
-    return { outcomes: [], totalCost: 0, halted: true, haltReason: message };
+    return { tasks, outcomes: [], totalCost: 0, halted: true, haltReason: message };
   }
 
   const runOne = async (task: Task, round: number, contextOverride?: string, tierBump = 0, workspace?: string): Promise<TaskOutcome> => {
@@ -236,47 +276,62 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
   };
 
   const concurrency = Math.max(1, Math.floor(opts.concurrency ?? 1));
+  const control = opts.control;
 
-  // ---- sequential path (concurrency 1) — unchanged behavior ----
-  if (concurrency === 1) {
-    for (const task of ordered) {
-      if (wasDone.has(task.id)) {
-        emit({ type: "task_skipped", taskId: task.id });
-        continue;
-      }
-      if (task.capability === "code" && !(await passGate())) {
-        checkpoint();
-        return { outcomes: record, totalCost: round2(running), halted: true, haltReason: "stopped at review gate" };
-      }
-      const est = route(task, { policy, registry, runningTotalBefore: running });
-      if (est.overCap) {
-        emit({ type: "budget_halt", runningTotal: round2(running + est.cost), cap: policy.budgetCapUSD });
-        checkpoint();
-        return { outcomes: record, totalCost: round2(running), halted: true, haltReason: "budget cap" };
-      }
-      await runTaskUnit(task);
-      if (halted) return { outcomes: record, totalCost: round2(running), halted, haltReason };
-    }
-    return { outcomes: record, totalCost: round2(running), halted: false };
-  }
-
-  // ---- parallel path (concurrency > 1) — ready-set scheduler ----
+  // ---- ready-set scheduler (concurrency 1 = strictly sequential, in toposorted order) ----
   // JS is single-threaded, so mutations between awaits are atomic (no locks needed).
   // Independent tasks (deps satisfied) run concurrently up to `concurrency`. A budget
   // reservation on in-flight estimates prevents launches that could cross the cap.
+  // Steering (pause / inject / remove / stop) is applied at the top of every pass.
   const remaining = new Set(ordered.filter((t) => !wasDone.has(t.id)).map((t) => t.id));
   for (const id of wasDone) emit({ type: "task_skipped", taskId: id });
 
   const inFlight = new Map<string, Promise<void>>();
   let reserved = 0;
-  let codeInFlight = 0; // code tasks are serialized (they share files) even in parallel mode
+  let codeInFlight = 0; // code tasks are serialized (they share files) unless isolated
   let failure: unknown; // first task error; rethrown after in-flight work drains
+  let pausedAnnounced = false;
 
   const depsSatisfied = (t: Task) => (t.dependsOn ?? []).every((d) => !remaining.has(d));
   const readyTasks = () =>
     ordered.filter((t) => remaining.has(t.id) && !inFlight.has(t.id) && depsSatisfied(t));
 
-  while (remaining.size > 0 && !halted) {
+  const applySteering = () => {
+    if (!control) return;
+    if (control._queue.length) {
+      const known = new Set([...byId.keys(), ...control._queue.map((t) => t.id)]);
+      for (const raw of control._queue.splice(0)) {
+        if (byId.has(raw.id)) continue; // duplicate id: ignore
+        const t: Task = { ...raw, dependsOn: (raw.dependsOn ?? []).filter((d) => known.has(d)) };
+        byId.set(t.id, t);
+        ordered.push(t);
+        remaining.add(t.id);
+        emit({ type: "task_added", task: t });
+      }
+    }
+    for (const id of control._removed) {
+      control._removed.delete(id);
+      if (!remaining.has(id) || inFlight.has(id)) continue; // gone, done, or running: nothing to do
+      remaining.delete(id);
+      const i = ordered.findIndex((t) => t.id === id);
+      if (i >= 0) ordered.splice(i, 1);
+      byId.delete(id);
+      for (const t of ordered) if (t.dependsOn?.includes(id)) t.dependsOn = t.dependsOn.filter((d) => d !== id);
+      emit({ type: "task_removed", taskId: id });
+    }
+  };
+
+  while (!halted) {
+    applySteering();
+    if (control?._stop) { halted = true; haltReason = "stopped by user"; break; }
+    if (remaining.size === 0) break;
+    if (control?.paused()) {
+      if (!pausedAnnounced) { emit({ type: "paused" }); pausedAnnounced = true; }
+      await (inFlight.size ? Promise.race([...inFlight.values(), control._wake()]) : control._wake());
+      continue;
+    }
+    if (pausedAnnounced) { emit({ type: "resumed" }); pausedAnnounced = false; }
+
     // Gate before any development task launches.
     if (!gateDone && opts.onGate && readyTasks().some((t) => t.capability === "code")) {
       if (!(await passGate())) {
@@ -326,16 +381,20 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
         failure ??= e;
       });
       inFlight.set(task.id, p);
+      if (concurrency === 1) break; // sequential: one launch per pass keeps toposort order exact
     }
 
-    if (inFlight.size === 0) break; // nothing running and nothing launchable -> done or halted
+    if (inFlight.size === 0) {
+      if (halted || readyTasks().length === 0) break; // nothing running and nothing launchable -> done or halted
+      continue; // (deps just became satisfiable via steering)
+    }
     await Promise.race(inFlight.values());
   }
 
   await Promise.all(inFlight.values());
   checkpoint();
   if (failure) throw failure;
-  return { outcomes: record, totalCost: round2(running), halted, haltReason };
+  return { tasks: ordered, outcomes: record, totalCost: round2(running), halted, haltReason };
 }
 
 function round2(n: number): number {

@@ -43,7 +43,7 @@ The brief the planner sees is composed **purely** from state:
 | `pm.ts` | `decomposeIdea` — forced-tool backlog; accepts approved `epics` |
 | `intake.ts` | `assessIntake` (clarifying questions) + `enrichBrief` |
 | `council.ts` | `councilEpics` — 3 lenses ∥ → synthesize epics |
-| `orchestrator.ts` | toposort + run backlog + Tester→Dev loop + parallel scheduler (+ `isolate` for worktree-parallel code) + budget halt + limit-breach → failed outcome & halt |
+| `orchestrator.ts` | toposort + run backlog + Tester→Dev loop + ready-set scheduler (`isolate` for worktree-parallel code, `control` for pause/inject/remove/stop) + budget halt + limit-breach → failed outcome & halt |
 | `build-state.ts` | checkpoint/restore (save & resume) |
 | `preview.ts` | static server (+live-reload) and `renderCheck` (headless render + viewports + a11y facts) and `interactCheck` (step script) |
 | `bakeoff.ts` | run one task across models + LLM judge |
@@ -81,7 +81,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (250)
+npm test                  # vitest (254)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 

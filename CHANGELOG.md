@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0 — 2026-09-16
+
+### Added
+- **Mid-build steering.** While a build runs: `p` pauses (running tasks finish, nothing new
+  starts) / resumes; `a` adds work — one line, the PM turns it into tasks that join the backlog
+  (deps on existing tasks allowed, review after each new code task); `r` removes a task that
+  has not started (its dependents no longer wait for it); `x` stops after the running tasks
+  (resumable like any halt). Injected tasks are persisted into the project's backlog.
+  Orchestrator: `createBuildControl()` + `control` option, events `paused`/`resumed`/
+  `task_added`/`task_removed`, `RunResult.tasks`. `--json` streams the same events.
+
+### Changed
+- One ready-set scheduler for both sequential and parallel builds (concurrency 1 launches one
+  task per pass in toposorted order — same order as before).
+
 ## 0.9.0 — 2026-09-16
 
 ### Added

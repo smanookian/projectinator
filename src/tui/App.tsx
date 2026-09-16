@@ -56,6 +56,9 @@ import {
   getRetroNarrative,
   generateRetroNarrative,
   breakdownEpic,
+  planExtraTasks,
+  type BuildControl,
+
   modelLabel,
   PROVIDER_LABEL,
   type PlanResult,
@@ -93,6 +96,10 @@ export default function App(): React.ReactElement {
   const [tasks, setTasks] = useState<TaskView[]>([]);
   const [spent, setSpent] = useState(0);
   const [gate, setGate] = useState<{ resolve: (d: "continue" | "stop") => void } | null>(null);
+  // Mid-build steering: the running build's control handle + which steering prompt is open.
+  const [control, setControl] = useState<BuildControl | null>(null);
+  const [steer, setSteer] = useState<null | { kind: "add"; text: string; busy?: boolean; error?: string } | { kind: "remove" }>(null);
+  const [paused, setPaused] = useState(false);
   const [buildResult, setBuildResult] = useState<{ halted: boolean; haltReason?: string; files: string[]; workspace: string; branch?: string } | null>(null);
 
   // Existing-project context (open/resume/make-changes).
@@ -229,11 +236,21 @@ export default function App(): React.ReactElement {
     phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "importProject" ||
     phase === "bakeoff" || phase === "intake" || phase === "setCap" || phase === "stack" ||
     phase === "saveTemplate" || phase === "importTemplate" || phase === "settings" ||
-    phase === "editBoard" || phase === "board";
+    phase === "editBoard" || phase === "board" || (phase === "building" && steer !== null);
   useInput((input, key) => {
     if (key.ctrl && input === "c") return exit();
     if (input === "q" && !typing) return exit();
-    if (key.escape) goBack();
+    if (key.escape) {
+      if (phase === "building" && steer) return setSteer(null);
+      goBack();
+    }
+    // Steering keys while a build runs (not while a steering prompt or the gate has the keyboard).
+    if (phase === "building" && control && !steer && !gate) {
+      if (input === "p") { paused ? control.resume() : control.pause(); return; }
+      if (input === "a") return setSteer({ kind: "add", text: "" });
+      if (input === "r") return setSteer({ kind: "remove" });
+      if (input === "x") { control.stop(); return; }
+    }
     // Pagers share one key handler; the page size matches the viewer's (frame chrome + 1 slack).
     const pager = phase === "transcript" && transcript ? transcript : phase === "diff" && diffView ? diffView : null;
     if (pager) {
@@ -350,6 +367,13 @@ export default function App(): React.ReactElement {
         setTasks((ts) => ts.map((t) => (t.id === e.outcome.taskId ? { ...t, status: "failed", cost: (t.cost ?? 0) + e.outcome.cost } : t)));
       } else if (e.type === "task_skipped") {
         setTasks((ts) => ts.map((t) => (t.id === e.taskId ? { ...t, status: "skipped" } : t)));
+      } else if (e.type === "paused") setPaused(true);
+      else if (e.type === "resumed") setPaused(false);
+      else if (e.type === "task_added") {
+        setTasks((ts) => [...ts, { id: e.task.id, title: e.task.title, capability: e.task.capability, status: "pending" }]);
+        setPlan((p) => (p ? { ...p, tasks: [...p.tasks, e.task] } : p));
+      } else if (e.type === "task_removed") {
+        setTasks((ts) => ts.filter((t) => t.id !== e.taskId));
       } else if (e.type === "merge_conflict") {
         setTasks((ts) => ts.map((t) => (t.id === e.taskId ? { ...t, status: "running", startedAt: Date.now() } : t)));
       } else if (e.type === "test_failed") {
@@ -378,10 +402,14 @@ export default function App(): React.ReactElement {
       stack: profileFor(stackChoice).id,
       parallelCode: prefs.parallelCode,
     });
+    setControl(handle.control);
+    setPaused(false);
+    setSteer(null);
     let alive = true;
     handle.promise
       .then((r) => {
         if (!alive) return;
+        setControl(null);
         setSpent(r.totalCost);
         setBuildResult({ halted: r.halted, haltReason: r.haltReason, files: r.files, workspace: handle.workspace, branch: handle.branch });
         setPhase("done");
@@ -1868,10 +1896,67 @@ export default function App(): React.ReactElement {
       <Box flexDirection="column">
         <Box>
           <Text color="cyan"><InkSpinner type="dots" /></Text>
-          <Text bold>{"  "}Building</Text>
+          <Text bold>{"  "}{paused ? "Paused" : "Building"}</Text>
           <Text color={C.textSubtle}>{`     ${running} running`}</Text>
+          {paused ? <Text color={C.warn}>{"  · running tasks finish, nothing new starts"}</Text> : null}
           {slow ? <Text color={C.warn}>{`  · ${slow} slow (over the usual time — the per-task timeout still applies)`}</Text> : null}
         </Box>
+        {!gate && !steer ? (
+          <Text color={C.dim}>{`  p ${paused ? "resume" : "pause"} · a add a task · r remove a task · x stop after running tasks`}</Text>
+        ) : null}
+        {steer?.kind === "add" ? (
+          <Box marginTop={1}>
+            <Panel title="Add to the running build" borderColor={C.accent}>
+              <Text>What should be added? The PM turns it into tasks (one PM call) that join the backlog.</Text>
+              {steer.busy ? (
+                <Text color={C.dim}><InkSpinner type="dots" /> Planning…</Text>
+              ) : (
+                <Box>
+                  <Text color={C.accent}>{"› "}</Text>
+                  <TextInput
+                    value={steer.text}
+                    onChange={(text) => setSteer({ kind: "add", text })}
+                    onSubmit={() => {
+                      const text = steer.text;
+                      const request = text.trim();
+                      if (!request || !control) return;
+                      setSteer({ kind: "add", text, busy: true });
+                      planExtraTasks(request, plan?.tasks ?? [], providers, targetWorkspace)
+                        .then((extra) => {
+                          if (!extra.length) return setSteer({ kind: "add", text, error: "The PM found nothing new to add." });
+                          control.inject(extra);
+                          setSteer(null);
+                        })
+                        .catch((e) => setSteer({ kind: "add", text, error: e instanceof Error ? e.message : String(e) }));
+                    }}
+                  />
+                </Box>
+              )}
+              {steer.error ? <Text color={C.bad}>{steer.error}</Text> : null}
+              <Text color={C.dim}>Enter to add · Esc to cancel</Text>
+            </Panel>
+          </Box>
+        ) : null}
+        {steer?.kind === "remove" ? (
+          <Box marginTop={1}>
+            <Panel title="Remove a task that has not started" borderColor={C.accent}>
+              {tasks.some((t) => t.status === "pending") ? (
+                <SelectInput
+                  items={[
+                    ...tasks.filter((t) => t.status === "pending").map((t) => ({ label: `${t.id}  ${t.title}`, value: t.id })),
+                    { label: "Cancel", value: "" },
+                  ]}
+                  onSelect={(i) => {
+                    if (i.value && control) control.remove(i.value);
+                    setSteer(null);
+                  }}
+                />
+              ) : (
+                <Text color={C.dim}>Nothing is waiting to start. Esc to close.</Text>
+              )}
+            </Panel>
+          </Box>
+        ) : null}
         {gate ? (
           <Box marginTop={1}>
             <Panel title="Review gate — design done" borderColor={C.accent}>
@@ -1894,7 +1979,7 @@ export default function App(): React.ReactElement {
         ) : null}
         <Box marginTop={1}>
           <Panel title="Board">
-            <Kanban tasks={board} compact maxPerCol={Math.max(2, Math.floor((termRows - (gate ? 20 : 12)) / 2))} />
+            <Kanban tasks={board} compact maxPerCol={Math.max(2, Math.floor((termRows - (gate || steer ? 20 : 13)) / 2))} />
           </Panel>
         </Box>
         <Box marginTop={1}>

@@ -14,7 +14,8 @@ import { loadRegistry, saveOverrides, OVERRIDES_FILENAME } from "../registry-sto
 import { loadConfig } from "./config.js";
 import { getLocalModels } from "../local-models.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
-import { runBacklog, type OrchestratorEvent } from "../orchestrator.js";
+import { runBacklog, createBuildControl, type BuildControl, type OrchestratorEvent } from "../orchestrator.js";
+export type { BuildControl };
 import { initRepo, commitTask, undoLastCommit, history as gitHistory, remoteUrl, addWorktree, mergeWorktree, removeWorktree, pruneWorktrees, type Commit } from "../git.js";
 import { startChangeBranch } from "../github.js";
 import { computeRetro, type RetroReport } from "../retro.js";
@@ -717,10 +718,41 @@ export async function breakdownEpic(
   return res.tasks.map((t) => ({ ...t, epic }));
 }
 
+/** Mid-build: turn a one-line request into tasks that fit the running backlog (ids after the
+ *  existing ones, deps on existing tasks allowed, review after every code task). Spends one
+ *  PM call. */
+export async function planExtraTasks(
+  request: string,
+  current: Task[],
+  providers: Provider[],
+  workspace?: string,
+): Promise<Task[]> {
+  const { registry, lock } = chooseRegistry(providers);
+  const modelOverride = lock
+    ? { provider: lock, model: registry.find((e) => e.capability === "plan")!.byBackend.api.model }
+    : undefined;
+  const existing = current.map((t) => `- ${t.id} [${t.capability}/${t.difficulty}] ${t.title}`).join("\n");
+  const nextN = Math.max(0, ...current.map((t) => Number(/(\d+)$/.exec(t.id)?.[1] ?? 0))) + 1;
+  const prompt = [
+    `A build is ALREADY RUNNING with these tasks (some done, some in progress):`,
+    existing,
+    "",
+    `The user wants to ADD this while it runs: "${request}"`,
+    `Produce only the NEW tasks needed (usually 1–3). Use ids T-${String(nextN).padStart(2, "0")} onwards.`,
+    `A new task may dependsOn existing task ids when it builds on their output. Add a review task after every new code task.`,
+  ].join("\n");
+  const projectContext = workspace ? buildProjectContext(workspace) : undefined;
+  const res = await decomposeIdea(prompt, { backend: "api", modelOverride, scope: "change", projectContext });
+  const taken = new Set(current.map((t) => t.id));
+  return res.tasks.filter((t) => !taken.has(t.id));
+}
+
 export interface RunHandle {
   workspace: string;
   /** Set when the build runs on its own git branch (change to a published project). */
   branch?: string;
+  /** Mid-build steering: pause / resume / inject / remove / stop. */
+  control: BuildControl;
   promise: Promise<{ totalCost: number; halted: boolean; haltReason?: string; files: string[] }>;
 }
 
@@ -786,8 +818,10 @@ export function startBuild(
       }
     : undefined;
 
+  const control = createBuildControl();
   const promise = runBacklog(plan.tasks, {
     policy,
+    control,
     execute: executor,
     registry: plan.registry,
     concurrency: opts.concurrency,
@@ -801,6 +835,7 @@ export function startBuild(
       saveState(state, statePath);
     },
   }).then((result) => {
+    state.tasks = result.tasks; // steering may have added/removed tasks
     state.outcomes = result.outcomes;
     state.totalCost = result.totalCost;
     state.status = result.halted ? "halted" : "complete";
@@ -815,7 +850,7 @@ export function startBuild(
     };
   });
 
-  return { workspace, branch, promise };
+  return { workspace, branch, control, promise };
 }
 
 /** After a static web build, make sure the folder ships with how-to-run notes.
