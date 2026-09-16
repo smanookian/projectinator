@@ -660,7 +660,7 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Box>
-          <Box flexGrow={1} marginRight={2}><Text bold wrap="truncate-end">{selected.idea}</Text></Box>
+          <Box flexGrow={1} marginRight={2}><Text bold color={C.text} wrap="truncate-end">{selected.idea}</Text></Box>
           <Text color={statusChip.dot}>● </Text><Text color={C.textMuted}>{statusChip.label}</Text>
         </Box>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
@@ -975,7 +975,7 @@ export default function App(): React.ReactElement {
           <Box flexDirection="column">
             <Text color={C.dim}>{"     planned  done  retries    cost   time"}</Text>
             {sprints.map((s, i) => (
-              <Text key={s.n} color={i === ix ? C.accent : undefined}>
+              <Text key={s.n} color={i === ix ? C.accent : C.text}>
                 {`${i === ix ? "❯" : " "} S${s.n}`.padEnd(6)}{String(s.planned).padStart(5)}{String(s.done).padStart(6)}{String(s.retries).padStart(9)}{money(s.cost).padStart(8)}   {dur(s.durationMs)}{s.status === "halted" ? "  halted" : ""}
               </Text>
             ))}
@@ -997,14 +997,14 @@ export default function App(): React.ReactElement {
                 <Box flexDirection="column">
                   <Text color={C.textMuted}>Tasks remaining after each step (X = completion order, {b.taskCount} planned{hidden ? `, ${hidden} earlier steps not shown` : ""})</Text>
                   {steps.map((s, i) => (
-                    <Text key={i} wrap="truncate-end">
+                    <Text key={i} color={C.text} wrap="truncate-end">
                       {`${stepNo(i)} ${s.taskId}`.padEnd(9)} <Text color={C.accent}>{remBar(s.remaining)}</Text> {String(s.remaining).padStart(2)}{s.retry ? <Text color={C.warn}>  ↻ retry</Text> : null}
                     </Text>
                   ))}
                   <Box marginTop={1} flexDirection="column">
                     <Text color={C.dim}>Cumulative spend (sprint total {money(b.totalCost)})</Text>
                     {steps.map((s, i) => (
-                      <Text key={i} wrap="truncate-end">
+                      <Text key={i} color={C.text} wrap="truncate-end">
                         {`${stepNo(i)} ${s.taskId}`.padEnd(9)} <Text color={C.good}>{costBar(s.cumCost)}</Text> {money(s.cumCost)}
                       </Text>
                     ))}
@@ -1042,7 +1042,7 @@ export default function App(): React.ReactElement {
     }));
     return (
       <Box flexDirection="column">
-        <Text bold wrap="truncate-end">{selected.idea}</Text>
+        <Text bold color={C.text} wrap="truncate-end">{selected.idea}</Text>
         <Box marginTop={1}><Standup tasks={tasks} spent={selected.totalCost} /></Box>
         <Box marginTop={1}>
           <Panel title="Board">
@@ -1227,7 +1227,7 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Panel title={`${diffView.hash} · ${diffView.msg}`}>
-          <Text bold wrap="truncate-end">{selected.idea}</Text>
+          <Text bold color={C.text} wrap="truncate-end">{selected.idea}</Text>
           <Box marginTop={1} flexDirection="column">
             {lines.slice(scroll, scroll + page).map((l, i) => <Text key={scroll + i} color={color(l)} wrap="truncate-end">{l || " "}</Text>)}
           </Box>

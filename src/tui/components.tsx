@@ -206,7 +206,7 @@ export function Panel({
 }): React.ReactElement {
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={borderColor ?? C.border} backgroundColor={C.bgPanel} paddingX={2} paddingY={1}>
-      {title ? <Box marginBottom={1}><Text bold>{title}</Text></Box> : null}
+      {title ? <Box marginBottom={1}><Text bold color={C.text}>{title}</Text></Box> : null}
       {children}
     </Box>
   );

@@ -183,7 +183,7 @@ export function BoardEditor({
 
   return (
     <Box flexDirection="column">
-      <Text bold>Plan board <Text color={C.dim}>({backlogCount} in backlog, {readyCount} ready to build)</Text></Text>
+      <Text bold color={C.text}>Plan board <Text color={C.dim}>({backlogCount} in backlog, {readyCount} ready to build)</Text></Text>
       {warn ? <Text color={C.warn}>{warn}</Text> : null}
       {busy ? <Spinner label={`Breaking down “${busy}”…`} /> : null}
       {editing && editField === "epic" && selected ? (

@@ -15,7 +15,7 @@ export function Team(): React.ReactElement {
     <Panel title="Your team">
       {rows.map((r) => (
         <Box key={r.capability}>
-          <Text>{roleGlyph(r.capability)} </Text>
+          <Text color={C.text}>{roleGlyph(r.capability)} </Text>
           <Box width={16}><Text color={C.dim}>{ROLE_META[r.capability].label}</Text></Box>
           <Text color={C.text}>{modelLabel(r.model ?? "—")}</Text>
         </Box>
@@ -77,7 +77,7 @@ export function ListView({ tasks }: { tasks: BoardTask[] }): React.ReactElement 
                   {t.status === "running" ? <Text color={C.info}><Spinner type="dots" /></Text> : <Text color={s.c}>{s.m}</Text>}
                 </Box>
                 <Box width={7}><Text color={C.dim}>{t.id}</Text></Box>
-                <Box width={3}><Text>{roleGlyph(t.capability)}</Text></Box>
+                <Box width={3}><Text color={C.text}>{roleGlyph(t.capability)}</Text></Box>
                 <Box flexGrow={1}><Text color={C.text} wrap="truncate-end">{t.title}</Text></Box>
                 <Box width={10} justifyContent="flex-end">
                   {t.verdict ? <Text color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}>{t.verdict}</Text>

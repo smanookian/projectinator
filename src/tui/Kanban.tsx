@@ -68,7 +68,7 @@ function Card({ t }: { t: BoardTask }): React.ReactElement {
     <Box flexDirection="column" marginBottom={1}>
       <Box>
         {running ? <Text color={C.info}><Spinner type="dots" /> </Text> : failed ? <Text color={C.bad}>✗ </Text> : null}
-        <Text>{roleGlyph(t.capability)} </Text>
+        <Text color={C.text}>{roleGlyph(t.capability)} </Text>
         <Text color={C.dim}>{t.id} </Text>
         <Text color={C.accent}>{t.capability}</Text>
         {t.verdict ? <Text> <Badge color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}>{t.verdict}</Badge></Text> : null}
@@ -93,7 +93,7 @@ function MiniCard({ t }: { t: BoardTask }): React.ReactElement {
   const running = t.status === "running";
   return (
     <Text wrap="truncate-end">
-      {running ? <Text color={C.info}><Spinner type="dots" /> </Text> : t.status === "failed" ? <Text color={C.bad}>✗ </Text> : <Text>{roleGlyph(t.capability)} </Text>}
+      {running ? <Text color={C.info}><Spinner type="dots" /> </Text> : t.status === "failed" ? <Text color={C.bad}>✗ </Text> : <Text color={C.text}>{roleGlyph(t.capability)} </Text>}
       <Text color={C.dim}>{t.id} </Text>
       <Text color={running ? C.info : C.text} wrap="truncate-end">{t.title}</Text>
       {running && t.elapsedSec !== undefined ? <Text color={t.stuck ? C.warn : C.dim}> {clock(t.elapsedSec)}{t.stuck ? " slow" : ""}</Text> : null}

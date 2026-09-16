@@ -28,6 +28,8 @@ export interface Theme {
   // surfaces (panels / cards)
   bgPanel: string;
   bgElement: string;
+  /** App-wide background. undefined = transparent (respect the terminal theme). */
+  bg?: string;
   // borders
   border: string;
   borderSubtle: string;
@@ -54,7 +56,7 @@ export const LIGHT: Theme = {
   id: "light", label: "Amber (light)",
   accent: "#b8860b", accentMuted: "#8a6508",
   text: "#1f2328", textMuted: "#57606a", textSubtle: "#8b949e", dim: "#57606a",
-  bgPanel: "#f0f1f2", bgElement: "#e8eaec",
+  bg: "#e6e6e9", bgPanel: "#fafafa", bgElement: "#f0f0f4",
   border: "#d0d3d6", borderSubtle: "#e3e5e8", borderActive: "#b8860b",
   good: "#1a7f37", warn: "#9a6700", bad: "#cf222e", info: "#0969da",
 };

@@ -16,6 +16,10 @@ describe("theme", () => {
     // status colors must also flip (ANSI names → explicit dark-on-light hexes)
     expect(DARK.warn).toBe("yellow");
     expect(LIGHT.warn).toMatch(/^#[0-9a-f]{6}$/i);
+    // light paints an opaque app background (a light theme can't sit on a transparent
+    // terminal bg); dark respects the terminal and stays transparent
+    expect(LIGHT.bg).toBeDefined();
+    expect(DARK.bg).toBeUndefined();
   });
 
   it("C follows setActiveTheme live (the proxy reads the current palette)", () => {

@@ -44,7 +44,7 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
   if (typing) {
     return (
       <Box flexDirection="column">
-        <Text bold>Which framework?</Text>
+        <Text bold color={C.text}>Which framework?</Text>
         <Box marginTop={1}>
           <Text color={C.accent}>{"› "}</Text>
           <TextInput

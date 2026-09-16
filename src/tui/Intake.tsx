@@ -48,7 +48,7 @@ export function Intake({
     return (
       <Box flexDirection="column">
         <Text color={C.dim}>{progress}</Text>
-        <Text bold wrap="truncate-end">{q.question}</Text>
+        <Text bold color={C.text} wrap="truncate-end">{q.question}</Text>
         <Box marginTop={1}>
           <Text color={C.accent}>{"› "}</Text>
           <TextInput

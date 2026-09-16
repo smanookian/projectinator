@@ -101,7 +101,7 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
     const connected = isConnected(p);
     return (
       <Box flexDirection="column">
-        <Text bold>{PROVIDERS[p].label}</Text>
+        <Text bold color={C.text}>{PROVIDERS[p].label}</Text>
         <Text color={C.dim}>{connected ? "Connected. You can test or disconnect it." : "Not connected yet."}</Text>
         <Box marginTop={1}>
           <SelectInput
@@ -133,9 +133,9 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
     const p = view.provider;
     return (
       <Box flexDirection="column">
-        <Text bold>Connecting {PROVIDERS[p].label}</Text>
+        <Text bold color={C.text}>Connecting {PROVIDERS[p].label}</Text>
         <Box marginTop={1} flexDirection="column">
-          <Text>A browser window opened. In it:</Text>
+          <Text color={C.text}>A browser window opened. In it:</Text>
           <Text color={C.dim}>  1. Log in to your {PROVIDERS[p].label} account (solve any captcha).</Text>
           <Text color={C.dim}>  2. Wait until the chat screen loads.</Text>
           <Text color={C.dim}>  3. Come back here and choose “I'm logged in”.</Text>
@@ -169,7 +169,7 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
   if (view.kind === "testing") {
     return (
       <Box flexDirection="column">
-        <Text bold>Testing {PROVIDERS[view.provider].label}</Text>
+        <Text bold color={C.text}>Testing {PROVIDERS[view.provider].label}</Text>
         <Spinner label="Sending a prompt through your web session… (first run launches the browser)" />
       </Box>
     );
@@ -180,7 +180,7 @@ export function WebAccounts({ onExit }: { onExit: () => void }): React.ReactElem
     const p = view.provider;
     return (
       <Box flexDirection="column">
-        <Text bold>{PROVIDERS[p].label} — test {view.ok ? "passed" : "failed"}</Text>
+        <Text bold color={C.text}>{PROVIDERS[p].label} — test {view.ok ? "passed" : "failed"}</Text>
         <Box marginTop={1}>
           {view.ok
             ? <StatusMessage variant="success">Reply: {view.text}</StatusMessage>

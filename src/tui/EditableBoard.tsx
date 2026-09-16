@@ -104,7 +104,7 @@ export function EditableBoard({
 
   return (
     <Box flexDirection="column">
-      <Text bold>Edit board <Text color={C.dim}>({items.length} tasks)</Text></Text>
+      <Text bold color={C.text}>Edit board <Text color={C.dim}>({items.length} tasks)</Text></Text>
       {warn ? <Text color={C.warn}>{warn}</Text> : null}
       {editing && field === "epic" && selected ? (
         <Box><Text color={C.accent}>Epic for {selected.id}: </Text>
@@ -143,7 +143,7 @@ export function EditableBoard({
                   <Box width={2}><Text color={C.accent}>{sel ? "›" : " "}</Text></Box>
                   <Box width={2}><Text color={done ? C.good : C.dim}>{done ? "✓" : "○"}</Text></Box>
                   <Box width={7}><Text color={C.dim}>{t.id}</Text></Box>
-                  <Box width={3}><Text>{roleGlyph(t.capability)}</Text></Box>
+                  <Box width={3}><Text color={C.text}>{roleGlyph(t.capability)}</Text></Box>
                   <Box width={16}><Text color={sel ? C.accent : C.dim}>{t.capability}/{t.difficulty}</Text></Box>
                   <Box flexGrow={1}>
                     {sel && editing && field === "title" ? (
