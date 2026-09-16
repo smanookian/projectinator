@@ -665,11 +665,14 @@ export default function App(): React.ReactElement {
         </Box>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
         <Box marginTop={1}><Standup tasks={allBoard} spent={selected.totalCost} /></Box>
-        <Box marginTop={1}><Team /></Box>
+        {/* The roster panel is ~10 rows. On a short terminal it pushed the total past the
+            viewport, and the clipped frame made Yoga overlap rows — so it only renders when
+            there is room for it AND a usable menu. */}
+        {termRows >= 32 ? <Box marginTop={1}><Team /></Box> : null}
         <Box marginTop={1}>
           <GroupedMenu
             groups={menuGroups}
-            maxRows={Math.max(6, termRows - 20)}
+            maxRows={Math.max(6, termRows - (termRows >= 32 ? 21 : 11))}
             onSelect={(i) => {
               if (i.value !== "export") setFlash("");
               if (i.value === "editBoard") setPhase("editBoard");

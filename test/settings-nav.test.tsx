@@ -37,6 +37,28 @@ function app() {
   return { ...r, key, frame, open, exited: () => exited };
 }
 
+/** Every menu row that opens its own screen. Each must render and give Esc back. */
+const SUBSCREENS = [
+  "API keys", "Preferred provider", "Model assignments", "Estimate accuracy", "Local models",
+  "Default workflow", "Default stack", "Budget, speed & alerts", "Webhook", "Theme",
+];
+
+describe("Settings sub-screen audit", () => {
+  it.each(SUBSCREENS)("%s opens, renders, and Esc returns to the menu", async (label) => {
+    const a = app();
+    try {
+      await a.key(""); // let the menu subscribe to input
+      await a.open(label);
+      const inside = a.frame();
+      expect(inside, `${label} did not open a screen`).not.toContain("MODELS & PROVIDERS");
+      expect(inside.trim().length, `${label} rendered (almost) nothing`).toBeGreaterThan(40);
+      await a.key(ESC);
+      expect(a.frame(), `Esc did not come back from ${label}`).toContain("MODELS & PROVIDERS");
+      expect(a.exited(), `Esc escaped Settings entirely from ${label}`).toBe(false);
+    } finally { a.unmount(); }
+  }, 20_000);
+});
+
 describe("Settings navigation", () => {
   it("Esc backs out of Local models, then out of Settings", async () => {
     const a = app();

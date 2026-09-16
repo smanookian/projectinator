@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.20.1 — 2026-09-16
+
+### Fixed
+- **Project screen overflowed a short terminal.** Its chrome (title, chips, roster panel)
+  reserved ~21 rows and then still asked for 6 more for the menu, so on a 24-row terminal the
+  clipped frame made Yoga overlap rows (the roster rendered as "Designermanager") and the menu
+  collapsed to a single usable item. The roster panel now renders only when there is room for
+  it, and the menu's row budget is computed from what is actually left.
+- `GroupedMenu` spent its row budget on section headers and gaps, so a tight budget left almost
+  no selectable items. When space is scarce it now drops the decoration and spends every row on
+  items.
+
+### Added
+- **Navigation audit tests.** Every Settings sub-screen (10) and every read-only project
+  sub-screen (12) is opened, asserted to render, and Esc-ed back — the bug class that manual
+  clicking kept finding (crash on render, dead Esc, dead end) and that per-screen tests missed.
+
 ## 0.20.0 — 2026-09-16
 
 ### Changed

@@ -227,3 +227,83 @@ describe("sprints & burndown", () => {
     }
   });
 });
+
+// Navigation audit: every project sub-screen must open, render something, and give Esc back.
+// This is the class of bug manual clicking kept finding (a screen that crashes on render, or
+// traps you with a dead Esc) and that per-screen tests never covered.
+describe.skipIf(!hasGit)("project screen audit", () => {
+  const ESC = "\u001b";
+  // Read-only screens only — nothing that spends money, starts a server or writes files.
+  const SCREENS = [
+    "Board (view",
+    "Retro (build summary)",
+    "Sprints & burndown",
+    "History (per-task commits)",
+    "Transcripts (what each role said)",
+    "Export (Markdown",
+    "Deploy (Cloudflare",
+    "Publish to GitHub",
+    "Budget cap:",
+    "Save as template",
+    "Rename",
+    "Delete",
+  ];
+  it("every project sub-screen opens and Esc comes back", async () => {
+    const dir = fixtureDir("test-audit-fixture");
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "index.html"), "<h1>audit</h1>");
+    writeFileSync(join(dir, "build-state.json"), JSON.stringify({
+      id: "test-audit-fixture", idea: "audit fixture", status: "complete", totalCost: 0.12,
+      tasks: [
+        { id: "T-01", title: "Build it", capability: "code", difficulty: "low", dependsOn: [], epic: "Core", estTokens: { input: 1, output: 1 } },
+        { id: "T-02", title: "Test it", capability: "test", difficulty: "low", dependsOn: ["T-01"], epic: "Core", estTokens: { input: 1, output: 1 } },
+      ],
+      outcomes: [
+        { taskId: "T-01", capability: "code", provider: "anthropic", modelId: "claude-opus-5", round: 0, cost: 0.07, files: ["index.html"], finalText: "built the page" },
+        { taskId: "T-02", capability: "test", provider: "google", modelId: "gemini-3.8-flash", round: 0, cost: 0.05, files: [], finalText: "looks good",
+          verdict: { passed: true, runtimeChecked: true, bugs: [] } },
+      ],
+    }));
+    // Own git repo, or `git remote` walks up to the projectinator checkout and the Ship group
+    // offers "Open a pull request" for THIS repo instead of "Publish to GitHub".
+    initRepo(dir);
+    commitTask(dir, "T-01", "Build it");
+    const app = mountApp();
+    try {
+      await tick(150);
+      await app.pick("Start a build");
+      await app.pick("Projects (");
+      await app.pick("audit fixture");
+      // The menu has to stay usable on a short terminal. It used to spend its row budget on
+      // group headers and render a SINGLE item (and the roster panel pushed the screen past
+      // the viewport, which made the clipped frame overlap rows).
+      // Count whatever slice of the menu is on screen — it scrolls, so which items show
+      // depends on the window, but the bug rendered exactly ONE.
+      const shown = [
+        "Add to backlog", "Board (view", "Add a file / image", "Preview in browser",
+        "Retro (build summary)", "Sprints & burndown", "History (per-task commits)",
+        "Transcripts (what each role said)", "Deploy (Cloudflare", "Export (Markdown",
+        "Share (zip", "Publish to GitHub", "Budget cap:", "Save as template", "Rename",
+        "Duplicate", "Delete", "Back",
+      ].filter((l) => app.frame().includes(l));
+      expect(shown.length, `menu collapsed on a short terminal (only ${shown.length} item(s) visible)`).toBeGreaterThanOrEqual(4);
+      // If the roster panel does render, its rows must be intact (they used to overlap).
+      if (app.frame().includes("Your team")) {
+        for (const role of ["Project manager", "Designer", "Developer", "Reviewer", "Tester", "Runner"]) {
+          expect(app.frame(), `roster row corrupted: ${role}`).toContain(role);
+        }
+      }
+      for (const label of SCREENS) {
+        await app.pick(label);
+        expect(app.frame().trim().length, `${label} rendered (almost) nothing`).toBeGreaterThan(40);
+        app.stdin.write(ESC);
+        const back = await until(() => app.frame().includes("● complete"), app.frame, 1500);
+        expect(back, `Esc did not come back from ${label}`).toBe(true);
+      }
+    } finally {
+      app.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 90_000);
+});

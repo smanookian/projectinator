@@ -63,14 +63,19 @@ export function GroupedMenu({
   });
 
   // Flatten to display lines (gaps + headers + items) so scrolling is line-exact.
-  const lines: MenuLine[] = [];
+  const rows: MenuLine[] = [];
   let fi = 0;
   groups.forEach((g, gi) => {
-    if (gi) lines.push({ kind: "gap" });
-    if (g.title) lines.push({ kind: "header", text: g.title.toUpperCase() });
-    g.items.forEach((it) => { lines.push({ kind: "item", text: it.label, idx: fi }); fi++; });
+    if (gi) rows.push({ kind: "gap" });
+    if (g.title) rows.push({ kind: "header", text: g.title.toUpperCase() });
+    g.items.forEach((it) => { rows.push({ kind: "item", text: it.label, idx: fi }); fi++; });
   });
 
+  // Section headers and gaps also cost rows, so on a tight budget they can crowd out almost
+  // every selectable item (a 24-row terminal showed ONE). When space is scarce, drop the
+  // decoration and spend every row on items.
+  const dense = maxRows !== undefined && maxRows < rows.length && maxRows < flat.length + 4;
+  const lines = dense ? rows.filter((l) => l.kind === "item") : rows;
   const budget = maxRows && maxRows < lines.length ? Math.max(3, maxRows) : lines.length;
   let start = 0;
   let end = lines.length;
