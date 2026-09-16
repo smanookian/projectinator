@@ -110,7 +110,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
           {localProbe.error ? <Box marginTop={1}><StatusMessage variant="error">{localProbe.error}</StatusMessage></Box> : null}
           <Box marginTop={1}>
             <Text color={C.accent}>Server URL: </Text>
-            {localProbe.busy ? <Text color={C.dim}>{localUrl}  <Spinner label="asking the server for its models…" /></Text> : (
+            {localProbe.busy ? <Box><Text color={C.dim}>{localUrl}  </Text><Spinner label="asking the server for its models…" /></Box> : (
               <TextInput
                 value={localUrl}
                 onChange={setLocalUrl}

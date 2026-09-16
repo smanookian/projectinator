@@ -4,7 +4,6 @@
 import React from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
-import { Badge } from "@inkjs/ui";
 import type { Capability } from "../types.js";
 import { C, ROLE_META } from "./components.js";
 import { roleGlyph } from "./icons.js";
@@ -71,7 +70,7 @@ function Card({ t }: { t: BoardTask }): React.ReactElement {
         <Text color={C.text}>{roleGlyph(t.capability)} </Text>
         <Text color={C.dim}>{t.id} </Text>
         <Text color={C.accent}>{t.capability}</Text>
-        {t.verdict ? <Text> <Badge color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}>{t.verdict}</Badge></Text> : null}
+        {t.verdict ? <Text color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}> {t.verdict}</Text> : null}
         {t.cost ? <Text color={C.dim}> ${t.cost.toFixed(2)}</Text> : null}
       </Box>
       <Text color={failed ? C.bad : C.text} wrap="truncate-end">{t.title}</Text>

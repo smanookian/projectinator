@@ -166,6 +166,17 @@ describe("Kanban board", () => {
     expect(frame).toContain("build it");
     unmount();
   });
+  it("a card with a verdict renders (a Box inside a Text is a hard ink crash)", () => {
+    const withVerdict: BoardTask[] = [
+      { id: "T-1", capability: "test", title: "test it", dependsOn: [], status: "done", verdict: "PASS" },
+      { id: "T-2", capability: "test", title: "retest it", dependsOn: [], status: "failed", verdict: "FAIL" },
+    ];
+    const { lastFrame, unmount } = render(<Kanban tasks={withVerdict} />);
+    const f = lastFrame() ?? "";
+    expect(f).toContain("PASS");
+    expect(f).toContain("FAIL");
+    unmount();
+  });
 });
 
 describe("templates", () => {

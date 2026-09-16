@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.19.1 — 2026-09-16
+
+### Fixed
+- **Crash: `<Box> can't be nested inside <Text>`.** Two @inkjs/ui components that render a
+  `<Box>` were placed inside a `<Text>`, which ink rejects outright:
+  - Settings → Local models, while probing a server (`Spinner` inside the "Server URL" line) —
+    this is the one that killed the app on `npm start` → Settings → Local models → Enter.
+  - The board card's verdict `Badge` (any card with PASS/PASS*/FAIL).
+  The spinner now sits beside the text in a `Box`, and the verdict renders as colored text like
+  the list view already did. Regression test covers a board card with a verdict.
+
 ## 0.19.0 — 2026-09-16
 
 ### Added
