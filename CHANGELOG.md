@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0 — 2026-09-16
+
+### Added
+- **Escalation ladder.** When a review/test still fails after the developer fix rounds
+  (tier-bumped), the build no longer just gives up: rung 3 — the Designer upstream of the
+  failing code rewrites the spec around the surviving bugs, and the developer fixes once more
+  against the new spec; rung 4 — the PM splits the stubborn code task into 2–4 smaller code
+  tasks, which join the backlog with a fresh review/test. Each rung runs at most once per
+  failing review/test; per-task and budget caps still apply. Event `escalate` (rung
+  `respec`/`replan`), printed by the CLI and `--json`. Orchestrator option `replan`.
+
 ## 0.10.0 — 2026-09-16
 
 ### Added

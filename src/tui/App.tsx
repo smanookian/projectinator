@@ -383,6 +383,8 @@ export default function App(): React.ReactElement {
         setTasks((ts) => ts.map((t) => (t.id === e.taskId ? { ...t, status: "failed", verdict: "FAIL" } : t)));
       } else if (e.type === "retry_dev") {
         setTasks((ts) => ts.map((t) => (t.id === e.taskId ? { ...t, status: "running" } : t)));
+      } else if (e.type === "escalate") {
+        setTasks((ts) => ts.map((t) => (t.id === e.taskId ? { ...t, status: "running", startedAt: Date.now() } : t)));
       }
     };
 

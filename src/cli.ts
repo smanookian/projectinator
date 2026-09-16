@@ -231,6 +231,7 @@ async function build(argv: Argv): Promise<number> {
     else if (e.type === "resumed") console.log(`    ▶ resumed`);
     else if (e.type === "test_failed") console.log(`    ✗ ${e.taskId} failed (${e.bugs} bugs) — round ${e.round}`);
     else if (e.type === "retry_dev") console.log(`    ↻ re-running ${e.taskId} to fix ${e.forTest}`);
+    else if (e.type === "escalate") console.log(`    ⇧ ${e.rung === "respec" ? "Designer rewrites the spec" : "PM splits the task"} (${e.taskId}) for ${e.forTask}: ${e.detail}`);
     else if (e.type === "budget_halt") console.log(`    ⚠ budget halt at ${money(e.runningTotal)} (cap ${money(e.cap)})`);
     else if (e.type === "cycle_or_error") console.log(`    ✗ ${e.message}`);
   };

@@ -76,7 +76,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [ ] Vite/npm stack on host, then Node/Express and Python backend targets — **Vite and Node shipped** (all 4 design steps; Vite live-verified, Node tested with a real spawned server). Python next: same shape as Node (`serve.ts` + a `python` profile). Design in [`docs/STACKS.md`](docs/STACKS.md): one *stack profile* (install/build/serve/entry/deployDir/doubleClick) read by every stage; 4 shippable steps; 3 open questions.
 - [x] Worktree-parallel code tasks — orchestrator `isolate` hook; `git.ts` add/merge/remove/prune worktrees; conflict → one serial rerun with a note; opt-in pref + `--parallel-code`. `.worktrees/` excluded everywhere.
 - [x] Mid-build steering — `BuildControl` (pause/resume/inject/remove/stop) consulted by the scheduler between launches; TUI keys p/a/r/x; `planExtraTasks` (one PM call); events + `--json`.
-- [ ] Escalation ladder beyond tier-bump — Designer re-spec, then bounded PM re-plan
+- [x] Escalation ladder — rung 3 Designer re-spec (dev fix sees the new spec), rung 4 PM split via `opts.replan` → pieces + fresh judge injected. Once per judge.
 - [ ] Sprints — group tasks, velocity, burndown per sprint
 - [ ] Auto-scout from an OpenRouter rankings/pricing feed → proposed registry diff (scout is already pure; it lacks a source)
 - [ ] Bake-off upgrades — cross-provider, code bake-off scored by the real tester, quality/$ Pareto

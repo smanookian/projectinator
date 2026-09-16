@@ -10,6 +10,7 @@
 
 import {
   TaskLimitError,
+  type Bug,
   type RegistryEntry,
   type RoleExecutor,
   type RoutingPolicy,
@@ -103,6 +104,10 @@ export interface RunOptions {
   isolate?: (task: Task) => Isolation | undefined;
   /** Steering handle (createBuildControl). Absent = no steering. */
   control?: ReturnType<typeof createBuildControl>;
+  /** Escalation rung 4: split a code task that keeps failing review/test into smaller tasks.
+   *  Return the replacement tasks (ids must be new; deps may point at existing tasks). The
+   *  orchestrator injects them plus a fresh judge. Absent = the ladder ends at the Designer. */
+  replan?: (info: { task: Task; bugs: Bug[]; judge: Task; backlog: Task[] }) => Promise<Task[]>;
 }
 
 export type OrchestratorEvent =
@@ -115,6 +120,8 @@ export type OrchestratorEvent =
   | { type: "resumed" }
   | { type: "task_added"; task: Task }
   | { type: "task_removed"; taskId: string }
+  /** Escalation past the dev-fix rounds: the Designer rewrites the spec, or the PM splits the task. */
+  | { type: "escalate"; taskId: string; rung: "respec" | "replan"; forTask: string; detail: string }
   | { type: "test_failed"; taskId: string; bugs: number; round: number }
   | { type: "retry_dev"; taskId: string; forTest: string; round: number }
   | { type: "budget_halt"; runningTotal: number; cap: number }
@@ -213,6 +220,10 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
     return outcome;
   };
 
+  const escalated = new Set<string>(); // "<judgeId>:respec" | "<judgeId>:replan" — each rung once per judge
+  const pending: Task[] = []; // tasks added from inside a task unit (escalation); picked up next pass
+  const inject = (tasks: Task[]) => { pending.push(...tasks); };
+
   // One task's full lifecycle: run it, then its Reviewer/Tester -> Developer feedback loop.
   const runTaskUnit = async (task: Task, iso?: Isolation): Promise<void> => {
     let outcome: TaskOutcome;
@@ -248,18 +259,66 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
       }
 
       let round = 1;
-      fix: while (outcome.verdict && !outcome.verdict.passed && round <= policy.maxFeedbackRounds) {
-        emit({ type: "test_failed", taskId: task.id, bugs: outcome.verdict.bugs.length, round });
-        const fixContext = bugReport(outcome.verdict.bugs);
+      const devFix = async (context: (dep: Task) => string): Promise<boolean> => {
         for (const dep of codeDeps) {
           emit({ type: "retry_dev", taskId: dep.id, forTest: task.id, round });
           // Escalation: the developer that just failed review/test retries one tier up.
           // The judge (review/test) stays on its routed model.
-          if ((await runOne(dep, round, fixContext, 1)).error) break fix;
+          if ((await runOne(dep, round, context(dep), 1)).error) return false;
         }
-        outcome = await runOne(task, round); // re-test
-        if (outcome.error) break;
+        outcome = await runOne(task, round); // re-judge
         round++;
+        return !outcome.error;
+      };
+      const failing = () => !!outcome.verdict && !outcome.verdict.passed;
+
+      // Rungs 1..N: developer fixes the reported bugs (tier-bumped), judge re-runs.
+      while (failing() && round <= policy.maxFeedbackRounds) {
+        emit({ type: "test_failed", taskId: task.id, bugs: outcome.verdict!.bugs.length, round });
+        const report = bugReport(outcome.verdict!.bugs);
+        if (!(await devFix(() => report))) break;
+      }
+
+      // Rung N+1: the Designer rewrites the spec the failing code was built from, once.
+      // The new spec flows to the developer through the normal upstream context.
+      const designDep = failing() && !outcome.error
+        ? codeDeps.flatMap((c) => (c.dependsOn ?? []).map((id) => byId.get(id))).find((d) => d?.capability === "design")
+        : undefined;
+      if (designDep && !escalated.has(`${task.id}:respec`)) {
+        escalated.add(`${task.id}:respec`);
+        const bugs = outcome.verdict!.bugs;
+        emit({ type: "escalate", taskId: designDep.id, rung: "respec", forTask: task.id, detail: `${bugs.length} bug(s) survived ${round - 1} fix round(s)` });
+        const respec = [
+          gatherContext(designDep, outcomes),
+          `Your earlier spec was implemented, but ${round - 1} round(s) of fixes could not clear these problems found by the ${task.capability === "review" ? "reviewer" : "tester"}:`,
+          ...bugs.map((b) => `- [${b.severity}]${b.file ? ` (${b.file})` : ""} ${b.description}`),
+          "Rewrite the spec so a developer cannot get these wrong: be concrete about the exact files, element ids, text, and behaviour involved; simplify anything ambiguous. Output the full revised spec.",
+        ].filter(Boolean).join("\n\n");
+        if (!(await runOne(designDep, round, respec)).error) {
+          emit({ type: "test_failed", taskId: task.id, bugs: bugs.length, round });
+          // The revised spec must reach the developer: rebuild the upstream context from the
+          // designer's new output instead of the bare bug list the earlier rounds use.
+          await devFix((dep) => `${gatherContext(dep, outcomes)}\n\n${bugReport(bugs)}\n\nThe design spec was revised because of these problems — follow the spec above exactly.`);
+        }
+      }
+
+      // Rung N+2: the PM splits the failing code task into smaller ones, once. They join the
+      // backlog with a fresh judge of the same kind; this judge's failed verdict stands.
+      if (failing() && !outcome.error && opts.replan && codeDeps.length && !escalated.has(`${task.id}:replan`)) {
+        escalated.add(`${task.id}:replan`);
+        const target = codeDeps[0]!;
+        const bugs = outcome.verdict!.bugs;
+        emit({ type: "escalate", taskId: target.id, rung: "replan", forTask: task.id, detail: `asking the PM to split ${target.id}` });
+        const pieces = (await opts.replan({ task: target, bugs, judge: task, backlog: ordered })).filter((t) => !byId.has(t.id) && t.capability !== "test" && t.capability !== "review");
+        if (pieces.length) {
+          const judge: Task = {
+            ...task,
+            id: `${task.id}-r${escalated.size}`,
+            title: `${task.title} (after split)`,
+            dependsOn: [...(task.dependsOn ?? []).filter((d) => d !== target.id), ...pieces.map((p) => p.id)],
+          };
+          inject([...pieces, judge]);
+        }
       }
     }
     checkpoint();
@@ -297,10 +356,10 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
     ordered.filter((t) => remaining.has(t.id) && !inFlight.has(t.id) && depsSatisfied(t));
 
   const applySteering = () => {
-    if (!control) return;
-    if (control._queue.length) {
-      const known = new Set([...byId.keys(), ...control._queue.map((t) => t.id)]);
-      for (const raw of control._queue.splice(0)) {
+    const queue = [...pending.splice(0), ...(control?._queue.splice(0) ?? [])];
+    if (queue.length) {
+      const known = new Set([...byId.keys(), ...queue.map((t) => t.id)]);
+      for (const raw of queue) {
         if (byId.has(raw.id)) continue; // duplicate id: ignore
         const t: Task = { ...raw, dependsOn: (raw.dependsOn ?? []).filter((d) => known.has(d)) };
         byId.set(t.id, t);
@@ -309,6 +368,7 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
         emit({ type: "task_added", task: t });
       }
     }
+    if (!control) return;
     for (const id of control._removed) {
       control._removed.delete(id);
       if (!remaining.has(id) || inFlight.has(id)) continue; // gone, done, or running: nothing to do

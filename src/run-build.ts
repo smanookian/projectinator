@@ -178,6 +178,7 @@ const onProgress = (e: OrchestratorEvent) => {
   else if (e.type === "merge_conflict") console.log(`    ⇄ ${e.taskId} conflicted on ${e.conflicts.join(", ")} — rebuilding serially`);
   else if (e.type === "test_failed") console.log(`    ✗ ${e.taskId} FAILED (${e.bugs} bugs) — round ${e.round}`);
   else if (e.type === "retry_dev") console.log(`    ↻ re-running ${e.taskId} to fix ${e.forTest}`);
+  else if (e.type === "escalate") console.log(`    ⇧ ${e.rung === "respec" ? "Designer rewrites the spec" : "PM splits the task"} (${e.taskId}) for ${e.forTask}: ${e.detail}`);
   else if (e.type === "budget_halt") console.log(`    ⚠ BUDGET HALT at ${money(e.runningTotal)} (cap ${money(e.cap)})`);
 };
 

@@ -6,7 +6,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join } from "node:path";
-import type { Capability, Provider, RegistryEntry, Task, TaskLimits, TaskOutcome, Tier } from "../types.js";
+import type { Bug, Capability, Provider, RegistryEntry, Task, TaskLimits, TaskOutcome, Tier } from "../types.js";
 import { DEFAULT_POLICY, route } from "../router.js";
 import { REGISTRY } from "../registry.js";
 import { MODELS } from "../models.js";
@@ -747,6 +747,33 @@ export async function planExtraTasks(
   return res.tasks.filter((t) => !taken.has(t.id));
 }
 
+/** Escalation rung 4: the PM splits a code task that keeps failing review/test into smaller
+ *  tasks (ids after the existing ones). One PM call. */
+export async function replanTask(
+  info: { task: Task; bugs: Bug[]; judge: Task; backlog: Task[] },
+  providers: Provider[],
+  workspace?: string,
+): Promise<Task[]> {
+  const { registry, lock } = chooseRegistry(providers);
+  const modelOverride = lock
+    ? { provider: lock, model: registry.find((e) => e.capability === "plan")!.byBackend.api.model }
+    : undefined;
+  const nextN = Math.max(0, ...info.backlog.map((t) => Number(/(\d+)$/.exec(t.id)?.[1] ?? 0))) + 1;
+  const prompt = [
+    `A build is running. This task keeps failing its ${info.judge.capability === "review" ? "review" : "test"} even after several developer fixes:`,
+    `- ${info.task.id} [${info.task.difficulty}] ${info.task.title}${info.task.notes ? ` — ${info.task.notes}` : ""}`,
+    `Problems that would not go away:`,
+    ...info.bugs.map((b) => `- [${b.severity}]${b.file ? ` (${b.file})` : ""} ${b.description}`),
+    "",
+    `Split it into 2–4 SMALLER code tasks that together redo this work from what is on disk, each with a precise, testable scope. Use ids T-${String(nextN).padStart(2, "0")} onwards.`,
+    `Only code tasks — no review or test tasks (they are added automatically). Keep dependsOn to these new ids or existing ones: ${info.task.dependsOn?.join(", ") || "(none)"}.`,
+  ].join("\n");
+  const projectContext = workspace ? buildProjectContext(workspace) : undefined;
+  const res = await decomposeIdea(prompt, { backend: "api", modelOverride, scope: "change", projectContext });
+  const taken = new Set(info.backlog.map((t) => t.id));
+  return res.tasks.filter((t) => !taken.has(t.id) && t.capability === "code").slice(0, 4);
+}
+
 export interface RunHandle {
   workspace: string;
   /** Set when the build runs on its own git branch (change to a published project). */
@@ -807,6 +834,7 @@ export function startBuild(
   const titleById = new Map(plan.tasks.map((t) => [t.id, t.title]));
   const onProgress = (e: OrchestratorEvent) => {
     opts.onEvent(e);
+    if (e.type === "task_added") titleById.set(e.task.id, e.task.title);
     // Worktree tasks are committed by the merge itself; everything else commits here.
     if (e.type === "task_done") commitTask(workspace, e.outcome.taskId, titleById.get(e.outcome.taskId) ?? e.outcome.taskId);
   };
@@ -822,6 +850,7 @@ export function startBuild(
   const promise = runBacklog(plan.tasks, {
     policy,
     control,
+    replan: (info) => replanTask(info, availableProviders(), workspace),
     execute: executor,
     registry: plan.registry,
     concurrency: opts.concurrency,
