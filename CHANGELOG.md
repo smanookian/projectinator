@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.0 — 2026-09-16
+
+### Added
+- **Collapsible epics** on both board editors (Plan board + Edit board). Each epic lane
+  shows a `▾ n` / `▸ n` marker and a collapse count; press its number (1-9) to hide or
+  reveal its tasks. Collapsed epics are excluded from the cursor, so up/down never land on a
+  hidden task. Helps large boards stay scannable.
+
 ## 0.18.0 — 2026-09-16
 
 ### Added

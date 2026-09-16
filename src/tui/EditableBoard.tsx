@@ -29,9 +29,10 @@ export function EditableBoard({
   const [field, setField] = useState<"title" | "epic" | "deps" | "notes">("title");
   const [draft, setDraft] = useState("");
   const [warn, setWarn] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set()); // epic name → hidden
 
   const lanes = groupByEpic(items);
-  const ordered = lanes.flatMap((l) => l.tasks);
+  const ordered = lanes.filter((l) => !collapsed.has(l.epic)).flatMap((l) => l.tasks);
   const selected = ordered[Math.min(cursor, ordered.length - 1)];
   const isDone = (id: string) => doneIds.has(id);
 
@@ -46,10 +47,20 @@ export function EditableBoard({
     return id;
   };
 
+  const toggleEpic = (epic: string) => {
+    setCollapsed((cs) => {
+      const n = new Set(cs);
+      if (n.has(epic)) n.delete(epic); else n.add(epic);
+      return n;
+    });
+    setCursor(0);
+  };
+
   useInput((input, key) => {
     if (editing) return;
     if (key.upArrow) return setCursor((c) => Math.max(0, c - 1));
     if (key.downArrow) return setCursor((c) => Math.min(ordered.length - 1, c + 1));
+    if (/^[1-9]$/.test(input)) { const lane = lanes[Number(input) - 1]; if (lane) toggleEpic(lane.epic); return; }
     if (input === "[" || input === "]") {
       if (!selected) return;
       const dir = input === "[" ? -1 : 1;
@@ -64,7 +75,7 @@ export function EditableBoard({
       const [moved] = next.splice(idx, 1);
       next.splice(j, 0, moved!);
       setItems(next);
-      const newOrdered = groupByEpic(next).flatMap((l) => l.tasks);
+      const newOrdered = groupByEpic(next).filter((l) => !collapsed.has(l.epic)).flatMap((l) => l.tasks);
       setCursor(newOrdered.findIndex((t) => t.id === moved!.id));
       return;
     }
@@ -131,10 +142,12 @@ export function EditableBoard({
         </Box>
       ) : null}
 
-      {lanes.map((lane) => (
-        <Box key={lane.epic} flexDirection="column" marginTop={1}>
-          <Text color={C.accent}>▊ {lane.epic}</Text>
-          {lane.tasks.map((t) => {
+      {lanes.map((lane, i) => {
+        const isCollapsed = collapsed.has(lane.epic);
+        return (
+          <Box key={lane.epic} flexDirection="column" marginTop={1}>
+            <Text color={C.accent}>{(isCollapsed ? "▸" : "▾")} <Text color={C.dim}>{i + 1}</Text> {lane.epic}{isCollapsed ? <Text color={C.dim}>  · {lane.tasks.length} task{lane.tasks.length === 1 ? "" : "s"}</Text> : null}</Text>
+            {isCollapsed ? null : lane.tasks.map((t) => {
             const sel = selected?.id === t.id;
             const done = isDone(t.id);
             return (
@@ -157,11 +170,13 @@ export function EditableBoard({
               </Box>
             );
           })}
-        </Box>
-      ))}
+          </Box>
+        );
+      })}
       <Box marginTop={1}>
         <KeyHint hints={[
           { keys: "↑↓", label: "pick" },
+          { keys: "1-9", label: "collapse" },
           { keys: "[ ]", label: "reorder" },
           { keys: "g", label: "epic" },
           { keys: "D", label: "deps" },

@@ -38,9 +38,10 @@ export function BoardEditor({
   const [draft, setDraft] = useState("");
   const [warn, setWarn] = useState("");
   const [busy, setBusy] = useState<string>(""); // epic being broken down
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set()); // epic name → hidden
 
   const lanes = groupByEpic(items);
-  const ordered = lanes.flatMap((l) => l.tasks); // flat cursor order (grouped by epic)
+  const ordered = lanes.filter((l) => !collapsed.has(l.epic)).flatMap((l) => l.tasks); // flat cursor order (collapsed epics excluded)
   const selected = ordered[Math.min(cursor, ordered.length - 1)];
 
   const update = (id: string, patch: Partial<Card>) =>
@@ -98,14 +99,24 @@ export function BoardEditor({
     const [moved] = next.splice(idx, 1);
     next.splice(j, 0, moved!);
     setItems(next);
-    const newOrdered = groupByEpic(next).flatMap((l) => l.tasks);
+    const newOrdered = groupByEpic(next).filter((l) => !collapsed.has(l.epic)).flatMap((l) => l.tasks);
     setCursor(newOrdered.findIndex((c) => c.id === moved!.id));
+  };
+
+  const toggleEpic = (epic: string) => {
+    setCollapsed((cs) => {
+      const n = new Set(cs);
+      if (n.has(epic)) n.delete(epic); else n.add(epic);
+      return n;
+    });
+    setCursor(0);
   };
 
   useInput((input, key) => {
     if (editing || busy) return;
     if (key.upArrow) return setCursor((c) => Math.max(0, c - 1));
     if (key.downArrow) return setCursor((c) => Math.min(ordered.length - 1, c + 1));
+    if (/^[1-9]$/.test(input)) { const lane = lanes[Number(input) - 1]; if (lane) toggleEpic(lane.epic); return; }
     if (key.leftArrow) return selected && update(selected.id, { parked: true });
     if (key.rightArrow) return selected && update(selected.id, { parked: false });
     if (input === "[") return reorder(-1);
@@ -223,21 +234,27 @@ export function BoardEditor({
         <Box flexBasis="25%" flexGrow={1}><Text color={C.dim} bold>DONE</Text></Box>
       </Box>
 
-      {lanes.map((lane) => (
-        <Box key={lane.epic} flexDirection="column" marginTop={1}>
-          <Text color={C.accent}>▊ {lane.epic}</Text>
-          <Box>
-            <Box width={12} />
-            <Cell cards={lane.tasks.filter((c) => c.parked)} />
-            <Cell cards={lane.tasks.filter((c) => !c.parked)} />
-            <Box flexBasis="25%" flexGrow={1} marginRight={1}><Text color={C.dim}>·</Text></Box>
-            <Box flexBasis="25%" flexGrow={1}><Text color={C.dim}>·</Text></Box>
+      {lanes.map((lane, i) => {
+        const isCollapsed = collapsed.has(lane.epic);
+        return (
+          <Box key={lane.epic} flexDirection="column" marginTop={1}>
+            <Text color={C.accent}>{(isCollapsed ? "▸" : "▾")} <Text color={C.dim}>{i + 1}</Text> {lane.epic}{isCollapsed ? <Text color={C.dim}>  · {lane.tasks.length} task{lane.tasks.length === 1 ? "" : "s"}</Text> : null}</Text>
+            {isCollapsed ? null : (
+              <Box>
+                <Box width={12} />
+                <Cell cards={lane.tasks.filter((c) => c.parked)} />
+                <Cell cards={lane.tasks.filter((c) => !c.parked)} />
+                <Box flexBasis="25%" flexGrow={1} marginRight={1}><Text color={C.dim}>·</Text></Box>
+                <Box flexBasis="25%" flexGrow={1}><Text color={C.dim}>·</Text></Box>
+              </Box>
+            )}
           </Box>
-        </Box>
-      ))}
+        );
+      })}
       <Box marginTop={1}>
         <KeyHint hints={[
           { keys: "↑↓", label: "pick" },
+          { keys: "1-9", label: "collapse" },
           { keys: "→/←", label: "col" },
           { keys: "[ ]", label: "reorder" },
           { keys: "a", label: "add" },

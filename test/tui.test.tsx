@@ -356,4 +356,25 @@ describe("BoardEditor (interactive)", () => {
     expect(out!.map((t) => t.id).sort()).toEqual(["T-1", "T-2"]);
     unmount();
   });
+  it("1-9 collapse/expand an epic: others stay, count shows, toggle back", async () => {
+    const multi: Task[] = [
+      { id: "T-1", title: "alpha one", capability: "code", difficulty: "low", dependsOn: [], epic: "Core", estTokens: { input: 1, output: 1 } },
+      { id: "T-2", title: "alpha two", capability: "code", difficulty: "low", dependsOn: [], epic: "Core", estTokens: { input: 1, output: 1 } },
+      { id: "T-3", title: "beta one", capability: "test", difficulty: "low", dependsOn: [], epic: "Polish", estTokens: { input: 1, output: 1 } },
+    ];
+    const { lastFrame, stdin, unmount } = render(<BoardEditor tasks={multi} onDone={() => {}} onCancel={() => {}} />);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(lastFrame()).toContain("alpha one");
+    stdin.write("1"); // collapse "Core"
+    await new Promise((r) => setTimeout(r, 30));
+    const f = lastFrame() ?? "";
+    expect(f).not.toContain("alpha one");
+    expect(f).not.toContain("alpha two");
+    expect(f).toContain("beta one"); // other epic untouched
+    expect(f).toContain("2 tasks"); // collapsed count
+    stdin.write("1"); // expand again
+    await new Promise((r) => setTimeout(r, 30));
+    expect(lastFrame()).toContain("alpha one");
+    unmount();
+  });
 });
