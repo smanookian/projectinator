@@ -78,7 +78,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [x] Mid-build steering — `BuildControl` (pause/resume/inject/remove/stop) consulted by the scheduler between launches; TUI keys p/a/r/x; `planExtraTasks` (one PM call); events + `--json`.
 - [x] Escalation ladder — rung 3 Designer re-spec (dev fix sees the new spec), rung 4 PM split via `opts.replan` → pieces + fresh judge injected. Once per judge.
 - [x] Sprints — `Sprint` records per run in build-state (outcome slice), `sprints.ts` metrics (done/retries/cost/velocity), Sprints & burndown screen with ←/→.
-- [ ] Auto-scout from an OpenRouter rankings/pricing feed → proposed registry diff (scout is already pure; it lacks a source)
+- [x] Auto-scout — `scout-feed.ts` over the OpenRouter catalog (pricing + `created`): drift >10%, new routed-vendor models, one finding per slot → `proposeUpdate`. `projectinator scout [--findings f]`. Rankings have no public API; catalog only.
 - [ ] Bake-off upgrades — cross-provider, code bake-off scored by the real tester, quality/$ Pareto
 - [x] GitHub push + PR per build; export backlog to GitHub Issues — `github.ts` over `gh`: Publish (create+push), change builds on published/imported projects run on a `projectinator/…` branch → Open PR (body = task table + cost), Issues export (epic = label, idempotent). Owned repos push `main`; pre-existing remotes are branch+PR only. Bookkeeping excluded via `.git/info/exclude`. Verified live on a throwaway repo (PR #1, issue, clean tree).
 - [ ] MCP server exposing Projectinator

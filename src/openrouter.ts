@@ -13,7 +13,10 @@ import { join } from "node:path";
 import type { Model, ModelCost } from "./types.js";
 
 /** A pickable OpenRouter model: our Model shape minus the provider (always "openrouter"). */
-export type ORModel = Omit<Model, "provider">;
+export type ORModel = Omit<Model, "provider"> & {
+  /** Listing date (epoch seconds) from the live catalog; absent on Pi's built-in list. */
+  created?: number;
+};
 
 const CACHE = join(homedir(), ".projectinator", "openrouter-models.json");
 
@@ -76,6 +79,7 @@ function mapApiModel(m: {
   id: string;
   name?: string;
   context_length?: number;
+  created?: number;
   pricing?: { prompt?: string; completion?: string; input_cache_read?: string; input_cache_write?: string };
 }): ORModel | null {
   const p = m.pricing ?? {};
@@ -89,6 +93,7 @@ function mapApiModel(m: {
     name: m.name ?? m.id,
     contextWindow: m.context_length ?? 200_000,
     cost: { input, output, cacheRead, cacheWrite },
+    ...(m.created ? { created: m.created } : {}),
   };
 }
 

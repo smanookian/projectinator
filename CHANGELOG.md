@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.13.0 — 2026-09-16
+
+### Added
+- **Auto-scout.** `projectinator scout` reads the live OpenRouter catalog (the same feed
+  used for pricing) and reports: price drift over 10% for every model we price (native ids
+  are mapped to their `vendor/slug`), new models from the vendors we route that are newer
+  than our roster (`:batch`/`:free`/dated-preview variants skipped), and a proposed registry
+  diff — one candidate per slot, priced like the current pick, always flagged
+  `unknown-model` until someone adds it to `models.ts`. `--findings <file>` writes the
+  findings for the existing `npm run scout -- --from <file> --apply` flow. Nothing is applied
+  automatically. `src/scout-feed.ts` (pure); catalog entries now carry `created`.
+
 ## 0.12.0 — 2026-09-16
 
 ### Added

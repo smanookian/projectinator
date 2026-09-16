@@ -18,6 +18,10 @@ import type { OrchestratorEvent } from "./orchestrator.js";
 import type { Provider } from "./types.js";
 import { MODELS, getModel } from "./models.js";
 import { REGISTRY } from "./registry.js";
+import { refreshOpenRouterModels } from "./openrouter.js";
+import { scoutFromCatalog, formatScoutReport } from "./scout-feed.js";
+import { proposeUpdate, formatProposal } from "./scout.js";
+import { writeFileSync } from "node:fs";
 import { piRuntime, resolvePiModel } from "./executor.js";
 import { chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
 import { applyKeysToEnv, getPrefs, getWebhookUrl, loadConfig, ENV_VAR, type KeyedProvider } from "./tui/config.js";
@@ -252,6 +256,28 @@ async function build(argv: Argv): Promise<number> {
   return r.halted ? 3 : 0;
 }
 
+// ---- scout ----
+
+/** Live OpenRouter catalog → price drift + new models from routed vendors + proposed
+ *  registry changes. Read-only unless --findings writes the JSON for `npm run scout --from`. */
+async function scout(argv: Argv): Promise<number> {
+  const catalog = await refreshOpenRouterModels();
+  if (!catalog.length) { console.error("  scout: could not fetch the OpenRouter catalog (offline?)."); return 1; }
+  const r = scoutFromCatalog(catalog, MODELS, REGISTRY);
+  console.log(`\n  projectinator scout — OpenRouter catalog, ${catalog.length} models\n`);
+  console.log(formatScoutReport(r));
+  const proposal = proposeUpdate(REGISTRY, r.findings);
+  console.log("\n  Proposed registry changes (all need a human: new models are unknown to models.ts):");
+  console.log(formatProposal(proposal.changes));
+  const out = argv.flags["findings"];
+  if (typeof out === "string") {
+    writeFileSync(out, JSON.stringify({ findings: r.findings }, null, 2) + "\n");
+    console.log(`\n  Wrote ${r.findings.length} finding(s) to ${out} — review, then: npm run scout -- --from ${out} --apply`);
+  }
+  console.log("");
+  return 0;
+}
+
 // ---- main ----
 
 const USAGE = `Usage: projectinator <command> [options]
@@ -270,6 +296,7 @@ const USAGE = `Usage: projectinator <command> [options]
       --parallel-code           independent code tasks build at once in git worktrees (default: prefs)
   projects                      list past builds with status and cost
   models                        the roster as it will run, with prices
+  scout [--findings <file>]     live OpenRouter catalog: price drift, new models, proposed registry diff
 
 Exit codes: 0 ok · 1 environment problem · 2 bad usage · 3 build halted`;
 
@@ -281,6 +308,7 @@ export async function main(args: string[]): Promise<number> {
     case "doctor": return doctor();
     case "projects": return projects();
     case "models": return models();
+    case "scout": return scout(argv);
     case "build": return build(argv);
     case undefined: case "help": console.log(USAGE); return cmd ? 0 : 2;
     default: console.error(`projectinator: unknown command "${cmd}".\n\n${USAGE}`); return 2;

@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 217 passing](https://img.shields.io/badge/tests-261%20passing-brightgreen.svg)
+![tests: 217 passing](https://img.shields.io/badge/tests-264%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -98,6 +98,7 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
 | ⛔ **Task limits** | Per-task timeout and cost ceiling (Settings → Preferences). A runaway task is aborted, billed for what it spent, and the build halts — resumable. |
 | ✎ **Task notes** | Annotate any task on the board (`n`). Yours only — never sent to a model; included in exports. |
 | 📥 **Import a folder** | Bring an existing site or prototype in as a project; the PM plans changes against its real files. |
+| 🔭 **Auto-scout** | `projectinator scout`: live price drift, new models from routed vendors, proposed registry diff — human applies. |
 | 🏃 **Sprints** | Each run is a sprint: planned/done/retries/cost/time per sprint, velocity, per-sprint burndown. |
 | 🪜 **Escalation ladder** | Fix rounds (tier-bumped) → Designer re-spec → PM splits the task. Each rung once; caps apply. |
 | 🎛 **Steer mid-build** | `p` pause/resume · `a` add work (PM plans it into the backlog) · `r` remove an unstarted task · `x` stop after running tasks. |
@@ -144,6 +145,7 @@ projectinator build "…" --task-cap 0.5 --task-timeout 5           # per-task l
 projectinator build "…" --stack vite                             # Vite + React + TS instead of static
 projectinator build "…" --parallel-code --concurrency 4          # code tasks in parallel worktrees
 projectinator projects                                # past builds, status, cost
+projectinator scout                                             # price drift + new models + proposed diff
 projectinator models                                  # the roster as it will run, with prices
 ```
 
@@ -157,7 +159,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 261 tests
+npm test                                          # 264 tests
 npm run typecheck
 ```
 </details>
