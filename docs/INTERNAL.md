@@ -75,7 +75,7 @@ The brief the planner sees is composed **purely** from state:
 | `deploy.ts` | Cloudflare/Vercel/Netlify via their CLI; staging dir |
 | `templates.ts` | built-in + user templates; save/export/import |
 | `config.ts` | `~/.projectinator/config.json` (0600), prefs getters/setters |
-| `Kanban/BoardEditor/EditableBoard/panels/theme/notify/validate` | board, editing, standup, amber theme, notifications |
+| `Kanban/BoardEditor/EditableBoard/panels/theme/theme-context/icons/notify/validate` | board, editing, standup, dark/light themes + live `C` proxy, role icons, notifications |
 
 ## Running & developing
 
@@ -83,7 +83,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (272)
+npm test                  # vitest (279)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 

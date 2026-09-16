@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.18.0 — 2026-09-16
+
+### Added
+- **Themes & a restyle across the whole TUI** (Settings → Appearance):
+  - **Dark / light themes** — the palette is a `Theme` (dark amber cockpit, light) resolved
+    through a live `C` proxy, so every token follows the active theme and light mode paints a
+    real light background with white cards. `PROJECTINATOR_HOME`-style live switching.
+  - **Clearer hierarchy** — panels are full-width with a surface background and **bold** (not
+    amber) titles; keycaps are muted; **amber now means interactive/in-focus only** (brand,
+    active menu, spinners, input carets). Status colors (pass/warn/fail/running) actually work
+    and resolve correctly per theme.
+  - **Nerd Font role icons** with a monospace-safe ASCII fallback (`Appearance → Icons`),
+    codepoints pinned from the Nerd Fonts v3 cheat sheet. Role emoji (double-width, blurry) gone.
+- **Consistent casing** in Settings values (`Webhook: Off`, `Default stack: Ask/…`).
+
+### Fixed
+- Light theme originally painted a light card on the transparent (dark) terminal frame, and bare
+  text used the terminal's default white foreground — title/board/role text vanished. The app now
+  paints an opaque light background and every text carries an explicit theme color.
+
 ## 0.17.0 — 2026-09-16
 
 ### Added
