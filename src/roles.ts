@@ -380,6 +380,8 @@ export interface PiExecutorOptions {
   onEvent?: Parameters<AgentSession["subscribe"]>[0];
   /** Called when a task falls back from its routed provider to another one. */
   onFallback?: (info: { taskId: string; from: Provider; to: Provider; model: string }) => void;
+  /** Never try another provider (a bake-off measures exactly one model). */
+  noFallback?: boolean;
 }
 
 // Env vars that hold each provider's key (mirrors run-build's check).
@@ -562,7 +564,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
   };
 
   return async ({ task, decision, contextText, limits, round, workspace }) => {
-    const chain = fallbackChain(decision.provider, decision.model.id, task.capability);
+    const chain = opts.noFallback ? [{ provider: decision.provider, model: decision.model.id }] : fallbackChain(decision.provider, decision.model.id, task.capability);
     let lastErr: unknown;
     for (let i = 0; i < chain.length; i++) {
       const cand = chain[i]!;

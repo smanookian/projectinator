@@ -20,6 +20,7 @@ import { initRepo, commitTask, undoLastCommit, history as gitHistory, remoteUrl,
 import { startChangeBranch } from "../github.js";
 import { computeRetro, type RetroReport } from "../retro.js";
 import { computeSprints, type SprintSummary } from "../sprints.js";
+import type { Candidate } from "../bakeoff.js";
 import { narrateRetro } from "../narrate.js";
 import { decomposeIdea } from "../pm.js";
 import { assessIntake, type IntakeQuestion } from "../intake.js";
@@ -73,6 +74,31 @@ export function chooseRegistry(providers: Provider[]): { registry: RegistryEntry
   if (pref && providers.includes(pref)) return { registry: lockedRegistry(pref), lock: pref };
   if (providers.length === 1) return { registry: lockedRegistry(providers[0]!), lock: providers[0] };
   return { registry: seed };
+}
+
+/** Bake-off candidates for a capability: the roster's fast/mid/high picks across every
+ *  connected provider (deduped), plus any configured local models. Cross-provider by design. */
+export function bakeoffCandidates(capability: Capability): Candidate[] {
+  const providers = availableProviders();
+  const { registry } = chooseRegistry(providers);
+  const seen = new Set<string>();
+  const out: Candidate[] = [];
+  const add = (c: Candidate) => { const k = `${c.provider}/${c.model}`; if (!seen.has(k)) { seen.add(k); out.push(c); } };
+  for (const e of registry) {
+    if (e.capability !== capability) continue;
+    const pick = e.byBackend.api;
+    if (providers.includes(pick.provider)) add(pick);
+  }
+  for (const m of getLocalModels()?.models ?? []) add({ provider: "local", model: m });
+  return out;
+}
+
+/** The roster's Tester (test/fast) — the one that scores a code bake-off. */
+export function rosterTester(): Candidate | undefined {
+  const providers = availableProviders();
+  const { registry } = chooseRegistry(providers);
+  const e = registry.find((x) => x.capability === "test" && x.tier === "fast") ?? registry.find((x) => x.capability === "test");
+  return e && providers.includes(e.byBackend.api.provider) ? e.byBackend.api : undefined;
 }
 
 export function projectRoot(): string {

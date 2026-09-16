@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.14.0 — 2026-09-16
+
+### Added
+- **Bake-off upgrades.** Candidates now come from your connected roster — every provider
+  you hold a key for (fast/mid/high picks, deduped) plus local models — instead of three
+  hard-coded Claude tiers; `npm run bakeoff -- --models provider:model,…` mixes providers.
+  **Code bake-off**: each model builds the task in its own scratch folder with the real
+  developer tooling (no provider fallback), then the roster's Tester runs every build
+  (headless browser, interaction); the verdict is the score (PASS 10 / PASS* 9, bugs cost by
+  severity, FAIL ≤ 5) — no judge model. **Quality/$ Pareto**: ★ marks models no other beats
+  on both score and cost; "best value" = score per dollar among passing results.
+  Verified live: Sonnet 5 PASS 10/10 $0.02 vs Gemini 3.8 Flash FAIL (wrote no files).
+
 ## 0.13.1 — 2026-09-16
 
 ### Fixed

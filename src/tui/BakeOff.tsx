@@ -1,33 +1,29 @@
-// Model bake-off — run one task across models, judge quality, compare cost, and
-// optionally save the winner as the model for that role. The founding idea, in
-// the cockpit. v1 covers text roles (design, plan, test-reasoning).
+// Model bake-off — run one task across the connected roster (every provider you hold a
+// key for, plus local models), judge quality (text) or let the real Tester score each
+// build (code), compare cost, mark the quality/$ frontier, and optionally save the winner
+// as the model for that role. The founding idea, in the cockpit.
 
 import React, { useState } from "react";
 import { Box, Text } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
 import { C, Panel, Menu as SelectInput, KeyHint, TextField as TextInput } from "./components.js";
-import { setRoleModel, modelLabel } from "./engine.js";
-import { runBakeoff, bakeoffTask, type BakeoffResult, type Candidate } from "../bakeoff.js";
+import { setRoleModel, modelLabel, bakeoffCandidates, rosterTester } from "./engine.js";
+import { runBakeoff, bakeoffTask, type BakeoffResult } from "../bakeoff.js";
 import type { Capability } from "../types.js";
 
 const CAPS: { label: string; value: Capability }[] = [
   { label: "Design — spec / UI", value: "design" },
   { label: "Plan — decompose / decide", value: "plan" },
   { label: "Test — review reasoning", value: "test" },
+  { label: "Code — each model builds it, the real Tester scores it (slower, costs more)", value: "code" },
 ];
 
 const SAMPLE: Record<string, string> = {
   design: "Design a pricing page with 3 tiers (Free, Pro, Team): layout, components, colors, states",
   plan: "Plan an MVP task backlog for a URL shortener with analytics",
   test: "Review this login flow spec and list the edge cases a tester must check",
+  code: "Build a single-page tip calculator: bill input, tip % buttons (10/15/20), live total; index.html + style.css + script.js",
 };
-
-// v1 compares the three Claude tiers (what most people hold a key for).
-const DEFAULT_CANDIDATES: Candidate[] = [
-  { provider: "anthropic", model: "claude-opus-4-8" },
-  { provider: "anthropic", model: "claude-sonnet-4-6" },
-  { provider: "anthropic", model: "claude-haiku-4-5" },
-];
 
 type View =
   | { kind: "pickCap" }
@@ -47,7 +43,10 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
     setLog([]);
     setNotice("");
     setView({ kind: "running" });
-    runBakeoff(bakeoffTask(prompt, cap), DEFAULT_CANDIDATES, {
+    const candidates = bakeoffCandidates(cap);
+    if (candidates.length < 2) return setView({ kind: "error", msg: "A bake-off needs at least two models — connect another provider (Settings → API keys) or add a local model." });
+    runBakeoff(bakeoffTask(prompt, cap), candidates, {
+      tester: rosterTester(),
       onProgress: (m) => setLog((prev) => [...prev.slice(-30), m]),
     })
       .then((result) => setView({ kind: "results", result }))
@@ -60,8 +59,8 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
       <Box flexDirection="column">
         <Panel title="Model bake-off">
           <Box flexDirection="column" marginBottom={1}>
-            <Text color={C.dim}>Run one task across the three Claude tiers, judge quality,</Text>
-            <Text color={C.dim}>and compare cost + speed. Save the winner as that role's model.</Text>
+            <Text color={C.dim}>Run one task across your connected roster ({bakeoffCandidates("design").map((c) => modelLabel(c.model)).join(", ") || "no models"}),</Text>
+            <Text color={C.dim}>judge quality, compare cost + speed, see the quality/$ frontier. Save the winner as that role's model.</Text>
           </Box>
           <SelectInput
             items={[...CAPS, { label: "Back", value: "__back" }]}
@@ -82,7 +81,8 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
     return (
       <Box flexDirection="column">
         <Panel title={`Bake-off task — ${cap}`}>
-          <Text color={C.textMuted}>Edit the task, then run it across Opus / Sonnet / Haiku.</Text>
+          <Text color={C.textMuted}>Edit the task, then run it across: {bakeoffCandidates(cap).map((c) => modelLabel(c.model)).join(", ")}.</Text>
+          {cap === "code" ? <Text color={C.textMuted}>Each model builds in its own scratch folder; the Tester ({modelLabel(rosterTester()?.model ?? "?")}) runs every build. Judge-free: the verdict is the score.</Text> : null}
           <Box marginTop={1}>
             <Text color={C.accent}>{"› "}</Text>
             <TextInput
@@ -105,7 +105,7 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
     return (
       <Box flexDirection="column">
         <Panel title={`Running bake-off — ${cap}`}>
-          <Spinner label="Running each model, then judging (real spend)…" />
+          <Spinner label={cap === "code" ? "Each model builds, then the Tester runs it (real spend)…" : "Running each model, then judging (real spend)…"} />
           <Box marginTop={1} flexDirection="column">
             {log.slice(-8).map((l, i) => <Text key={i} color={C.textSubtle} wrap="truncate-end">{l}</Text>)}
           </Box>
@@ -132,34 +132,36 @@ export function BakeOff({ onExit }: { onExit: () => void }): React.ReactElement 
   const { result } = view;
   const scoreOf = new Map(result.scores.map((s) => [s.model, s]));
   const cheapest = result.entries.filter((e) => !e.error).sort((a, b) => a.cost - b.cost)[0];
-  const winnerModel = result.winner?.split("/")[1];
+  const winnerModel = result.winner?.split("/").slice(1).join("/"); // OpenRouter slugs contain "/"
   return (
     <Box flexDirection="column">
       {notice ? <Box marginBottom={1}><StatusMessage variant="success">{notice}</StatusMessage></Box> : null}
       <Panel title={`Bake-off results — ${cap}`}>
       <Box flexDirection="column">
-        <Text color={C.textSubtle}>{"model".padEnd(22)}{"score".padEnd(7)}{"cost".padEnd(11)}{"time".padEnd(7)}tok</Text>
+        <Text color={C.textSubtle}>{"model".padEnd(22)}{"score".padEnd(7)}{"cost".padEnd(11)}{"time".padEnd(7)}{cap === "code" ? "files" : "tok"}</Text>
         {result.entries.map((e) => {
           const key = `${e.provider}/${e.model}`;
           const sc = scoreOf.get(key);
           const win = key === result.winner;
+          const onFront = result.pareto.includes(key);
           return (
             <Text key={key} color={win ? C.accent : e.error ? C.warn : C.text}>
-              {(win ? "🏆 " : "   ") + modelLabel(e.model)}
+              {(win ? "🏆 " : onFront ? " ★ " : "   ") + modelLabel(e.model)}
               {"  "}
               {(e.error ? "ERR" : sc ? `${sc.score}/10` : "—").padEnd(7)}
               {(e.error ? "—" : `$${e.cost.toFixed(4)}`).padEnd(11)}
               {(e.error ? "—" : `${(e.ms / 1000).toFixed(1)}s`).padEnd(7)}
-              {e.error ? "" : String(e.outputTokens)}
+              {e.error ? "" : String(cap === "code" ? e.files?.length ?? 0 : e.outputTokens)}
             </Text>
           );
         })}
       </Box>
       {result.winner ? (
         <Box marginTop={1} flexDirection="column">
-          <Text color={C.dim}>🏆 Best quality: {modelLabel(winnerModel ?? "")}  ·  💸 Cheapest: {cheapest ? modelLabel(cheapest.model) : "—"}  (judge: {modelLabel(result.judge?.split("/")[1] ?? "")})</Text>
+          <Text color={C.dim}>🏆 Best quality: {modelLabel(winnerModel ?? "")}  ·  💸 Cheapest: {cheapest ? modelLabel(cheapest.model) : "—"}  ·  ⚖ Best value: {result.bestValue ? modelLabel(result.bestValue.split("/").slice(1).join("/")) : "—"}  ({cap === "code" ? "tester" : "judge"}: {modelLabel(result.judge?.split("/").slice(1).join("/") ?? "")})</Text>
+          <Text color={C.dim}>★ = on the quality/$ frontier (no model is both better and cheaper).</Text>
           {result.scores.sort((a, b) => b.score - a.score).map((s) => (
-            <Text key={s.model} color={C.dim} wrap="truncate-end">  {s.score}/10 {modelLabel(s.model.split("/")[1] ?? s.model)} — {s.reason}</Text>
+            <Text key={s.model} color={C.dim} wrap="truncate-end">  {s.score}/10 {modelLabel(s.model.split("/").slice(1).join("/") || s.model)} — {s.reason}</Text>
           ))}
         </Box>
       ) : (
