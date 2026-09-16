@@ -1787,7 +1787,10 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Text bold color={C.good}>✓ Plan ready</Text>
-        <Box marginTop={1}><Team /></Box>
+        {/* Roster (~10 rows) and the alternate-roster table are the first things to go: the
+            decision menu below must stay whole. Overflowing the clipped frame makes Yoga
+            render rows on top of each other. */}
+        {termRows >= 32 ? <Box marginTop={1}><Team /></Box> : null}
         <Box marginTop={1} gap={1} flexWrap="wrap">
           <Chip label={`${plan.tasks.length} tasks`} dotColor={C.accent} />
           <Chip label={`est $${plan.estCost.toFixed(2)}`} dotColor={overCap ? C.bad : C.good} active={overCap} />
@@ -1798,6 +1801,7 @@ export default function App(): React.ReactElement {
         </Text>
         {overCap && <Text color={C.bad}>{"\n"}Estimate exceeds the ${effCap} cap — it may halt partway.</Text>}
         {(() => {
+          if (termRows < 30) return null;
           const rows = costMatrix(plan.tasks, plan.registry, providers, plan.lock);
           if (rows.length < 2) return null;
           return (
@@ -2053,12 +2057,16 @@ export default function App(): React.ReactElement {
         {tasks.some((t) => t.verdict === "PASS*") ? (
           <Text color={C.warn}>⚠ Tests marked PASS* were never executed in a browser — {CHROMIUM_INSTALL_HINT}.</Text>
         ) : null}
-        <Box marginTop={1}>
-          <Standup
-            tasks={tasks.map((t) => ({ id: t.id, capability: t.capability, title: t.title, status: t.status, cost: t.cost, verdict: t.verdict }))}
-            spent={spent}
-          />
-        </Box>
+        {/* The standup chips repeat what the Result panel says; drop them rather than let the
+            screen overflow and have Yoga merge the action rows. */}
+        {termRows >= 30 ? (
+          <Box marginTop={1}>
+            <Standup
+              tasks={tasks.map((t) => ({ id: t.id, capability: t.capability, title: t.title, status: t.status, cost: t.cost, verdict: t.verdict }))}
+              spent={spent}
+            />
+          </Box>
+        ) : null}
         <Box marginTop={1}>
           <Panel title="Result">
             <Box gap={1} flexWrap="wrap" marginBottom={1}>

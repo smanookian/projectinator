@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.20.2 — 2026-09-16
+
+### Fixed
+- **The plan and done screens overflowed a short terminal**, and the clipped frame made Yoga
+  render rows on top of each other — on the plan screen the roster came out as
+  "Designermanager" and the decision menu as "Budget cap: $25g now ($0.42)(2 in backlog)";
+  on the done screen "New build" and "Add a file / image" merged into "New builde / image".
+  Both now drop their optional panels (roster / alternate-roster costs / standup chips) when
+  there isn't room, so the actionable menu always renders whole. Same class as the project
+  screen fixed in 0.20.1 — the plan screen is on the path of every single build.
+
+### Added
+- **Build-flow tests.** plan → building → done had no App-level coverage at all, because
+  reaching it for real costs money. The three spending calls (`assessBuild`, `planBuild`,
+  `startBuild`) are now mockable, so the tests walk the real App to the plan screen, start a
+  build, drive orchestrator events, and exercise the **mid-build steering keys** (`p` pause /
+  resume, `x` stop) against a real `BuildControl` — which shipped in 0.10.0 with orchestrator
+  tests but nothing covering the cockpit that drives them.
+
 ## 0.20.1 — 2026-09-16
 
 ### Fixed
