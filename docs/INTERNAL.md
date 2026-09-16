@@ -43,7 +43,7 @@ The brief the planner sees is composed **purely** from state:
 | `pm.ts` | `decomposeIdea` — forced-tool backlog; accepts approved `epics` |
 | `intake.ts` | `assessIntake` (clarifying questions) + `enrichBrief` |
 | `council.ts` | `councilEpics` — 3 lenses ∥ → synthesize epics |
-| `orchestrator.ts` | toposort + run backlog + Tester→Dev loop + parallel scheduler + budget halt + limit-breach → failed outcome & halt |
+| `orchestrator.ts` | toposort + run backlog + Tester→Dev loop + parallel scheduler (+ `isolate` for worktree-parallel code) + budget halt + limit-breach → failed outcome & halt |
 | `build-state.ts` | checkpoint/restore (save & resume) |
 | `preview.ts` | static server (+live-reload) and `renderCheck` (headless render + viewports + a11y facts) and `interactCheck` (step script) |
 | `bakeoff.ts` | run one task across models + LLM judge |
@@ -81,7 +81,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (244)
+npm test                  # vitest (250)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 
@@ -129,6 +129,5 @@ npm run typecheck         # tsc --noEmit — run this after every change
   vendors (2026); browser automation half-works for Claude but is brittle + ToS-violating. See
   the memory note. Do not promote it.
 - **React = CDN/no-build.** Vite-with-build needs reliable `npm install` in the task sandbox.
-- **Parallel tasks share one workspace** — independent tasks touch different files by design;
-  git-worktree isolation is deferred.
+- **Parallel code tasks are opt-in** (worktrees, merged per task). Off = the old one-code-task-at-a-time rule.
 - **Mobile/Desktop** stacks currently fall back to a web build.

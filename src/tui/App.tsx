@@ -350,6 +350,8 @@ export default function App(): React.ReactElement {
         setTasks((ts) => ts.map((t) => (t.id === e.outcome.taskId ? { ...t, status: "failed", cost: (t.cost ?? 0) + e.outcome.cost } : t)));
       } else if (e.type === "task_skipped") {
         setTasks((ts) => ts.map((t) => (t.id === e.taskId ? { ...t, status: "skipped" } : t)));
+      } else if (e.type === "merge_conflict") {
+        setTasks((ts) => ts.map((t) => (t.id === e.taskId ? { ...t, status: "running", startedAt: Date.now() } : t)));
       } else if (e.type === "test_failed") {
         setTasks((ts) => ts.map((t) => (t.id === e.taskId ? { ...t, status: "failed", verdict: "FAIL" } : t)));
       } else if (e.type === "retry_dev") {
@@ -374,6 +376,7 @@ export default function App(): React.ReactElement {
       onGate,
       changeIdea: scope === "change" ? idea : undefined,
       stack: profileFor(stackChoice).id,
+      parallelCode: prefs.parallelCode,
     });
     let alive = true;
     handle.promise

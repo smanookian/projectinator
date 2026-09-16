@@ -44,6 +44,14 @@ export function toposort(tasks: Task[]): Task[] {
   return out;
 }
 
+/** Isolation for a parallel code task: a private directory to build in, and how to fold
+ *  the result back. `merge` returns conflicting paths when the fold-back failed. */
+export interface Isolation {
+  dir: string;
+  merge: (message: string) => { ok: true } | { ok: false; conflicts: string[] };
+  discard: () => void;
+}
+
 export interface RunOptions {
   policy: RoutingPolicy;
   execute: RoleExecutor;
@@ -58,6 +66,9 @@ export interface RunOptions {
   concurrency?: number;
   /** Optional human gate before development begins (design done → dev). Resolve "stop" to halt. */
   onGate?: (info: { stage: string }) => Promise<"continue" | "stop">;
+  /** Give a parallel code task its own directory (git worktree). Absent = code tasks
+   *  serialize on the shared workspace. Only consulted when another code task is running. */
+  isolate?: (task: Task) => Isolation | undefined;
 }
 
 export type OrchestratorEvent =
@@ -65,6 +76,7 @@ export type OrchestratorEvent =
   | { type: "task_done"; outcome: TaskOutcome; runningTotal: number }
   | { type: "task_failed"; outcome: TaskOutcome; runningTotal: number }
   | { type: "task_skipped"; taskId: string }
+  | { type: "merge_conflict"; taskId: string; conflicts: string[] }
   | { type: "test_failed"; taskId: string; bugs: number; round: number }
   | { type: "retry_dev"; taskId: string; forTest: string; round: number }
   | { type: "budget_halt"; runningTotal: number; cap: number }
@@ -135,14 +147,14 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
     return { outcomes: [], totalCost: 0, halted: true, haltReason: message };
   }
 
-  const runOne = async (task: Task, round: number, contextOverride?: string, tierBump = 0): Promise<TaskOutcome> => {
+  const runOne = async (task: Task, round: number, contextOverride?: string, tierBump = 0, workspace?: string): Promise<TaskOutcome> => {
     const decision = route(task, { policy, registry, runningTotalBefore: running, tierBump });
     emit({ type: "task_start", task, round, provider: decision.provider, modelId: decision.model.id });
     const contextText = contextOverride ?? gatherContext(task, outcomes);
     const meta = { taskId: task.id, capability: task.capability, provider: decision.provider, modelId: decision.model.id, round };
     let outcome: TaskOutcome;
     try {
-      outcome = { ...(await execute({ task, decision, contextText, round, limits: policy.taskLimits })), ...meta };
+      outcome = { ...(await execute({ task, decision, contextText, round, limits: policy.taskLimits, workspace })), ...meta };
     } catch (e) {
       if (!(e instanceof TaskLimitError)) throw e;
       // Limit breach: bill what was spent, record the failure, halt the build.
@@ -162,8 +174,22 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
   };
 
   // One task's full lifecycle: run it, then its Reviewer/Tester -> Developer feedback loop.
-  const runTaskUnit = async (task: Task): Promise<void> => {
-    let outcome = await runOne(task, 0);
+  const runTaskUnit = async (task: Task, iso?: Isolation): Promise<void> => {
+    let outcome: TaskOutcome;
+    if (iso) {
+      // Build in the worktree, then fold back. On a conflict, discard and rebuild serially
+      // on the merged tree: the second attempt sees the other task's files.
+      outcome = await runOne(task, 0, undefined, 0, iso.dir);
+      if (outcome.error) { iso.discard(); checkpoint(); return; }
+      const m = iso.merge(`${task.id}: ${task.title}`.replace(/\s+/g, " ").slice(0, 72));
+      if (!m.ok) {
+        emit({ type: "merge_conflict", taskId: task.id, conflicts: m.conflicts });
+        outcomes.delete(task.id); // the worktree result is gone; the serial rerun is the real one
+        outcome = await runOne(task, 0, `${gatherContext(task, outcomes)}\n\nNote: a parallel task changed ${m.conflicts.join(", ")} while you were working; you are now building on the merged files. Re-do this task against what is on disk.`);
+      }
+    } else {
+      outcome = await runOne(task, 0);
+    }
     const judges = task.capability === "test" || task.capability === "review";
     if (!outcome.error && judges && outcome.verdict && !outcome.verdict.passed) {
       // The code to fix: direct code deps, plus code deps reached through a review
@@ -261,8 +287,13 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
     }
     for (const task of readyTasks()) {
       if (inFlight.size >= concurrency) break;
-      // Only one code task builds at a time — they write to the shared workspace.
-      if (task.capability === "code" && codeInFlight >= 1) continue;
+      // Code tasks share the workspace: only one at a time — unless the caller can give
+      // this one its own worktree, in which case it runs in parallel and is merged back.
+      let iso: Isolation | undefined;
+      if (task.capability === "code" && codeInFlight >= 1) {
+        iso = opts.isolate?.(task);
+        if (!iso) continue;
+      }
       // Reservations keep full precision: rounding each one to cents drops sub-cent
       // estimates entirely, so a wide backlog of cheap tasks would under-reserve.
       const est = route(task, { policy, registry, runningTotalBefore: running + reserved });
@@ -288,7 +319,7 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
       // sibling promises, and their later rejections would have no handler attached
       // (unhandled rejection -> the host process dies mid-build). Capture the first
       // failure, stop launching, drain what's running, checkpoint, then rethrow.
-      const p = runTaskUnit(task).then(settle, (e: unknown) => {
+      const p = runTaskUnit(task, iso).then(settle, (e: unknown) => {
         settle();
         halted = true;
         haltReason ??= e instanceof Error ? e.message : String(e);

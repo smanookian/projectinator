@@ -432,7 +432,7 @@ function lastAssistantText(session: AgentSession): string {
 
 function listFiles(dir: string): string[] {
   const out: string[] = [];
-  const skip = new Set([".pi", ".git", "node_modules"]);
+  const skip = new Set([".pi", ".git", ".worktrees", ".checks", ".deploy", "node_modules", "dist"]);
   const walk = (d: string) => {
     let entries: string[];
     try {
@@ -466,6 +466,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     modelId: string,
     limits: TaskLimits,
     round: number,
+    ws: string,
   ): Promise<{ result: RoleResult; tokensTotal: number }> => {
     const runtime = await piRuntime();
     const model = resolvePiModel(runtime, provider, modelId);
@@ -473,15 +474,15 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     const isTest = task.capability === "test";
     const isReview = task.capability === "review";
     const chromium = isTest ? await chromiumAvailable() : false;
-    if (isTest && round === 0) keepPreviousShot(opts.workspace, task.id);
-    const checkTool = isTest ? buildCheckTool(opts.workspace, chromium, `${task.id}-r${round}`, opts.profile) : undefined;
-    const interactTool = isTest ? buildInteractTool(opts.workspace, chromium, `${task.id}-r${round}`, checkTool!.shotList, checkTool!.serveDir, opts.profile) : undefined;
+    if (isTest && round === 0) keepPreviousShot(ws, task.id);
+    const checkTool = isTest ? buildCheckTool(ws, chromium, `${task.id}-r${round}`, opts.profile) : undefined;
+    const interactTool = isTest ? buildInteractTool(ws, chromium, `${task.id}-r${round}`, checkTool!.shotList, checkTool!.serveDir, opts.profile) : undefined;
     // A review never runs the app, so its verdict is never "runtime checked".
     const verdictTool = isTest || isReview ? buildVerdictTool(checkTool ? checkTool.rendered : () => false) : undefined;
     const t0 = Date.now();
     const { session } = await createAgentSession({
       model,
-      cwd: opts.workspace,
+      cwd: ws,
       modelRuntime: runtime,
       thinkingLevel: opts.thinkingLevel ?? "medium",
       ...(isTest
@@ -516,7 +517,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
       // dev building one file knows every other file that already exists to wire into.
       let fullContext = contextText;
       if (task.capability === "code" || task.capability === "review" || task.capability === "test") {
-        const existing = listFiles(opts.workspace);
+        const existing = listFiles(ws);
         if (existing.length) {
           fullContext = [contextText, `Files already in the working directory:\n${existing.map((f) => `  ${f}`).join("\n")}`]
             .filter(Boolean)
@@ -541,13 +542,13 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
         recordActual(task.capability, task.difficulty, inputTotal, stats.tokens.output, inputTotal > 0 ? stats.tokens.cacheRead / inputTotal : 0, modelId, Date.now() - t0);
       }
       const shots = checkTool?.screenshots() ?? [];
-      const visualDelta = shots.length ? visualDeltaVsPrevious(opts.workspace, task.id, round) : undefined;
+      const visualDelta = shots.length ? visualDeltaVsPrevious(ws, task.id, round) : undefined;
       const result: RoleResult = {
         finalText: lastAssistantText(session),
-        files: listFiles(opts.workspace),
+        files: listFiles(ws),
         cost: round2(stats.cost),
         verdict,
-        ...(shots.length ? { screenshots: shots.map((p) => relative(opts.workspace, p)) } : {}),
+        ...(shots.length ? { screenshots: shots.map((p) => relative(ws, p)) } : {}),
         ...(visualDelta !== undefined ? { visualDelta } : {}),
       };
       return { result, tokensTotal: stats.tokens.total };
@@ -560,13 +561,13 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
     }
   };
 
-  return async ({ task, decision, contextText, limits, round }) => {
+  return async ({ task, decision, contextText, limits, round, workspace }) => {
     const chain = fallbackChain(decision.provider, decision.model.id, task.capability);
     let lastErr: unknown;
     for (let i = 0; i < chain.length; i++) {
       const cand = chain[i]!;
       try {
-        const att = await runOnce(task, contextText, cand.provider, cand.model, limits, round);
+        const att = await runOnce(task, contextText, cand.provider, cand.model, limits, round, workspace ?? opts.workspace);
         if (att.tokensTotal > 0) {
           if (i > 0) opts.onFallback?.({ taskId: task.id, from: decision.provider, to: cand.provider, model: cand.model });
           return att.result;

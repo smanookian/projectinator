@@ -15,7 +15,7 @@ import { loadConfig } from "./config.js";
 import { getLocalModels } from "../local-models.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
 import { runBacklog, type OrchestratorEvent } from "../orchestrator.js";
-import { initRepo, commitTask, undoLastCommit, history as gitHistory, remoteUrl, type Commit } from "../git.js";
+import { initRepo, commitTask, undoLastCommit, history as gitHistory, remoteUrl, addWorktree, mergeWorktree, removeWorktree, pruneWorktrees, type Commit } from "../git.js";
 import { startChangeBranch } from "../github.js";
 import { computeRetro, type RetroReport } from "../retro.js";
 import { computeBurndown, type Burndown } from "../burndown.js";
@@ -675,7 +675,7 @@ export function importProject(rawSrc: string, idea?: string): { ok: true; dir: s
  *  Excludes build-state, git, deploy staging and node_modules. Written next to the project. */
 export function shareBuild(dir: string): { ok: true; path: string; format: "zip" | "tar.gz" } | { ok: false; error: string } {
   const slug = basename(dir);
-  const exclude = ["build-state.json", ".git", ".deploy", ".checks", "node_modules", "dist", ".venv", "export.md", "export.csv"];
+  const exclude = ["build-state.json", ".git", ".deploy", ".checks", ".worktrees", "node_modules", "dist", ".venv", "export.md", "export.csv"];
   const out = join(dirname(dir), `${slug}.zip`);
   const zip = spawnSync("zip", ["-r", "-q", out, ".", ...exclude.flatMap((e) => ["-x", e, `${e}/*`])], { cwd: dir, encoding: "utf8" });
   if (zip.status === 0) return { ok: true, path: out, format: "zip" };
@@ -744,6 +744,8 @@ export function startBuild(
     changeIdea?: string;
     /** Stack profile for a NEW project. Existing projects keep the one in their state. */
     stack?: StackProfileId;
+    /** Independent code tasks build in parallel git worktrees (merged back per task). */
+    parallelCode?: boolean;
   },
 ): RunHandle {
   const workspace = opts.workspace ?? join(projectRoot(), ".workspace", "tui", slugify(idea));
@@ -769,11 +771,20 @@ export function startBuild(
   // Version the workspace: init a repo, then commit after each finished task.
   initRepo(workspace, profile.exclude);
   const branch = opts.changeIdea ? startChangeBranch(workspace, opts.changeIdea) : undefined;
+  pruneWorktrees(workspace); // leftovers from a crashed parallel build
   const titleById = new Map(plan.tasks.map((t) => [t.id, t.title]));
   const onProgress = (e: OrchestratorEvent) => {
     opts.onEvent(e);
+    // Worktree tasks are committed by the merge itself; everything else commits here.
     if (e.type === "task_done") commitTask(workspace, e.outcome.taskId, titleById.get(e.outcome.taskId) ?? e.outcome.taskId);
   };
+  const isolate = opts.parallelCode
+    ? (task: Task) => {
+        const wt = addWorktree(workspace, `${task.id}-${Date.now().toString(36)}`);
+        if (!wt) return undefined;
+        return { dir: wt.dir, merge: (msg: string) => mergeWorktree(workspace, wt, msg), discard: () => removeWorktree(workspace, wt) };
+      }
+    : undefined;
 
   const promise = runBacklog(plan.tasks, {
     policy,
@@ -782,6 +793,7 @@ export function startBuild(
     concurrency: opts.concurrency,
     seedOutcomes: opts.seedOutcomes,
     onGate: opts.onGate,
+    isolate,
     onProgress,
     onCheckpoint: (outcomes, totalCost) => {
       state.outcomes = outcomes;

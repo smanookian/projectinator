@@ -24,7 +24,7 @@ export function isRepo(dir: string): boolean {
 /** Files that are project bookkeeping, never source. Kept out of every project repo via
  *  .git/info/exclude (per-clone, never committed) so an imported repo's own .gitignore is
  *  left alone and a pushed repo never carries build-state or screenshots. */
-const EXCLUDE = [".deploy/", ".checks/", "build-state.json", "export.md", "export.csv", "export-jira.csv", "export-trello.csv"];
+const EXCLUDE = [".deploy/", ".checks/", ".worktrees/", "build-state.json", "export.md", "export.csv", "export-jira.csv", "export-trello.csv"];
 
 function writeExclude(dir: string, extra: string[] = []): void {
   try {
@@ -126,4 +126,53 @@ export function commitDiff(dir: string, hash: string): CommitDiff {
   const patch = git(dir, ["show", "--format=", "--no-color", hash]);
   const lines = (o: GitOut) => (o.ok && o.out ? o.out.split("\n") : []);
   return { stat: lines(stat), patch: lines(patch) };
+}
+
+// ---- worktrees: parallel code tasks without sharing a working directory ----
+
+export interface Worktree { dir: string; branch: string }
+
+/** A throwaway branch + worktree at HEAD, under <repo>/.worktrees/<name>. */
+export function addWorktree(dir: string, name: string): Worktree | undefined {
+  const branch = `wt/${name}`;
+  const wtDir = join(dir, ".worktrees", name);
+  mkdirSync(join(dir, ".worktrees"), { recursive: true });
+  const r = git(dir, ["worktree", "add", "-b", branch, wtDir, "HEAD"]);
+  if (!r.ok) return undefined;
+  git(wtDir, ["config", "user.email", "bot@projectinator.local"]);
+  git(wtDir, ["config", "user.name", "Projectinator"]);
+  return { dir: wtDir, branch };
+}
+
+/** Commit everything in the worktree, merge its branch into the main checkout, and remove
+ *  it. On a conflict the merge is aborted and the conflicting paths returned — the caller
+ *  decides (Projectinator re-runs the task serially on the merged tree). */
+export function mergeWorktree(dir: string, wt: Worktree, message: string): { ok: true } | { ok: false; conflicts: string[] } {
+  git(wt.dir, ["add", "-A"]);
+  git(wt.dir, ["commit", "-q", "-m", message, "--allow-empty"]);
+  const m = git(dir, ["merge", "--no-ff", "--no-edit", "-m", message, wt.branch]);
+  if (!m.ok) {
+    const conflicts = git(dir, ["diff", "--name-only", "--diff-filter=U"]).out.split("\n").filter(Boolean);
+    git(dir, ["merge", "--abort"]);
+    removeWorktree(dir, wt);
+    return { ok: false, conflicts };
+  }
+  removeWorktree(dir, wt);
+  return { ok: true };
+}
+
+export function removeWorktree(dir: string, wt: Worktree): void {
+  git(dir, ["worktree", "remove", "--force", wt.dir]);
+  git(dir, ["branch", "-D", wt.branch]);
+}
+
+/** Drop any leftover worktrees (e.g. after a crash). */
+export function pruneWorktrees(dir: string): void {
+  const list = git(dir, ["worktree", "list", "--porcelain"]).out;
+  for (const line of list.split("\n")) {
+    const m = /^worktree (.+\/\.worktrees\/.+)$/.exec(line);
+    if (m) git(dir, ["worktree", "remove", "--force", m[1]!]);
+  }
+  git(dir, ["worktree", "prune"]);
+  for (const b of git(dir, ["branch", "--list", "wt/*", "--format=%(refname:short)"]).out.split("\n").filter(Boolean)) git(dir, ["branch", "-D", b]);
 }

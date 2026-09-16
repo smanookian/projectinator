@@ -224,6 +224,7 @@ async function build(argv: Argv): Promise<number> {
     else if (e.type === "task_done") console.log(`    ✓ ${e.outcome.taskId} ${money(e.outcome.cost)}  running ${money(e.runningTotal)}${e.outcome.verdict ? `  ${e.outcome.verdict.passed ? (e.outcome.verdict.runtimeChecked || e.outcome.capability !== "test" ? "PASS" : "PASS* (app not executed)") : "FAIL"}` : ""}`);
     else if (e.type === "task_failed") console.log(`    ⛔ ${e.outcome.taskId} aborted: ${e.outcome.error} — billed ${money(e.outcome.cost)}`);
     else if (e.type === "task_skipped") console.log(`    · ${e.taskId} skipped`);
+    else if (e.type === "merge_conflict") console.log(`    ⇄ ${e.taskId} conflicted with a parallel task on ${e.conflicts.join(", ")} — rebuilding serially`);
     else if (e.type === "test_failed") console.log(`    ✗ ${e.taskId} failed (${e.bugs} bugs) — round ${e.round}`);
     else if (e.type === "retry_dev") console.log(`    ↻ re-running ${e.taskId} to fix ${e.forTest}`);
     else if (e.type === "budget_halt") console.log(`    ⚠ budget halt at ${money(e.runningTotal)} (cap ${money(e.cap)})`);
@@ -231,7 +232,8 @@ async function build(argv: Argv): Promise<number> {
   };
 
   say(`\n  Building…\n`);
-  const handle = startBuild(idea, plan, { concurrency, budgetCapUSD: budget, taskLimits, onEvent, mode: "auto", stack });
+  const parallelCode = argv.flags["parallel-code"] === true || (argv.flags["parallel-code"] === undefined && prefs.parallelCode);
+  const handle = startBuild(idea, plan, { concurrency, budgetCapUSD: budget, taskLimits, onEvent, mode: "auto", stack, parallelCode });
   const r = await handle.promise;
   emit({ event: "done", halted: r.halted, haltReason: r.haltReason, totalCost: r.totalCost, files: r.files, workspace: handle.workspace });
   const hook = getWebhookUrl();
@@ -260,6 +262,7 @@ const USAGE = `Usage: projectinator <command> [options]
       --task-cap <usd>          per-task cost ceiling    (default: your prefs; 0 = off)
       --task-timeout <min>      per-task timeout         (default: your prefs; 0 = off)
       --stack static|vite|node  static (default), Vite+React+TS, or a Node server
+      --parallel-code           independent code tasks build at once in git worktrees (default: prefs)
   projects                      list past builds with status and cost
   models                        the roster as it will run, with prices
 

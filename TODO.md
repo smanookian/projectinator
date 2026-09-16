@@ -47,7 +47,7 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 - [ ] Web-login (paid subs in-app) — OAuth spoof closed by vendors 2026; browser automation half-works Claude; behind PROJECTINATOR_WEB=1
 
 ### Deferred / low-value
-- [ ] Git-worktree isolation per task — same as "Worktree-parallel code tasks" below
+- [x] Git-worktree isolation per task — shipped as "Worktree-parallel code tasks" (0.9.0)
 
 ## Backlog (brainstorm 2026-09-14)
 
@@ -74,7 +74,7 @@ Direction: all audiences (solo builders, devs with real repos, model evaluators,
 - [x] **Reviewer role** — sixth capability `review`: PM plans one after every code task (test depends on the review); cheap read-only session (no `bash`, no `check_app`) ending in `submit_verdict`; a FAIL re-runs the code via the same Tester→Dev loop; the Tester's fix round resolves code deps *through* review tasks. Settings → Models has a Reviewer slot; registry holds one `fast` row so every difficulty routes cheap. Design: [`docs/REVIEWER.md`](docs/REVIEWER.md).
 - [x] Richer tester — all four pieces shipped: 3-viewport screenshots + overflow signal; a11y/basics facts (`a11y.ts`); `interact_app` step script (Tester-only); visual delta vs the previous run (`visual-diff.ts`, zero-dep PNG decode) shown in Transcripts and History. Design: [`docs/TESTER.md`](docs/TESTER.md).
 - [ ] Vite/npm stack on host, then Node/Express and Python backend targets — **Vite and Node shipped** (all 4 design steps; Vite live-verified, Node tested with a real spawned server). Python next: same shape as Node (`serve.ts` + a `python` profile). Design in [`docs/STACKS.md`](docs/STACKS.md): one *stack profile* (install/build/serve/entry/deployDir/doubleClick) read by every stage; 4 shippable steps; 3 open questions.
-- [ ] Worktree-parallel code tasks (today code tasks serialize even in parallel mode)
+- [x] Worktree-parallel code tasks — orchestrator `isolate` hook; `git.ts` add/merge/remove/prune worktrees; conflict → one serial rerun with a note; opt-in pref + `--parallel-code`. `.worktrees/` excluded everywhere.
 - [ ] Mid-build steering — pause, inject/edit a task, resume without losing in-flight work
 - [ ] Escalation ladder beyond tier-bump — Designer re-spec, then bounded PM re-plan
 - [ ] Sprints — group tasks, velocity, burndown per sprint

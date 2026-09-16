@@ -202,6 +202,9 @@ export type RoleExecutor = (input: {
   round: number;
   /** Per-task limits the executor must enforce (throw TaskLimitError on breach). */
   limits: TaskLimits;
+  /** Run in this directory instead of the shared workspace (a git worktree for a parallel
+   *  code task). Absent = the shared workspace. */
+  workspace?: string;
 }) => Promise<RoleResult>;
 
 /** One recorded step of a build run. */

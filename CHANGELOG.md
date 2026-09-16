@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0 — 2026-09-16
+
+### Added
+- **Parallel code tasks** (Settings → Build defaults → *Parallel code tasks*; CLI
+  `--parallel-code`). Off by default. When on, independent code tasks no longer wait for each
+  other: each extra one builds in its own git worktree (`.worktrees/<task>`), is committed there,
+  and merged into the project when it finishes. A merge conflict discards that attempt and
+  reruns the task once, serially, on the merged files — the developer is told which files a
+  parallel task changed. Leftover worktrees from a crash are pruned at the next build.
+  Reviewer/Tester still run after their code task, so the feedback loop is unchanged.
+
 ## 0.8.0 — 2026-09-16
 
 ### Added

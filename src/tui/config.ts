@@ -18,6 +18,9 @@ export interface AppConfig {
   /** Per-task limits; 0 = unlimited. Defaults: 10 min, $3. */
   taskTimeoutMin?: number;
   taskCostCapUSD?: number;
+  /** Run independent code tasks in parallel, each in its own git worktree, merged back per task.
+   *  Off by default: conflicts cost a serial re-run. */
+  parallelCode?: boolean;
   /** If set, always route to this provider (when it has a key), ignoring the others. */
   preferredProvider?: Provider;
   /** POST a JSON summary here when a build finishes or halts. Empty = off. */
@@ -141,6 +144,7 @@ export interface Prefs {
   budgetAlertPct: number;
   taskTimeoutMin: number;
   taskCostCapUSD: number;
+  parallelCode: boolean;
 }
 
 export function getPrefs(): Prefs {
@@ -151,6 +155,7 @@ export function getPrefs(): Prefs {
     budgetAlertPct: cfg.budgetAlertPct ?? 80,
     taskTimeoutMin: cfg.taskTimeoutMin ?? 10,
     taskCostCapUSD: cfg.taskCostCapUSD ?? 3,
+    parallelCode: cfg.parallelCode ?? false,
   };
 }
 
@@ -161,5 +166,6 @@ export function setPrefs(prefs: Partial<Prefs>): void {
   if (prefs.budgetAlertPct !== undefined) cfg.budgetAlertPct = prefs.budgetAlertPct;
   if (prefs.taskTimeoutMin !== undefined) cfg.taskTimeoutMin = prefs.taskTimeoutMin;
   if (prefs.taskCostCapUSD !== undefined) cfg.taskCostCapUSD = prefs.taskCostCapUSD;
+  if (prefs.parallelCode !== undefined) cfg.parallelCode = prefs.parallelCode;
   saveConfig(cfg);
 }

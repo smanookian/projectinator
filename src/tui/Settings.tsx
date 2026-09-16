@@ -48,6 +48,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         { label: `Default stack: ${getPreferredStack()}`, value: "stack" },
         { label: "Budget, speed & alerts", value: "prefs" },
         { label: `Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
+        { label: `Parallel code tasks (git worktrees): ${getPrefs().parallelCode ? "On" : "Off"}`, value: "parallelCode" },
         { label: `Webhook: ${getWebhookUrl() || "off"}`, value: "webhook" },
       ] },
       // Web-login (browser automation / OAuth) is parked — vendors closed
@@ -70,6 +71,10 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                 const next = !getNotify();
                 setNotify(next);
                 setNotice(`Notifications ${next ? "on" : "off"}.`);
+              } else if (i.value === "parallelCode") {
+                const next = !getPrefs().parallelCode;
+                setPrefs({ parallelCode: next });
+                setNotice(next ? "Parallel code tasks on: independent code tasks build at once, each in its own git worktree, merged back per task. A conflict costs one serial re-run." : "Parallel code tasks off: code tasks run one at a time.");
               } else setSub(i.value as Sub);
             }}
           />
@@ -569,6 +574,7 @@ function PrefsEditor({
       budgetAlertPct: p,
       taskTimeoutMin: parse0(tmo, initial.taskTimeoutMin),
       taskCostCapUSD: parse0(tcap, initial.taskCostCapUSD),
+      parallelCode: initial.parallelCode,
     });
   };
 
