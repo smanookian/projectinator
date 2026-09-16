@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.19.2 — 2026-09-16
+
+### Fixed
+- **Settings could trap you.** `Esc` did nothing on every Settings sub-screen (App.tsx skips the
+  settings phase in its own back handler, and Settings never implemented one) even though the
+  hints advertised "Esc back". Esc now backs out one level — sub-screen → menu → out of
+  Settings — with a proper parent for nested screens (key entry → API keys, model pick →
+  assignments, local pick → local models).
+- **Local models had two live inputs.** The URL field and the menu were both mounted, so Enter
+  fired *both*: choosing **Back** also submitted the URL and probed the server instead of going
+  back. The URL is now display-only until you pick "Change the URL", so exactly one input owns
+  the keyboard; the menu gained an explicit "Connect to <url>" action.
+
 ## 0.19.1 — 2026-09-16
 
 ### Fixed

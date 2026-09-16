@@ -2,7 +2,7 @@
 // Self-contained: manages its own sub-navigation; calls onExit when done.
 
 import React, { useState } from "react";
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
 import type { Capability, Provider, Tier } from "../types.js";
 import { C, Panel, Menu as SelectInput, GroupedMenu, KeyHint, TextField as TextInput, Password, type MenuGroup } from "./components.js";
@@ -18,6 +18,11 @@ import { THEMES, resolveTheme, type Theme, type ThemeId } from "./theme.js";
 import { useThemeCtx } from "./theme-context.js";
 
 type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack" | "webhook" | "local" | "localPick" | "theme";
+
+/** Where Esc goes from each sub-screen (everything else falls back to the menu). */
+const SUB_PARENT: Partial<Record<Sub, Sub>> = {
+  keyEntry: "keys", modelPick: "models", orBrowse: "modelPick", orPick: "orBrowse", localPick: "local",
+};
 
 /** Human label for a stack value, so menu rows read "Ask" not "ask" (consistent with On/Off). */
 const STACK_VALUE_LABEL: Record<string, string> = { ask: "Ask", vanilla: "Vanilla", react: "React", ai: "AI" };
@@ -38,6 +43,17 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   const [, force] = useState(0);
   const refresh = () => force((n) => n + 1);
   const { id: themeId, theme: activeTheme, setTheme: setThemeCtx, iconMode, setIconMode: setIconModeCtx } = useThemeCtx();
+  const [localEditing, setLocalEditing] = useState(false); // the Local-models URL field owns the keyboard
+
+  // Esc backs out one level. App.tsx deliberately skips the settings phase in its own goBack
+  // (so we don't double-fire), which means this is the ONLY Esc handler in here.
+  useInput((_input, key) => {
+    if (!key.escape) return;
+    if (localEditing) return setLocalEditing(false);
+    setNotice("");
+    if (sub === "menu") return onExit();
+    setSub(SUB_PARENT[sub] ?? "menu");
+  });
 
   // ---------- menu ----------
   if (sub === "menu") {
@@ -100,6 +116,20 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   // ---------- local models (Ollama / LM Studio / vLLM) ----------
   if (sub === "local") {
     const cur = getLocalModels();
+    // Exactly ONE input is live at a time: either the URL field or the menu. With both
+    // mounted, Enter fired the field's submit AND the menu's select, so "Back" probed instead.
+    const probe = (raw: string) => {
+      const url = raw.trim();
+      if (!/^https?:\/\//.test(url)) { setLocalProbe({ busy: false, found: [], error: "URL must start with http:// or https://" }); return; }
+      setLocalProbe({ busy: true, found: [], error: "" });
+      void probeLocalServer(url).then((r) => {
+        if (!r.ok) { setLocalProbe({ busy: false, found: [], error: r.error }); return; }
+        if (!r.models.length) { setLocalProbe({ busy: false, found: [], error: "The server is up but lists no models — pull one first (e.g. `ollama pull qwen2.5-coder:14b`)." }); return; }
+        setLocalProbe({ busy: false, found: r.models, error: "" });
+        setLocalChosen(new Set(cur?.models.filter((m) => r.models.includes(m)) ?? []));
+        setSub("localPick");
+      });
+    };
     return (
       <Box flexDirection="column">
         <Panel title="Local models — Ollama, LM Studio, vLLM">
@@ -110,39 +140,38 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
           {localProbe.error ? <Box marginTop={1}><StatusMessage variant="error">{localProbe.error}</StatusMessage></Box> : null}
           <Box marginTop={1}>
             <Text color={C.accent}>Server URL: </Text>
-            {localProbe.busy ? <Box><Text color={C.dim}>{localUrl}  </Text><Spinner label="asking the server for its models…" /></Box> : (
-              <TextInput
-                value={localUrl}
-                onChange={setLocalUrl}
-                onSubmit={() => {
-                  const url = localUrl.trim();
-                  if (!/^https?:\/\//.test(url)) { setLocalProbe({ busy: false, found: [], error: "URL must start with http:// or https://" }); return; }
-                  setLocalProbe({ busy: true, found: [], error: "" });
-                  void probeLocalServer(url).then((r) => {
-                    if (!r.ok) { setLocalProbe({ busy: false, found: [], error: r.error }); return; }
-                    if (!r.models.length) { setLocalProbe({ busy: false, found: [], error: "The server is up but lists no models — pull one first (e.g. `ollama pull qwen2.5-coder:14b`)." }); return; }
-                    setLocalProbe({ busy: false, found: r.models, error: "" });
-                    setLocalChosen(new Set(cur?.models.filter((m) => r.models.includes(m)) ?? []));
-                    setSub("localPick");
-                  });
-                }}
-              />
+            {localProbe.busy ? (
+              <Box><Text color={C.dim}>{localUrl}  </Text><Spinner label="asking the server for its models…" /></Box>
+            ) : localEditing ? (
+              <TextInput value={localUrl} onChange={setLocalUrl} onSubmit={() => { setLocalEditing(false); probe(localUrl); }} />
+            ) : (
+              <Text color={C.text}>{localUrl}</Text>
             )}
           </Box>
           <Text color={C.textSubtle}>{"\n"}Ollama: http://localhost:11434/v1 · LM Studio: http://localhost:1234/v1 · vLLM: http://localhost:8000/v1</Text>
+          {localProbe.busy || localEditing ? null : (
+            <Box marginTop={1}>
+              <SelectInput
+                items={[
+                  { label: `Connect to ${localUrl}`, value: "__connect" },
+                  { label: "Change the URL", value: "__edit" },
+                  ...(cur ? [{ label: "Remove local models", value: "__remove" }] : []),
+                  { label: "Back", value: "__back" },
+                ]}
+                onSelect={(i) => {
+                  if (i.value === "__connect") return probe(localUrl);
+                  if (i.value === "__edit") return setLocalEditing(true);
+                  if (i.value === "__remove") { setLocalModels({ baseUrl: cur!.baseUrl, models: [] }); setNotice("Local models removed."); refresh(); }
+                  setSub("menu");
+                }}
+              />
+            </Box>
+          )}
           <Box marginTop={1}>
-            <SelectInput
-              items={[
-                ...(cur ? [{ label: "Remove local models", value: "__remove" }] : []),
-                { label: "Back", value: "__back" },
-              ]}
-              onSelect={(i) => {
-                if (i.value === "__remove") { setLocalModels({ baseUrl: cur!.baseUrl, models: [] }); setNotice("Local models removed."); refresh(); }
-                setSub("menu");
-              }}
-            />
+            <KeyHint hints={localEditing
+              ? [{ keys: "Enter", label: "connect" }, { keys: "Esc", label: "cancel" }]
+              : [{ keys: "↑↓", label: "pick" }, { keys: "Enter", label: "choose" }, { keys: "Esc", label: "back" }]} />
           </Box>
-          <Box marginTop={1}><KeyHint hints={[{ keys: "Enter", label: "connect" }, { keys: "Esc", label: "back" }]} /></Box>
         </Panel>
       </Box>
     );
