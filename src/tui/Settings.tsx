@@ -19,6 +19,9 @@ import { useThemeCtx } from "./theme-context.js";
 
 type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack" | "webhook" | "local" | "localPick" | "theme";
 
+/** Human label for a stack value, so menu rows read "Ask" not "ask" (consistent with On/Off). */
+const STACK_VALUE_LABEL: Record<string, string> = { ask: "Ask", vanilla: "Vanilla", react: "React", ai: "AI" };
+
 export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
   const [sub, setSub] = useState<Sub>("menu");
   const [keyProvider, setKeyProvider] = useState<KeyedProvider>("anthropic");
@@ -48,11 +51,11 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
       ] },
       { title: "Build defaults", items: [
         { label: "Default workflow", value: "workflow" },
-        { label: `Default stack: ${getPreferredStack()}`, value: "stack" },
+        { label: `Default stack: ${STACK_VALUE_LABEL[getPreferredStack()] ?? getPreferredStack()}`, value: "stack" },
         { label: "Budget, speed & alerts", value: "prefs" },
         { label: `Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
         { label: `Parallel code tasks (git worktrees): ${getPrefs().parallelCode ? "On" : "Off"}`, value: "parallelCode" },
-        { label: `Webhook: ${getWebhookUrl() || "off"}`, value: "webhook" },
+        { label: `Webhook: ${getWebhookUrl() || "Off"}`, value: "webhook" },
       ] },
       { title: "Appearance", items: [
         { label: `Theme: ${activeTheme.label}`, value: "theme" },
@@ -525,7 +528,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     return (
       <Box flexDirection="column">
         <Panel title="Default stack for new web builds">
-          <Text color={C.textMuted}>“Ask each time” shows the picker; anything else skips it. Current: {current}.</Text>
+          <Text color={C.textMuted}>“Ask each time” shows the picker; anything else skips it. Current: {STACK_VALUE_LABEL[current] ?? current}.</Text>
           <Box marginTop={1}>
             <SelectInput
               items={[
