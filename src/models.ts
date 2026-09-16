@@ -1,6 +1,14 @@
 // Model pricing table. Rates USD per 1,000,000 tokens — copied verbatim from Pi's
 // bundled catalog (pi-coding-agent 0.85.1, Sept 2026); test/executor.test.ts pins every
 // entry against it. Shape mirrors Pi's models.json `cost` block.
+//
+// DO NOT "correct" an entry against `projectinator scout`'s price drift. Pi's catalog is the
+// same source Pi uses to report the ACTUAL cost of every run, so a native entry that matches
+// Pi keeps estimate and actual consistent (retro's predicted-vs-actual, calibration, budget
+// caps). Diverging would make the estimate disagree with the bill we then measure. Known gap
+// as of 0.85.1: OpenRouter lists openai/gpt-5.6-sol at $2/$10 while Pi still says $4/$20 —
+// it only affects a native OpenAI key, and the fix belongs in a Pi upgrade. OpenRouter-slug
+// entries are separate and DO price from the live catalog (see getModel below).
 
 import type { Model } from "./types.js";
 import { findOpenRouterModel } from "./openrouter.js";
