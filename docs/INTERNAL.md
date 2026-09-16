@@ -48,7 +48,7 @@ The brief the planner sees is composed **purely** from state:
 | `preview.ts` | static server (+live-reload) and `renderCheck` (headless render + viewports + a11y facts) and `interactCheck` (step script) |
 | `bakeoff.ts` | run one task across models + LLM judge |
 | `narrate.ts` | AI retro narrative |
-| `retro.ts` / `burndown.ts` | pure analytics from build-state |
+| `retro.ts` / `burndown.ts` / `sprints.ts` | pure analytics from build-state (sprints: per-run outcome slice → done/retries/cost/velocity) |
 | `stack.ts` | platform/framework → brief instruction; **stack profiles** (install/build/serve/outDir/deployable/doubleClick) every stage reads |
 | `local-models.ts` | owns the `local` provider entry in Pi's `~/.pi/agent/models.json` (Ollama/LM Studio/vLLM): probe, read, write |
 | `stuck.ts` | pure "slow task" rule (2× typical, ½ timeout, 60 s floor) |
