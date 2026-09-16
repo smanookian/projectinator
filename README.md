@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="Projectinator" width="112" />
+  <img src="https://raw.githubusercontent.com/smanookian/projectinator/main/docs/logo.svg" alt="Projectinator" width="112" />
 </p>
 
 # Projectinator
@@ -17,7 +17,7 @@ model that's best — and cheapest — for that exact job (planning, design, cod
 watch it happen from a terminal cockpit: a live board, budget bar, and a standup.
 
 <p align="center">
-  <img src="docs/cockpit.png" alt="Projectinator cockpit — the live Scrum board mid-build" width="860" />
+  <img src="https://raw.githubusercontent.com/smanookian/projectinator/main/docs/cockpit.png" alt="Projectinator cockpit — the live Scrum board mid-build" width="860" />
 </p>
 
 Built on the [Pi](https://pi.dev) agent harness (Node/TypeScript). Bring your own API key.
@@ -87,7 +87,7 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
 | 🧠 **PM intake** | Vague request? The PM asks 2–4 clarifying questions (with pickable options) before planning. Specific requests skip straight through. |
 | 🏛 **Deep plan (council)** | Opt-in: architect + product + risk leads propose epics in parallel, a synthesizer merges them, you approve, then they expand into the backlog. |
 | 🆚 **Model bake-off** | Run one task across models, an LLM judge scores the outputs, compare cost/latency/quality — save the winner to the registry. |
-| 🔍 **Reviewer** | A cheap read-only model checks each code task's wiring (missing files, unresolved `<script src>`, undefined functions, ES modules on a static site) before the Tester spends a browser run. Fails feed the same Developer fix loop. |
+| 🔍 **Reviewer** | A cheap read-only model checks each code task's wiring (missing files, unresolved script/link tags, undefined functions, ES modules on a static site) before the Tester spends a browser run. Fails feed the same Developer fix loop. |
 | 🧪 **Real test execution** | The tester loads the built app in headless Chromium and fails on JS/console errors — not just by reading the code. Without Chromium, passes are marked **PASS\*** so you know the app was never run. |
 | 👁 **Live preview** | Local server + auto-reload; ES modules and fetch resolve like production. |
 | 🚀 **Deploy** | One click to Cloudflare Pages, Vercel, or Netlify (their CLI + your login). |

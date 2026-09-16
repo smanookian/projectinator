@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.1 — 2026-09-16
+
+### Fixed
+- npmjs.com showed "This package does not have a README": the README contained a literal `<script src>` (npm's sanitizer rejects it even inside code) and relative image paths. Text reworded; images now absolute.
+
 ## 0.13.0 — 2026-09-16
 
 ### Added
