@@ -14,8 +14,8 @@ const policy = (o: Partial<RoutingPolicy> = {}): RoutingPolicy => ({ ...DEFAULT_
 const t = (id: string, capability: Task["capability"], dependsOn: string[] = []): Task => ({
   id, title: `${capability} ${id}`, capability, difficulty: "low", dependsOn, estTokens: { input: 5_000, output: 2_000 },
 });
-const fail: Verdict = { passed: false, bugs: [{ severity: "high", description: "title missing", file: "index.html" }] };
-const pass: Verdict = { passed: true, bugs: [] };
+const fail: Verdict = { passed: false, runtimeChecked: true, bugs: [{ severity: "high", description: "title missing", file: "index.html" }] };
+const pass: Verdict = { passed: true, runtimeChecked: true, bugs: [] };
 
 /** Executor: the judge fails `failTimes` times, then passes. Records every call. */
 function judgeExec(failTimes: number) {
