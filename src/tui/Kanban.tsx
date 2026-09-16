@@ -39,7 +39,7 @@ function columnOf(t: BoardTask, done: Set<string>): Col {
 function cols(): { key: Col; label: string; color: string }[] {
   return [
     { key: "backlog", label: "BACKLOG", color: C.dim },
-    { key: "notStarted", label: "NOT STARTED", color: "cyan" },
+    { key: "notStarted", label: "NOT STARTED", color: C.info },
     { key: "inProgress", label: "IN PROGRESS", color: C.accent },
     { key: "done", label: "DONE", color: C.good },
   ];
@@ -66,11 +66,11 @@ function Card({ t }: { t: BoardTask }): React.ReactElement {
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Box>
-        {running ? <Text color="cyan"><Spinner type="dots" /> </Text> : failed ? <Text color={C.bad}>✗ </Text> : null}
+        {running ? <Text color={C.info}><Spinner type="dots" /> </Text> : failed ? <Text color={C.bad}>✗ </Text> : null}
         <Text>{ROLE_META[t.capability].emoji} </Text>
         <Text color={C.dim}>{t.id} </Text>
         <Text color={C.accent}>{t.capability}</Text>
-        {t.verdict ? <Text> <Badge color={t.verdict === "FAIL" ? "red" : t.verdict === "PASS*" ? "yellow" : "green"}>{t.verdict}</Badge></Text> : null}
+        {t.verdict ? <Text> <Badge color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}>{t.verdict}</Badge></Text> : null}
         {t.cost ? <Text color={C.dim}> ${t.cost.toFixed(2)}</Text> : null}
       </Box>
       <Text color={failed ? C.bad : C.text} wrap="truncate-end">{t.title}</Text>
@@ -92,9 +92,9 @@ function MiniCard({ t }: { t: BoardTask }): React.ReactElement {
   const running = t.status === "running";
   return (
     <Text wrap="truncate-end">
-      {running ? <Text color="cyan"><Spinner type="dots" /> </Text> : t.status === "failed" ? <Text color={C.bad}>✗ </Text> : <Text>{ROLE_META[t.capability].emoji} </Text>}
+      {running ? <Text color={C.info}><Spinner type="dots" /> </Text> : t.status === "failed" ? <Text color={C.bad}>✗ </Text> : <Text>{ROLE_META[t.capability].emoji} </Text>}
       <Text color={C.dim}>{t.id} </Text>
-      <Text color={running ? "cyan" : C.text} wrap="truncate-end">{t.title}</Text>
+      <Text color={running ? C.info : C.text} wrap="truncate-end">{t.title}</Text>
       {running && t.elapsedSec !== undefined ? <Text color={t.stuck ? C.warn : C.dim}> {clock(t.elapsedSec)}{t.stuck ? " slow" : ""}</Text> : null}
       {t.cost ? <Text color={C.dim}> ${t.cost.toFixed(2)}</Text> : null}
     </Text>

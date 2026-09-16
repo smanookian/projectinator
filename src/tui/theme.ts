@@ -82,9 +82,10 @@ export const C = new Proxy({} as Theme, {
   },
 });
 
-// ---- @inkjs/ui component theme, resolved by accent (Select/Spinner/ProgressBar focus) ----
+// ---- @inkjs/ui component theme, resolved from the active theme (accent + text) ----
 
-export function buildUiTheme(accent: string) {
+export function buildUiTheme(theme: Theme) {
+  const accent = theme.accent;
   return extendTheme(defaultTheme, {
     components: {
       Select: {
@@ -92,7 +93,7 @@ export function buildUiTheme(accent: string) {
           focusIndicator: () => ({ color: accent }),
           selectedIndicator: () => ({ color: accent }),
           label: ({ isFocused, isSelected }: { isFocused: boolean; isSelected: boolean }) => ({
-            color: isFocused || isSelected ? accent : "white",
+            color: isFocused || isSelected ? accent : theme.text,
           }),
           highlightedText: () => ({ color: accent, bold: true }),
         },
@@ -102,7 +103,7 @@ export function buildUiTheme(accent: string) {
           focusIndicator: () => ({ color: accent }),
           selectedIndicator: () => ({ color: accent }),
           label: ({ isFocused, isSelected }: { isFocused: boolean; isSelected: boolean }) => ({
-            color: isFocused || isSelected ? accent : "white",
+            color: isFocused || isSelected ? accent : theme.text,
           }),
           highlightedText: () => ({ color: accent, bold: true }),
         },

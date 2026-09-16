@@ -41,7 +41,7 @@ export function Standup({ tasks, spent }: { tasks: BoardTask[]; spent?: number }
     <Box gap={1} flexWrap="wrap">
       <Chip label={`${done} done`} dotColor={C.good} />
       {running > 0 ? <Chip label={`${running} running`} dotColor={C.info} /> : null}
-      <Chip label={`${ready} ready`} dotColor="cyan" />
+      <Chip label={`${ready} ready`} dotColor={C.info} />
       <Chip label={`${backlog} backlog`} />
       <Chip label={`$${cost.toFixed(2)}`} dotColor={C.accent} />
       {failed > 0 ? <Chip label={`${failed} review`} dotColor={C.bad} active /> : null}
@@ -54,7 +54,7 @@ function statusMark(status: BoardTask["status"]): { m: string; c: string } {
   switch (status) {
     case "done": return { m: "✓", c: C.good };
     case "skipped": return { m: "·", c: C.dim };
-    case "running": return { m: "●", c: "cyan" };
+    case "running": return { m: "●", c: C.info };
     case "failed": return { m: "✗", c: C.bad };
     default: return { m: "○", c: C.dim };
   }
@@ -73,7 +73,7 @@ export function ListView({ tasks }: { tasks: BoardTask[] }): React.ReactElement 
             return (
               <Box key={t.id}>
                 <Box width={2}>
-                  {t.status === "running" ? <Text color="cyan"><Spinner type="dots" /></Text> : <Text color={s.c}>{s.m}</Text>}
+                  {t.status === "running" ? <Text color={C.info}><Spinner type="dots" /></Text> : <Text color={s.c}>{s.m}</Text>}
                 </Box>
                 <Box width={7}><Text color={C.dim}>{t.id}</Text></Box>
                 <Box width={3}><Text>{ROLE_META[t.capability].emoji}</Text></Box>

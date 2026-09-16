@@ -28,9 +28,9 @@ describe("theme", () => {
     expect(activeTheme().id).toBe("dark");
   });
 
-  it("buildUiTheme is keyed by accent", () => {
-    const theme = buildUiTheme("#123456");
-    // A resolve of the accent surfaces through the Select focus indicator.
-    expect(typeof theme).toBe("object");
+  it("buildUiTheme is keyed by the active theme", () => {
+    const t = buildUiTheme(DARK);
+    expect(typeof t).toBe("object");
+    expect(buildUiTheme(LIGHT)).not.toBe(t);
   });
 });

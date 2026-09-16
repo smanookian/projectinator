@@ -217,7 +217,7 @@ export function BoardEditor({
       {/* column headers */}
       <Box marginTop={1}>
         <Box width={12} />
-        <Box flexBasis="25%" flexGrow={1} marginRight={1}><Text color="cyan" bold>BACKLOG {backlogCount}</Text></Box>
+        <Box flexBasis="25%" flexGrow={1} marginRight={1}><Text color={C.info} bold>BACKLOG {backlogCount}</Text></Box>
         <Box flexBasis="25%" flexGrow={1} marginRight={1}><Text color={C.accent} bold>READY {readyCount}</Text></Box>
         <Box flexBasis="25%" flexGrow={1} marginRight={1}><Text color={C.dim} bold>IN PROGRESS</Text></Box>
         <Box flexBasis="25%" flexGrow={1}><Text color={C.dim} bold>DONE</Text></Box>

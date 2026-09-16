@@ -1944,7 +1944,7 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Box>
-          <Text color="cyan"><InkSpinner type="dots" /></Text>
+          <Text color={C.info}><InkSpinner type="dots" /></Text>
           <Text bold>{"  "}{paused ? "Paused" : "Building"}</Text>
           <Text color={C.textSubtle}>{`     ${running} running`}</Text>
           {paused ? <Text color={C.warn}>{"  · running tasks finish, nothing new starts"}</Text> : null}

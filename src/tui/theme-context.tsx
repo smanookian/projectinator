@@ -38,7 +38,7 @@ export function ThemedApp({ children }: { children: React.ReactNode }): React.Re
   }, [theme]);
   const api: ThemeApi = { id, theme, set: (t) => { setTheme(t); setId(t); } };
   return (
-    <UIThemeProvider theme={buildUiTheme(theme.accent)}>
+    <UIThemeProvider theme={buildUiTheme(theme)}>
       <ThemeCtx.Provider value={api}>{children}</ThemeCtx.Provider>
     </UIThemeProvider>
   );

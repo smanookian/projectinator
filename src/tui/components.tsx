@@ -264,7 +264,7 @@ function statusMark(s: TaskStatus): React.ReactElement {
   switch (s) {
     case "running":
       return (
-        <Text color="cyan">
+        <Text color={C.info}>
           <Spinner type="dots" />
         </Text>
       );
