@@ -21,7 +21,8 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
           <SelectInput
             items={[
               { label: "Web", value: "web" },
-              { label: "Backend  (Node server — Express / Hono)", value: "backend" },
+              { label: "Backend  (Node — Express / Hono)", value: "backend" },
+              { label: "Backend  (Python — FastAPI / Flask)", value: "python" },
               { label: "Mobile  (builds as a web app for now)", value: "mobile" },
               { label: "Desktop  (builds as a web app for now)", value: "desktop" },
             ]}
@@ -29,6 +30,7 @@ export function StackPick({ onDone }: { onDone: (choice: StackChoice) => void })
               const p = i.value as Platform;
               if (p === "web") setPlatform("web");
               else if (p === "backend") onDone({ platform: "backend", framework: "node" });
+              else if ((p as string) === "python") onDone({ platform: "backend", framework: "python" });
               else onDone({ platform: p, framework: "ai" }); // web fallback, let PM decide
             }}
           />

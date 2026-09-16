@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { createRequire } from "node:module";
 import type { OrchestratorEvent } from "./orchestrator.js";
 import { loadState, completedIds } from "./build-state.js";
-import { stackInstruction, type StackChoice, type StackProfileId } from "./stack.js";
+import { stackInstruction, stackChoiceFor } from "./stack.js";
 import { applyKeysToEnv, getPrefs } from "./tui/config.js";
 import { availableProviders, planBuild, startBuild, listProjects, effectiveRoster, planExtraTasks, type RunHandle } from "./tui/engine.js";
 import { getModel } from "./models.js";
@@ -26,9 +26,6 @@ const text = (s: string) => ({ content: [{ type: "text" as const, text: s }] });
 const json = (o: unknown) => text(JSON.stringify(o, null, 2));
 const fail = (s: string) => ({ content: [{ type: "text" as const, text: s }], isError: true });
 
-const stackChoiceFor = (stack: StackProfileId): StackChoice | undefined =>
-  stack === "vite" ? { platform: "web", framework: "vite-react" } : stack === "node" ? { platform: "backend", framework: "node" } : undefined;
-
 /** Builds started by this process: workspace → handle + recent events. */
 const live = new Map<string, { handle: RunHandle; events: OrchestratorEvent[]; done?: { halted: boolean; haltReason?: string; totalCost: number } }>();
 
@@ -37,7 +34,7 @@ export function createServer(): McpServer {
 
   server.registerTool("plan", {
     description: "Ask the PM to break an idea into a task backlog with a cost estimate. Spends one PM call (~$0.01). Nothing is built.",
-    inputSchema: { idea: z.string().describe("what to build"), stack: z.enum(["static", "vite", "node"]).default("static") },
+    inputSchema: { idea: z.string().describe("what to build"), stack: z.enum(["static", "vite", "node", "python"]).default("static") },
   }, async ({ idea, stack }) => {
     const providers = availableProviders();
     if (!providers.length) return fail("No API key found — set one in the Projectinator app or export ANTHROPIC_API_KEY / OPENROUTER_API_KEY / …");
@@ -50,7 +47,7 @@ export function createServer(): McpServer {
     description: "Plan and START building an idea (real spend, up to the budget cap). Returns immediately with the workspace path; poll build_status. Same workspace layout as the app, so the project appears there too.",
     inputSchema: {
       idea: z.string(),
-      stack: z.enum(["static", "vite", "node"]).default("static"),
+      stack: z.enum(["static", "vite", "node", "python"]).default("static"),
       budgetCapUSD: z.number().positive().optional().describe("default: your prefs"),
       concurrency: z.number().int().min(1).max(8).optional(),
     },

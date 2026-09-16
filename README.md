@@ -159,6 +159,7 @@ projectinator build "a tip calculator" --yes          # build without the confir
 projectinator build "…" --json --budget 2 --provider anthropic   # NDJSON events; cap; lock provider
 projectinator build "…" --task-cap 0.5 --task-timeout 5           # per-task limits (USD / minutes)
 projectinator build "…" --stack vite                             # Vite + React + TS instead of static
+projectinator build "…" --stack python                           # FastAPI/Flask server in its own venv
 projectinator build "…" --parallel-code --concurrency 4          # code tasks in parallel worktrees
 projectinator projects                                # past builds, status, cost
 projectinator scout                                             # price drift + new models + proposed diff
@@ -176,7 +177,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 269 tests
+npm test                                          # 272 tests
 npm run typecheck
 ```
 </details>

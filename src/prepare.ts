@@ -39,7 +39,7 @@ function run(dir: string, cmd: string[]): { ok: boolean; out: string } {
 /** Hash of the inputs that decide whether install/build must run again. */
 function inputsHash(dir: string, profile: StackProfile): string {
   const h = createHash("sha1").update(profile.id);
-  for (const f of ["package.json", "package-lock.json", "npm-shrinkwrap.json", "vite.config.ts", "vite.config.js", "tsconfig.json"]) {
+  for (const f of ["package.json", "package-lock.json", "npm-shrinkwrap.json", "vite.config.ts", "vite.config.js", "tsconfig.json", "requirements.txt", "pyproject.toml"]) {
     const p = join(dir, f);
     if (existsSync(p)) h.update(f).update(readFileSync(p));
   }
@@ -53,7 +53,7 @@ function sourceStamp(dir: string): string {
   const walk = (d: string, depth: number) => {
     if (depth > 4 || !existsSync(d)) return;
     for (const name of readdirSync(d)) {
-      if (name === "node_modules" || name === "dist" || name.startsWith(".")) continue;
+      if (name === "node_modules" || name === "dist" || name === "__pycache__" || name.startsWith(".")) continue;
       const p = join(d, name);
       try {
         const st = statSync(p);
@@ -79,12 +79,13 @@ export function prepareForTest(dir: string, profile: StackProfile): PrepareResul
   const log: string[] = [];
 
   if (profile.install) {
-    if (!existsSync(join(dir, "package.json"))) {
-      return { ok: false, serveDir, log, failedStep: "install", output: "package.json is missing — the project must be a real npm project (package.json + package-lock.json)." };
+    const manifest = profile.manifest ?? "package.json";
+    if (!existsSync(join(dir, manifest))) {
+      return { ok: false, serveDir, log, failedStep: "install", output: manifest === "package.json" ? "package.json is missing — the project must be a real npm project (package.json + package-lock.json)." : `${manifest} is missing — the project must list its dependencies there (pinned versions).` };
     }
-    if (stamp.inputs !== inputs || !existsSync(join(dir, "node_modules"))) {
+    if (stamp.inputs !== inputs || !existsSync(join(dir, profile.installDir ?? "node_modules"))) {
       const r = run(dir, profile.install);
-      log.push(`${profile.install.join(" ")} → ${r.ok ? "ok" : "FAILED"}`);
+      log.push(`${profile.install.at(-1)!.length > 40 ? profile.install.at(-1) : profile.install.join(" ")} → ${r.ok ? "ok" : "FAILED"}`);
       if (!r.ok) {
         const scriptsBlocked = /postinstall|prepare script|install script|gyp|node-pre-gyp|husky/i.test(r.out);
         return { ok: false, serveDir, log, failedStep: "install", output: tail(r.out), scriptsBlocked };

@@ -937,7 +937,7 @@ function ensureRunInstructions(workspace: string, profile: StackProfile = PROFIL
   const hasReadme = ["README.md", "readme.md", "README.txt"].some((n) => existsSync(join(workspace, n)));
   if (hasReadme) return; // the developer/tester already documented it
   if (profile.id !== "static") {
-    const cmds = [profile.install, profile.build ? ["npm", "run", "dev"] : profile.serve].filter((c): c is string[] => !!c).map((c) => c.join(" ").replace(" --ignore-scripts --no-audit --no-fund", ""));
+    const cmds = [profile.install, profile.build ? ["npm", "run", "dev"] : profile.serve].filter((c): c is string[] => !!c).map((c) => (c[0] === "sh" && c[1] === "-c" ? c[2]! : c.join(" ")).replace(" --ignore-scripts --no-audit --no-fund", "").replace(" --quiet --disable-pip-version-check", ""));
     writeFileSync(join(workspace, "README.md"), ["# Your app", "", `Built by Projectinator (${profile.label}).`, "", "## Run it", "", "```", ...cmds, "```", ""].join("\n"));
     return;
   }

@@ -27,7 +27,7 @@ import { chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
 import { applyKeysToEnv, getPrefs, getWebhookUrl, loadConfig, ENV_VAR, type KeyedProvider } from "./tui/config.js";
 import { getLocalModels } from "./local-models.js";
 import { postWebhook } from "./tui/notify.js";
-import { stackInstruction, type StackChoice, type StackProfileId } from "./stack.js";
+import { stackInstruction, stackChoiceFor, type StackChoice, type StackProfileId } from "./stack.js";
 import {
   availableProviders,
   effectiveRoster,
@@ -118,6 +118,8 @@ async function doctor(): Promise<number> {
 
   const npm = spawnSync("npm", ["--version"], { encoding: "utf8" });
   checks.push({ label: "npm", ok: npm.status === 0, detail: npm.status === 0 ? `v${npm.stdout.trim()} — Vite / Node stacks can install and build` : "not found — Vite / Node stacks won't build (static is unaffected)" });
+  const py = spawnSync("python3", ["--version"], { encoding: "utf8" });
+  checks.push({ label: "python3", ok: py.status === 0, detail: py.status === 0 ? `${py.stdout.trim() || py.stderr.trim()} — Python stack can create its venv` : "not found — the Python stack won't run (other stacks are unaffected)" });
   const git = spawnSync("git", ["--version"], { encoding: "utf8" });
   checks.push({ label: "git", ok: git.status === 0, detail: git.status === 0 ? git.stdout.trim() : "not found — builds won't be versioned (undo/history disabled)" });
 
@@ -181,9 +183,9 @@ async function build(argv: Argv): Promise<number> {
   const yes = json || argv.flags.yes === true || argv.flags.y === true;
   const dry = argv.flags["dry-run"] === true;
   const stackFlag = argv.flags.stack;
-  const stack: StackProfileId = stackFlag === "vite" || stackFlag === "node" ? stackFlag : "static";
-  if (typeof stackFlag === "string" && stackFlag !== stack) { console.error(`  build: unknown --stack "${stackFlag}" (static | vite | node)`); return 2; }
-  const stackChoice: StackChoice | undefined = stack === "vite" ? { platform: "web", framework: "vite-react" } : stack === "node" ? { platform: "backend", framework: "node" } : undefined;
+  const stack: StackProfileId = stackFlag === "vite" || stackFlag === "node" || stackFlag === "python" ? stackFlag : "static";
+  if (typeof stackFlag === "string" && stackFlag !== stack) { console.error(`  build: unknown --stack "${stackFlag}" (static | vite | node | python)`); return 2; }
+  const stackChoice: StackChoice | undefined = stackChoiceFor(stack);
   const emit = (o: Record<string, unknown>) => { if (json) process.stdout.write(JSON.stringify(o) + "\n"); };
   const say = (s: string) => { if (!json) console.log(s); };
 
@@ -293,7 +295,7 @@ const USAGE = `Usage: projectinator <command> [options]
       --concurrency <n>         tasks at once            (default: your prefs)
       --task-cap <usd>          per-task cost ceiling    (default: your prefs; 0 = off)
       --task-timeout <min>      per-task timeout         (default: your prefs; 0 = off)
-      --stack static|vite|node  static (default), Vite+React+TS, or a Node server
+      --stack static|vite|node|python   static (default), Vite+React+TS, Node server, Python server
       --parallel-code           independent code tasks build at once in git worktrees (default: prefs)
   projects                      list past builds with status and cost
   models                        the roster as it will run, with prices

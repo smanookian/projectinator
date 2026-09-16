@@ -14,7 +14,7 @@ export interface StackChoice {
   framework: Framework;
 }
 
-export type StackProfileId = "static" | "vite" | "node";
+export type StackProfileId = "static" | "vite" | "node" | "python";
 
 export interface StackProfile {
   id: StackProfileId;
@@ -34,6 +34,9 @@ export interface StackProfile {
   doubleClick: boolean;
   /** Folders that must never be committed or shipped. */
   exclude: string[];
+  /** Install inputs: the manifest the install reads, and the folder it produces (cache keys). */
+  manifest?: string;
+  installDir?: string;
   /** Tool the machine needs (checked by doctor). */
   requires: "node" | "python" | null;
 }
@@ -52,11 +55,21 @@ export const PROFILES: Record<StackProfileId, StackProfile> = {
     id: "vite", label: "Vite (npm build step)",
     install: NPM_CI, build: ["npm", "run", "build"], outDir: "dist", entry: "index.html",
     deployable: true, doubleClick: false, exclude: ["node_modules/", "dist/"], requires: "node",
+    manifest: "package.json", installDir: "node_modules",
   },
   node: {
     id: "node", label: "Node server (Express / Hono)",
     install: NPM_CI, serve: ["npm", "start"], entry: "",
     deployable: false, doubleClick: false, exclude: ["node_modules/"], requires: "node",
+    manifest: "package.json", installDir: "node_modules",
+  },
+  python: {
+    id: "python", label: "Python server (FastAPI / Flask)",
+    // A private venv per project; pip never touches the machine's Python.
+    install: ["sh", "-c", "python3 -m venv .venv && .venv/bin/pip install --quiet --disable-pip-version-check -r requirements.txt"],
+    serve: [".venv/bin/python", "main.py"], entry: "",
+    deployable: false, doubleClick: false, exclude: [".venv/", "__pycache__/"], requires: "python",
+    manifest: "requirements.txt", installDir: ".venv",
   },
 };
 
@@ -68,9 +81,18 @@ export function profileWithScripts(p: StackProfile): StackProfile {
 /** Which profile a choice implies. Anything unknown/custom/AI is static — the safe default. */
 export function profileFor(choice: StackChoice | undefined | null): StackProfile {
   if (!choice) return PROFILES.static;
+  if (choice.framework === "python") return PROFILES.python;
   if (choice.platform === "backend" || choice.framework === "node") return PROFILES.node;
   if (choice.framework === "vite-react" || choice.framework === "vite-ts") return PROFILES.vite;
   return PROFILES.static;
+}
+
+/** The choice a bare profile id implies (CLI --stack, MCP). */
+export function stackChoiceFor(id: StackProfileId): StackChoice | undefined {
+  if (id === "vite") return { platform: "web", framework: "vite-react" };
+  if (id === "node") return { platform: "backend", framework: "node" };
+  if (id === "python") return { platform: "backend", framework: "python" };
+  return undefined;
 }
 
 export const WEB_FRAMEWORKS: { id: Framework; label: string }[] = [
@@ -83,6 +105,7 @@ export const WEB_FRAMEWORKS: { id: Framework; label: string }[] = [
 
 export const BACKEND_FRAMEWORKS: { id: Framework; label: string }[] = [
   { id: "node", label: "Node server — Express or Hono, plain JavaScript" },
+  { id: "python", label: "Python server — FastAPI or Flask" },
 ];
 
 const VITE_COMMON =
@@ -104,6 +127,11 @@ const WEB_DESC: Record<string, string> = {
     "a Node.js HTTP server in plain JavaScript (ES modules) using Express or Hono: package.json with a `start` script, " +
     "a lockfile so `npm ci` works, the server listening on process.env.PORT (default 3000) and serving its own HTML at `/`. " +
     "Static assets under public/. Write a README.md with `npm install` and `npm start`. Do not commit node_modules",
+  python:
+    "a Python HTTP server using FastAPI (with uvicorn) or Flask: requirements.txt with pinned versions, and main.py that, when run as " +
+    "`python main.py`, starts the server on host 127.0.0.1 and the port from the PORT environment variable (default 8000) and serves its own HTML at `/`. " +
+    "Static assets under static/. Use only the standard library plus what requirements.txt lists. Write a README.md with " +
+    "`python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` and `.venv/bin/python main.py`. Do not commit .venv or __pycache__",
 };
 
 /** The instruction appended to the brief for the chosen stack (empty = AI decides). */
@@ -112,7 +140,7 @@ export function stackInstruction(choice: StackChoice): string {
   if (platform === "mobile" || platform === "desktop") {
     return `\n\nTarget platform: ${platform}. Native ${platform} toolchains aren't wired up yet — build a responsive web app (single index.html) styled to feel like a ${platform} app.`;
   }
-  if (platform === "backend") return `\n\nTarget stack: ${WEB_DESC.node}.`;
+  if (platform === "backend") return `\n\nTarget stack: ${framework === "python" ? WEB_DESC.python : WEB_DESC.node}.`;
   if (!framework || framework === "ai") return ""; // let the PM pick a web approach
   const desc = WEB_DESC[framework] ?? `the ${framework} stack (no build step; must run by opening index.html)`;
   return `\n\nTarget stack: ${desc}.`;

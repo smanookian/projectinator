@@ -18,7 +18,7 @@ pipeline asks the profile instead of assuming:
 |---|---|---|---|---|
 | Install | — | `npm ci` | `npm ci` | `python -m venv .venv && .venv/bin/pip install -r requirements.txt` |
 | Build | — | `npm run build` → `dist/` | — | — |
-| Serve for testing | static server on the folder | static server on `dist/` (**after** build) | `npm start` on a free `PORT`, wait for it to listen | `.venv/bin/python app.py` on `PORT`, wait |
+| Serve for testing | static server on the folder | static server on `dist/` (**after** build) | `npm start` on a free `PORT`, wait for it to listen | `.venv/bin/python main.py` on `PORT`, wait |
 | Entry URL | `/index.html` | `/` | `/` | `/` |
 | Deploy artefact | folder | `dist/` | ✗ (needs a server host — out of scope) | ✗ |
 | "Runs on double-click"? | **required** | no — README with `npm run dev` required instead | no — README required | no — README required |

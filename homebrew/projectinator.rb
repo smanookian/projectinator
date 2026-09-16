@@ -7,8 +7,8 @@
 class Projectinator < Formula
   desc "Your AI build team in the terminal: PM, Designer, Developer, Reviewer, Tester, Ops"
   homepage "https://github.com/smanookian/projectinator"
-  url "https://registry.npmjs.org/projectinator/-/projectinator-0.15.0.tgz"
-  sha256 "6fbbaf747c05ea06a38997d5d0ea134453340e6a2d923946407f7c60d7942f24"
+  url "https://registry.npmjs.org/projectinator/-/projectinator-0.16.0.tgz"
+  sha256 "769323724ee11301198a72aad3f8fea8864dea05c959591b29a6bd3880f08871"
   license "MIT"
 
   depends_on "node@22"

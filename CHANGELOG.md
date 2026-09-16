@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.17.0 — 2026-09-16
+
+### Added
+- **Python stack** (`--stack python`, Stack picker → Backend (Python — FastAPI / Flask),
+  MCP `stack: "python"`). The PM briefs a `requirements.txt` + `main.py` server that reads
+  `PORT`; prepare creates a private `.venv` and pip-installs (cached by requirements hash);
+  the Tester starts `.venv/bin/python main.py` on a free port and drives it like the Node
+  stack. `.venv/`, `__pycache__/` excluded from git/share/file lists. `doctor` checks
+  `python3`. Verified with a real venv + server + headless render.
+
 ## 0.16.0 — 2026-09-16
 
 ### Added
