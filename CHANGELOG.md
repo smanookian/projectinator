@@ -10,6 +10,8 @@
   (resumable like any halt). Injected tasks are persisted into the project's backlog.
   Orchestrator: `createBuildControl()` + `control` option, events `paused`/`resumed`/
   `task_added`/`task_removed`, `RunResult.tasks`. `--json` streams the same events.
+  Verified live: paused build finished its task and started nothing new; added tasks joined the
+  backlog while paused; a removed task never ran; stop halted resumably ($0.09).
 
 ### Changed
 - One ready-set scheduler for both sequential and parallel builds (concurrency 1 launches one

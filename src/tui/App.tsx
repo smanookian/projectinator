@@ -100,6 +100,9 @@ export default function App(): React.ReactElement {
   const [control, setControl] = useState<BuildControl | null>(null);
   const [steer, setSteer] = useState<null | { kind: "add"; text: string; busy?: boolean; error?: string } | { kind: "remove" }>(null);
   const [paused, setPaused] = useState(false);
+  // Tasks injected mid-build. Kept apart from `plan`: the build effect re-runs when `plan`
+  // changes, which would restart the build. Merged in for the board and the add-prompt.
+  const [extraTasks, setExtraTasks] = useState<Task[]>([]);
   const [buildResult, setBuildResult] = useState<{ halted: boolean; haltReason?: string; files: string[]; workspace: string; branch?: string } | null>(null);
 
   // Existing-project context (open/resume/make-changes).
@@ -371,7 +374,7 @@ export default function App(): React.ReactElement {
       else if (e.type === "resumed") setPaused(false);
       else if (e.type === "task_added") {
         setTasks((ts) => [...ts, { id: e.task.id, title: e.task.title, capability: e.task.capability, status: "pending" }]);
-        setPlan((p) => (p ? { ...p, tasks: [...p.tasks, e.task] } : p));
+        setExtraTasks((x) => [...x, e.task]);
       } else if (e.type === "task_removed") {
         setTasks((ts) => ts.filter((t) => t.id !== e.taskId));
       } else if (e.type === "merge_conflict") {
@@ -405,6 +408,7 @@ export default function App(): React.ReactElement {
     setControl(handle.control);
     setPaused(false);
     setSteer(null);
+    setExtraTasks([]);
     let alive = true;
     handle.promise
       .then((r) => {
@@ -1871,7 +1875,8 @@ export default function App(): React.ReactElement {
 
   if (phase === "building") {
     const running = tasks.filter((t) => t.status === "running").length;
-    const metaById = new Map((plan?.tasks ?? []).map((t) => [t.id, { deps: t.dependsOn ?? [], epic: t.epic, notes: t.notes, difficulty: t.difficulty }]));
+    const allTasks = [...(plan?.tasks ?? []), ...extraTasks];
+    const metaById = new Map(allTasks.map((t) => [t.id, { deps: t.dependsOn ?? [], epic: t.epic, notes: t.notes, difficulty: t.difficulty }]));
     const timeoutMs = getPrefs().taskTimeoutMin * 60_000;
     const board: BoardTask[] = tasks.map((t) => {
       const meta = metaById.get(t.id);
@@ -1921,7 +1926,7 @@ export default function App(): React.ReactElement {
                       const request = text.trim();
                       if (!request || !control) return;
                       setSteer({ kind: "add", text, busy: true });
-                      planExtraTasks(request, plan?.tasks ?? [], providers, targetWorkspace)
+                      planExtraTasks(request, allTasks, providers, targetWorkspace)
                         .then((extra) => {
                           if (!extra.length) return setSteer({ kind: "add", text, error: "The PM found nothing new to add." });
                           control.inject(extra);
