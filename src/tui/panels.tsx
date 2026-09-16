@@ -4,6 +4,7 @@ import React from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 import { C, ROLE_META, Panel, Chip } from "./components.js";
+import { roleGlyph } from "./icons.js";
 import { groupByEpic, type BoardTask } from "./Kanban.js";
 import { effectiveRoster, modelLabel } from "./engine.js";
 
@@ -14,7 +15,7 @@ export function Team(): React.ReactElement {
     <Panel title="Your team">
       {rows.map((r) => (
         <Box key={r.capability}>
-          <Text>{ROLE_META[r.capability].emoji} </Text>
+          <Text>{roleGlyph(r.capability)} </Text>
           <Box width={16}><Text color={C.dim}>{ROLE_META[r.capability].label}</Text></Box>
           <Text color={C.text}>{modelLabel(r.model ?? "—")}</Text>
         </Box>
@@ -76,7 +77,7 @@ export function ListView({ tasks }: { tasks: BoardTask[] }): React.ReactElement 
                   {t.status === "running" ? <Text color={C.info}><Spinner type="dots" /></Text> : <Text color={s.c}>{s.m}</Text>}
                 </Box>
                 <Box width={7}><Text color={C.dim}>{t.id}</Text></Box>
-                <Box width={3}><Text>{ROLE_META[t.capability].emoji}</Text></Box>
+                <Box width={3}><Text>{roleGlyph(t.capability)}</Text></Box>
                 <Box flexGrow={1}><Text color={C.text} wrap="truncate-end">{t.title}</Text></Box>
                 <Box width={10} justifyContent="flex-end">
                   {t.verdict ? <Text color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}>{t.verdict}</Text>

@@ -9,6 +9,7 @@ import InkSpinner from "ink-spinner"; // a Text-based spinner, safe as an inline
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
 import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, KeyHint, useTermRows, TextField as TextInput, ROLE_META, type TaskView, type MenuGroup } from "./components.js";
+import { roleGlyph } from "./icons.js";
 import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
@@ -1251,7 +1252,7 @@ export default function App(): React.ReactElement {
               <SelectInput
                 items={[
                   ...outcomes.map((o, i) => ({
-                    label: `${o.taskId.padEnd(6)} ${ROLE_META[o.capability].emoji} ${o.capability.padEnd(7)}${o.round ? ` r${o.round}` : "   "}  $${o.cost.toFixed(2).padStart(5)}  ${o.error ? "ABORTED" : o.verdict ? verdictLabel(o.verdict, o.capability) : ""}${o.visualDelta !== undefined ? ` ▲${o.visualDelta}%` : ""}`.padEnd(40) + `  ${(titleById.get(o.taskId) ?? "").slice(0, 40)}`,
+                    label: `${o.taskId.padEnd(6)} ${roleGlyph(o.capability)} ${o.capability.padEnd(7)}${o.round ? ` r${o.round}` : "   "}  $${o.cost.toFixed(2).padStart(5)}  ${o.error ? "ABORTED" : o.verdict ? verdictLabel(o.verdict, o.capability) : ""}${o.visualDelta !== undefined ? ` ▲${o.visualDelta}%` : ""}`.padEnd(40) + `  ${(titleById.get(o.taskId) ?? "").slice(0, 40)}`,
                     value: String(i),
                   })),
                   { label: "Back", value: "back" },

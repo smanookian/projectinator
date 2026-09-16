@@ -33,6 +33,8 @@ export interface AppConfig {
   preferredStack?: "ask" | "vanilla" | "react" | "ai";
   /** Color theme (Settings → Appearance). Default dark. */
   theme?: ThemeId;
+  /** Role icon style: Nerd Font glyphs or portable ASCII. Default nerd. */
+  icons?: "nerd" | "ascii";
 }
 
 /** Providers that authenticate with an API key. "local" is configured under Settings → Local models. */
@@ -66,6 +68,7 @@ export function loadConfig(): AppConfig {
       notify: parsed.notify,
       preferredStack: parsed.preferredStack,
       theme: parsed.theme,
+      icons: parsed.icons,
     };
   } catch {
     return { keys: {} };
@@ -98,6 +101,15 @@ export function getTheme(): ThemeId {
 export function setTheme(v: ThemeId): void {
   const cfg = loadConfig();
   cfg.theme = v;
+  saveConfig(cfg);
+}
+
+export function getIconMode(): "nerd" | "ascii" {
+  return loadConfig().icons ?? "nerd";
+}
+export function setIconMode(v: "nerd" | "ascii"): void {
+  const cfg = loadConfig();
+  cfg.icons = v;
   saveConfig(cfg);
 }
 

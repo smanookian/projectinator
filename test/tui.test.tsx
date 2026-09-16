@@ -9,6 +9,7 @@ import { Settings } from "../src/tui/Settings.js";
 import { Kanban, type BoardTask } from "../src/tui/Kanban.js";
 import { BoardEditor } from "../src/tui/BoardEditor.js";
 import { Team, Standup, ListView } from "../src/tui/panels.js";
+import { roleGlyph } from "../src/tui/icons.js";
 import { EditableBoard } from "../src/tui/EditableBoard.js";
 import { validateKey } from "../src/tui/validate.js";
 import { TEMPLATES } from "../src/tui/templates.js";
@@ -281,7 +282,7 @@ describe("PM panels", () => {
     const f = lastFrame() ?? "";
     expect(f).toContain("Hero");
     expect(f).toContain("build");
-    expect(f).toContain("🧠"); // developer icon for the code task
+    expect(f).toContain(roleGlyph("code")); // role icon (Nerd Font by default) for the code task
     unmount();
   });
   it("Team lists the five roles with their models", () => {

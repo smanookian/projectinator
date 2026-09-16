@@ -34,7 +34,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   const [localChosen, setLocalChosen] = useState<Set<string>>(() => new Set(getLocalModels()?.models ?? []));
   const [, force] = useState(0);
   const refresh = () => force((n) => n + 1);
-  const { id: themeId, theme: activeTheme, set: setThemeCtx } = useThemeCtx();
+  const { id: themeId, theme: activeTheme, setTheme: setThemeCtx, iconMode, setIconMode: setIconModeCtx } = useThemeCtx();
 
   // ---------- menu ----------
   if (sub === "menu") {
@@ -56,6 +56,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
       ] },
       { title: "Appearance", items: [
         { label: `Theme: ${activeTheme.label}`, value: "theme" },
+        { label: `Icons: ${iconMode === "nerd" ? "Nerd Font" : "Default (no font)"}`, value: "icons" },
       ] },
       // Web-login (browser automation / OAuth) is parked — vendors closed
       // third-party subscription auth in 2026. Hidden unless PROJECTINATOR_WEB=1.
@@ -81,6 +82,10 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                 const next = !getPrefs().parallelCode;
                 setPrefs({ parallelCode: next });
                 setNotice(next ? "Parallel code tasks on: independent code tasks build at once, each in its own git worktree, merged back per task. A conflict costs one serial re-run." : "Parallel code tasks off: code tasks run one at a time.");
+              } else if (i.value === "icons") {
+                const next = iconMode === "nerd" ? "ascii" : "nerd";
+                setIconModeCtx(next);
+                setNotice(next === "nerd" ? "Role icons: Nerd Font glyphs." : "Role icons: portable ASCII — use this if the glyphs render as boxes.");
               } else setSub(i.value as Sub);
             }}
           />

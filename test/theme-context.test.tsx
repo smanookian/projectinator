@@ -25,7 +25,7 @@ afterAll(() => {
 function Probe(): React.ReactElement {
   const ctx = useThemeCtx();
   useEffect(() => {
-    (globalThis as { __set?: (t: "dark" | "light") => void }).__set = ctx.set;
+    (globalThis as { __set?: (t: "dark" | "light") => void }).__set = ctx.setTheme;
   });
   return <Text>{ctx.id}</Text>;
 }

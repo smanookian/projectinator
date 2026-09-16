@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { Capability, Difficulty, Task } from "../types.js";
 import { C, ROLE_META, KeyHint, TextField as TextInput } from "./components.js";
+import { roleGlyph } from "./icons.js";
 import { estimateTokens } from "../estimate.js";
 import { groupByEpic } from "./Kanban.js";
 
@@ -142,7 +143,7 @@ export function EditableBoard({
                   <Box width={2}><Text color={C.accent}>{sel ? "›" : " "}</Text></Box>
                   <Box width={2}><Text color={done ? C.good : C.dim}>{done ? "✓" : "○"}</Text></Box>
                   <Box width={7}><Text color={C.dim}>{t.id}</Text></Box>
-                  <Box width={3}><Text>{ROLE_META[t.capability].emoji}</Text></Box>
+                  <Box width={3}><Text>{roleGlyph(t.capability)}</Text></Box>
                   <Box width={16}><Text color={sel ? C.accent : C.dim}>{t.capability}/{t.difficulty}</Text></Box>
                   <Box flexGrow={1}>
                     {sel && editing && field === "title" ? (

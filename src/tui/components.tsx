@@ -250,14 +250,15 @@ const CAP_LABEL: Record<Capability, string> = {
   plan: "plan", design: "design", code: "code", review: "review", test: "test", ops: "ops",
 };
 
-/** The AI team: each capability is a role with a friendly name + icon. */
-export const ROLE_META: Record<Capability, { emoji: string; label: string }> = {
-  plan: { emoji: "🧭", label: "Project manager" },
-  design: { emoji: "🎨", label: "Designer" },
-  code: { emoji: "🧠", label: "Developer" },
-  review: { emoji: "🔍", label: "Reviewer" },
-  test: { emoji: "🔎", label: "Tester" },
-  ops: { emoji: "🚀", label: "Runner" },
+/** The AI team: each capability is a role with a friendly name. Icons come from
+ *  icons.ts (roleGlyph) so they follow Nerd Font vs ASCII mode. */
+export const ROLE_META: Record<Capability, { label: string }> = {
+  plan: { label: "Project manager" },
+  design: { label: "Designer" },
+  code: { label: "Developer" },
+  review: { label: "Reviewer" },
+  test: { label: "Tester" },
+  ops: { label: "Runner" },
 };
 
 function statusMark(s: TaskStatus): React.ReactElement {
