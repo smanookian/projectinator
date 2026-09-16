@@ -184,8 +184,8 @@ export function KeyHint({ hints }: { hints: Hint[] }): React.ReactElement {
     <Box flexWrap="wrap">
       {hints.map((h, i) => (
         <Box key={i} marginRight={2} alignItems="center">
-          <Box borderStyle="round" borderColor={C.dim} paddingX={1}>
-            <Text color={C.accent}>{h.keys}</Text>
+          <Box borderStyle="round" borderColor={C.border} paddingX={1}>
+            <Text color={C.text}>{h.keys}</Text>
           </Box>
           <Text color={C.dim}>{` ${h.label}`}</Text>
         </Box>
@@ -205,8 +205,8 @@ export function Panel({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={borderColor ?? C.border} paddingX={2} paddingY={1} alignSelf="flex-start">
-      {title ? <Box marginBottom={1}><Text bold color={C.accent}>{title}</Text></Box> : null}
+    <Box flexDirection="column" borderStyle="round" borderColor={borderColor ?? C.border} backgroundColor={C.bgPanel} paddingX={2} paddingY={1}>
+      {title ? <Box marginBottom={1}><Text bold>{title}</Text></Box> : null}
       {children}
     </Box>
   );
