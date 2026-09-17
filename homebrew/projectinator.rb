@@ -7,11 +7,13 @@
 class Projectinator < Formula
   desc "Your AI build team in the terminal: PM, Designer, Developer, Reviewer, Tester, Ops"
   homepage "https://github.com/smanookian/projectinator"
-  url "https://registry.npmjs.org/projectinator/-/projectinator-0.16.0.tgz"
-  sha256 "769323724ee11301198a72aad3f8fea8864dea05c959591b29a6bd3880f08871"
+  url "https://registry.npmjs.org/projectinator/-/projectinator-0.21.0.tgz"
+  sha256 "bf97a26ec3c36267fa3ba34691cfc4186a358958cceb09281bc70de1dc7369c0"
   license "MIT"
 
-  depends_on "node@22"
+  # Unversioned node (24.x) satisfies the engines field (>=22.19) and, unlike the keg-only
+  # node@22, is on PATH — which the launcher's `#!/usr/bin/env node` shebang needs.
+  depends_on "node"
   depends_on "git"
 
   def install

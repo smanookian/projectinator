@@ -132,6 +132,7 @@ npm run typecheck         # tsc --noEmit — run this after every change
   the memory note. Do not promote it.
 - **React = CDN/no-build.** Vite-with-build needs reliable `npm install` in the task sandbox.
 - **Screens can't be corrupted by overflow**: AppFrame wraps content in a `flexShrink={0}` box, so a too-tall screen clips instead of letting Yoga merge rows. Screens still budget their optional panels by `termRows` so the actionable part is what survives.
+- **Releasing**: bump + tag + `npm publish`, then `./scripts/brew-formula.sh --push` to move the Homebrew tap to the new version (it refuses if the tarball isn't published yet).
 - **Projects dir**: `tuiRoot()` = `$PROJECTINATOR_HOME/projects` or `<root>/.workspace/tui`. Docker sets it to `/data`.
 - **Parallel code tasks are opt-in** (worktrees, merged per task). Off = the old one-code-task-at-a-time rule.
 - **Mobile/Desktop** stacks currently fall back to a web build.

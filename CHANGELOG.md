@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.21.1 — 2026-09-16
+
+### Added
+- **Homebrew install actually works.** The tap is live at
+  [smanookian/homebrew-projectinator](https://github.com/smanookian/homebrew-projectinator) —
+  the formula shipped in 0.16.0 but the tap repo it needed never existed, so
+  `brew install projectinator` couldn't resolve:
+  ```sh
+  brew tap smanookian/projectinator
+  brew install projectinator
+  ```
+  `scripts/brew-formula.sh --push` now regenerates the formula from the published tarball and
+  publishes it to the tap in one step (idempotent; refuses if the version isn't on npm yet).
+
+### Fixed
+- The formula depended on keg-only `node@22`, which isn't on `PATH` — the launcher's
+  `#!/usr/bin/env node` shebang could have picked a different runtime. It now depends on
+  unversioned `node` (24.x satisfies the `>=22.19` engines field).
+
 ## 0.21.0 — 2026-09-16
 
 ### Changed
