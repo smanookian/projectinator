@@ -289,7 +289,13 @@ async function build(argv: Argv): Promise<number> {
     const dep = t.dependsOn?.length ? `  ← ${t.dependsOn.join(", ")}` : "";
     say(`    ${t.id.padEnd(6)} ${t.capability.padEnd(7)} ${t.difficulty.padEnd(8)} ${t.title}${dep}`);
   }
-  if (plan.estCost > budget) say(`\n  ⚠ Estimate exceeds the cap — the build may halt partway.`);
+  if (plan.estCost > budget) {
+    // say() is suppressed by --json, so a machine consumer saw nothing at all and only learned
+    // about it from the budget_halt event, after the money was spent.
+    emit({ event: "budget_warning", estCost: plan.estCost, cap: budget });
+    say(`\n  ⚠ Estimate ${money(plan.estCost)} exceeds the cap ${money(budget)} — this build will halt partway.`);
+    say(`    Raise --budget, cut scope, or expect to resume it later.`);
+  }
 
   if (dry) { say("\n  Dry run — nothing built (the PM call above was the only spend).\n"); return 0; }
   if (!yes) {
@@ -328,6 +334,13 @@ async function build(argv: Argv): Promise<number> {
     if (!ok) say(`  (webhook ${hook} did not accept the summary)`);
   }
   say(`\n  ${r.halted ? `⚠ Halted (${r.haltReason ?? "?"})` : "✓ Complete"} · ${money(r.totalCost)} · ${r.files.length} file${r.files.length === 1 ? "" : "s"}`);
+  // The cap is checked against estimates before each task, so a run whose actuals beat the
+  // estimates can land above it. Say so instead of leaving an unexplained overspend.
+  if (r.totalCost > budget) {
+    say(`  Note: ${money(r.totalCost)} is above the ${money(budget)} cap — tasks are cleared against`);
+    say(`  their estimate before they run, and these cost more than estimated.`);
+  }
+  if (r.halted && r.haltReason === "budget cap") say(`  Run \`projectinator\` and open this project to resume the remaining tasks.`);
   say(`  ${handle.workspace}\n`);
   return r.halted ? 3 : 0;
 }

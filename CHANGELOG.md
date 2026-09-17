@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.23.3 — 2026-09-18
+
+Found by running a real $1.20 build end to end instead of auditing code.
+
+### Fixed
+- **`budget_halt` overstated the bill.** It reported `running + the estimate of the task it
+  refused to launch`, so a build that had spent $1.20 announced $1.25. It now reports what was
+  actually spent, which is also what `done.totalCost` says — the two used to disagree.
+- **`--json` hid the "estimate exceeds the cap" warning.** It was printed with `say()`, which
+  `--json` suppresses, so a machine consumer got no signal until `budget_halt` arrived after the
+  money was gone. A `budget_warning` event (`estCost`, `cap`) is now emitted before the build
+  starts, and the human-readable warning names both numbers.
+- **An overspend is now explained.** The cap clears each task against its *estimate*, so a run
+  whose tasks cost more than estimated can finish above the cap (a $1 cap billed $1.20). The
+  summary says so rather than leaving you to notice, and a budget halt points at the cockpit to
+  resume the remaining tasks.
+
 ## 0.23.2 — 2026-09-16
 
 ### Fixed

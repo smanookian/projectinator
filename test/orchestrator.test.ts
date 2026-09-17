@@ -159,6 +159,24 @@ describe("runBacklog — budget halt", () => {
     expect(calls.length).toBe(0); // halted before any execution
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ type: "budget_halt" }));
   });
+
+  it("reports what was actually spent, not the estimate of the task it refused to launch", async () => {
+    // A real $1.20 build reported runningTotal $1.25 — the refused task's estimate was added in,
+    // so the halt read as if the cap had been overshot by more than it was.
+    const tasks = [t("A", "code"), t("B", "code"), t("C", "code")];
+    const { exec } = fakeExecutor({ cost: 0.4 }); // actuals far above the estimates the cap checks
+    const halts: { runningTotal: number }[] = [];
+    const res = await runBacklog(tasks, {
+      policy: policy({ budgetCapUSD: 0.6 }),
+      execute: exec,
+      registry: anthropic,
+      concurrency: 1,
+      onProgress: (e) => { if (e.type === "budget_halt") halts.push(e); },
+    });
+    expect(res.halted).toBe(true);
+    expect(halts).toHaveLength(1);
+    expect(halts[0]!.runningTotal).toBeCloseTo(res.totalCost, 2);
+  });
 });
 
 describe("mid-build review gate", () => {

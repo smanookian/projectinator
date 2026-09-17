@@ -414,7 +414,10 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
       const est = route(task, { policy, registry, runningTotalBefore: running + reserved });
       if (running + reserved + est.cost > policy.budgetCapUSD) {
         if (inFlight.size === 0) {
-          emit({ type: "budget_halt", runningTotal: round2(running + est.cost), cap: policy.budgetCapUSD });
+          // Report what was actually spent. Adding the estimate of the task we are refusing to
+          // launch overstates the bill (it reported $1.25 for a $1.20 build) and reads as if the
+          // cap had already been blown by more than it was.
+          emit({ type: "budget_halt", runningTotal: round2(running), cap: policy.budgetCapUSD });
           halted = true;
           haltReason = "budget cap";
         }
