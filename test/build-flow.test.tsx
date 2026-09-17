@@ -20,6 +20,9 @@ const TASKS: Task[] = [
 /** The backlog the mocked PM returns; a test can swap it to stress a screen. */
 const planState: { tasks: Task[] } = { tasks: TASKS };
 
+/** Clarifying questions the mocked PM asks (empty = skip the interview). */
+const intakeState: { questions: unknown[] } = { questions: [] };
+
 /** Captured so a test can drive the build the way the orchestrator would. */
 const live: { emit?: (e: OrchestratorEvent) => void; finish?: (r: unknown) => void; control?: ReturnType<typeof createBuildControl> } = {};
 
@@ -27,7 +30,7 @@ vi.mock("../src/tui/engine.js", async (orig) => {
   const actual = await orig<typeof import("../src/tui/engine.js")>();
   return {
     ...actual,
-    assessBuild: async () => [], // a clear request: skip the interview
+    assessBuild: async () => intakeState.questions, // [] = a clear request, skip the interview
     planBuild: async () => ({ tasks: planState.tasks, provider: "openrouter" as const, modelId: "anthropic/claude-sonnet-5", estCost: 0.42, registry: REGISTRY }),
     startBuild: (_idea: string, _plan: unknown, opts: { onEvent: (e: OrchestratorEvent) => void }) => {
       const control = createBuildControl();
@@ -52,8 +55,17 @@ async function until(pred: () => boolean, frame: () => string, timeoutMs = 3000)
   }
 }
 
+/** Walk to just after the idea is submitted (intake appears here, if the PM asks). */
+async function toIdeaSubmitted() {
+  return walk(false);
+}
+
 /** Walk the real App from the setup screen to the plan screen. */
 async function toPlanScreen() {
+  return walk(true);
+}
+
+async function walk(toPlan: boolean) {
   process.env.OPENROUTER_API_KEY ||= "test";
   const { default: App } = await import("../src/tui/App.js");
   const r = render(<App />);
@@ -89,6 +101,7 @@ async function toPlanScreen() {
   await tick(80);
   if (frame().includes("Target platform")) { await pick("Web"); }
   if (frame().includes("Web framework")) { await pick("Vanilla"); }
+  if (!toPlan) return { ...r, frame, pick };
   await until(() => frame().includes("How should the team plan this?") || frame().includes("Ready?"), frame, 5000);
   if (frame().includes("How should the team plan this?")) await pick("Quick plan");
   await until(() => frame().includes("Ready?"), frame, 5000);
@@ -231,5 +244,26 @@ describe("building screen with a full board", () => {
         expect(g, "the prompt's help line is garbled").toContain("Esc to cancel");
       } finally { app.unmount(); }
     } finally { planState.tasks = TASKS; }
+  }, 30_000);
+});
+
+describe("intake screen", () => {
+  it("renders a clarifying question with its options, intact, on a short terminal", async () => {
+    intakeState.questions = [
+      { question: "What is the business behind the landing page?", options: ["A coffee shop", "A law firm", "A gym"], multi: false },
+      { question: "Which sections must it have?", options: ["Hero", "Menu", "Contact form", "Opening hours"], multi: true },
+    ];
+    try {
+      const app = await toIdeaSubmitted();
+      try {
+        await until(() => app.frame().includes("business behind"), app.frame, 5000);
+        const f = app.frame();
+        expect(f, "the question is garbled").toContain("What is the business behind the landing page?");
+        for (const o of ["A coffee shop", "A law firm", "A gym"]) {
+          expect(f, `option run into other text: ${o}`).toMatch(new RegExp(`${o}(?!\\S)`));
+        }
+        expect(f.split("\n").length, "frame grew past the viewport").toBeLessThanOrEqual(24);
+      } finally { app.unmount(); }
+    } finally { intakeState.questions = []; }
   }, 30_000);
 });

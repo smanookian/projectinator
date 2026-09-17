@@ -164,7 +164,9 @@ export function AppFrame({
     // bar off and unpin the status bar).
     <Box flexDirection="column" height={rows} overflow="hidden" backgroundColor={C.bg}>
       <TopBar projectName={projectName} phase={phase} />
-      <Box flexGrow={1} flexDirection="column" paddingX={1} paddingTop={1} overflow="hidden">{children}</Box>
+      <Box flexGrow={1} flexDirection="column" paddingX={1} paddingTop={1} overflow="hidden">
+        <Box flexDirection="column" flexShrink={0}>{children}</Box>
+      </Box>
       <StatusBar phase={phase} />
     </Box>
   );

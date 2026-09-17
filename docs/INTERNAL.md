@@ -83,7 +83,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (298)
+npm test                  # vitest (299)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 
@@ -131,6 +131,7 @@ npm run typecheck         # tsc --noEmit — run this after every change
   vendors (2026); browser automation half-works for Claude but is brittle + ToS-violating. See
   the memory note. Do not promote it.
 - **React = CDN/no-build.** Vite-with-build needs reliable `npm install` in the task sandbox.
+- **Screens can't be corrupted by overflow**: AppFrame wraps content in a `flexShrink={0}` box, so a too-tall screen clips instead of letting Yoga merge rows. Screens still budget their optional panels by `termRows` so the actionable part is what survives.
 - **Projects dir**: `tuiRoot()` = `$PROJECTINATOR_HOME/projects` or `<root>/.workspace/tui`. Docker sets it to `/data`.
 - **Parallel code tasks are opt-in** (worktrees, merged per task). Off = the old one-code-task-at-a-time rule.
 - **Mobile/Desktop** stacks currently fall back to a web build.

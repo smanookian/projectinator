@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.21.0 — 2026-09-16
+
+### Changed
+- **Overflowing a screen can no longer corrupt it.** Five screens have been fixed for the same
+  root cause: content stacked past the terminal height, Yoga shrank the children to fit the
+  fixed-height frame, and rows merged into garbage ("Designermanager", "Test the pagerm"). The
+  frame now wraps screen content in a non-shrinking box, so content that doesn't fit is
+  *clipped* instead of squeezed. Verified: the build board's old (too small) row budget stops
+  corrupting once content can't shrink.
+  This is defence in depth, not a replacement for the per-screen budgets — clipping still hides
+  the bottom of a screen, so each screen keeps yielding its optional panels so the actionable
+  part survives. It protects screens nobody has audited yet.
+
+### Added
+- Intake screen test: a clarifying question and all its options render intact.
+
 ## 0.20.4 — 2026-09-16
 
 ### Fixed
