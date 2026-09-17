@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 302 passing](https://img.shields.io/badge/tests-302%20passing-brightgreen.svg)
+![tests: 304 passing](https://img.shields.io/badge/tests-304%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -42,19 +42,18 @@ Then, inside the app: **Settings → API keys** and paste an Anthropic, OpenAI, 
 Ollama / LM Studio server for free, private runs. That's it — pick **New build** and go.
 
 <details>
-<summary>Docker or Homebrew instead</summary>
+<summary>Docker instead</summary>
 
 ```sh
 # Docker — Chromium + git included; keys/prefs/builds on the /data volume
 docker build -t projectinator https://github.com/smanookian/projectinator.git
 docker run -it --rm -e OPENROUTER_API_KEY -v projectinator-home:/data projectinator
-
-# Homebrew (macOS / Linuxbrew). `brew trust` is required for any non-official tap since
-# Homebrew 6.0.0 — loading a tap runs Ruby from it, so it refuses until you opt in.
-brew tap smanookian/projectinator
-brew trust smanookian/projectinator
-brew install projectinator
 ```
+
+There's no Homebrew formula. Projectinator's dependency tree contains prebuilt, code-signed
+native binaries (the coding agent's clipboard addon, Playwright), and Homebrew rewrites the
+dylib ID of every Mach-O file it installs — which invalidates the signature and fails on Apple
+Silicon. `npm install -g` handles them correctly.
 </details>
 
 <details>
@@ -180,7 +179,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 302 tests
+npm test                                          # 304 tests
 npm run typecheck
 ```
 </details>

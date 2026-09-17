@@ -11,7 +11,8 @@ import { DEFAULT_POLICY, route } from "../router.js";
 import { REGISTRY } from "../registry.js";
 import { MODELS } from "../models.js";
 import { loadRegistry, saveOverrides, OVERRIDES_FILENAME } from "../registry-store.js";
-import { loadConfig } from "./config.js";
+import { dataHome, loadConfig } from "./config.js";
+export { dataHome } from "./config.js";
 import { getLocalModels } from "../local-models.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
 import { runBacklog, createBuildControl, type BuildControl, type OrchestratorEvent } from "../orchestrator.js";
@@ -103,13 +104,6 @@ export function rosterTester(): Candidate | undefined {
 export function projectRoot(): string {
   // dist-agnostic: this file lives at <root>/src/tui/engine.ts
   return dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-}
-
-/** Where user data lives: projects and routing overrides. NEVER inside the installed package —
- *  `npm i -g projectinator@latest` replaces that directory, so anything kept there is destroyed
- *  on every upgrade, not just on uninstall. `PROJECTINATOR_HOME` overrides (Docker mounts it). */
-export function dataHome(): string {
-  return process.env.PROJECTINATOR_HOME?.trim() || join(homedir(), ".projectinator");
 }
 
 /** Projects written by an older build, back when they lived inside the package. */

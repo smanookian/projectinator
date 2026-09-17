@@ -2,7 +2,7 @@
 // (no ~/.zshenv editing). Stored at ~/.projectinator/config.json with 0600 perms.
 // Keys are applied to process.env on launch so Pi's auth picks them up.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Provider } from "../types.js";
@@ -47,11 +47,25 @@ export const ENV_VAR: Record<KeyedProvider, string> = {
   openrouter: "OPENROUTER_API_KEY",
 };
 
-function dir(): string {
-  return join(homedir(), ".projectinator");
+/** Where user data lives: config, projects, routing overrides. NEVER inside the installed
+ *  package — `npm i -g` replaces that directory. Default `~/.projectinator`. */
+export function dataHome(): string {
+  return process.env.PROJECTINATOR_HOME?.trim() || join(homedir(), ".projectinator");
 }
+
 export function configPath(): string {
-  return join(dir(), "config.json");
+  const path = join(dataHome(), "config.json");
+  // Config used to be pinned to $HOME, ignoring PROJECTINATOR_HOME. Anyone who had set that
+  // var would otherwise lose their saved keys here, so bring the old file across once.
+  const legacy = join(homedir(), ".projectinator", "config.json");
+  if (path !== legacy && !existsSync(path) && existsSync(legacy)) {
+    try {
+      mkdirSync(dataHome(), { recursive: true });
+      copyFileSync(legacy, path);
+      chmodSync(path, 0o600);
+    } catch { /* fall through: a fresh config is better than a crash */ }
+  }
+  return path;
 }
 
 export function loadConfig(): AppConfig {
@@ -138,7 +152,7 @@ export function setDefaultMode(m: WorkflowMode): void {
 }
 
 export function saveConfig(cfg: AppConfig): void {
-  mkdirSync(dir(), { recursive: true });
+  mkdirSync(dataHome(), { recursive: true });
   writeFileSync(configPath(), JSON.stringify(cfg, null, 2) + "\n");
   try {
     chmodSync(configPath(), 0o600); // keys are secrets — owner-only

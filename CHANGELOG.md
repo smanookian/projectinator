@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.22.1 — 2026-09-16
+
+### Removed
+- **Homebrew support, because it never actually worked.** `brew install projectinator` fails in
+  Homebrew's post-install relocation pass:
+  ```
+  Error: failed changing dylib ID of .../clipboard.darwin-arm64.node
+  Error: failed to fix install linkage
+  ```
+  Homebrew rewrites the dylib ID of every Mach-O file in a keg, which invalidates its code
+  signature on Apple Silicon. Projectinator's tree vendors prebuilt signed binaries
+  (`@earendil-works/pi-coding-agent` → `@mariozechner/clipboard`, plus Playwright), and Homebrew
+  offers no way to exempt them. The formula, `scripts/brew-formula.sh` and the tap are gone
+  rather than left advertising an install that errors out. **`npm install -g projectinator` is
+  the install path**, with Docker for an isolated one.
+
+### Fixed
+- **`PROJECTINATOR_HOME` didn't move your config.** It relocated projects but `config.json` stayed
+  pinned to `$HOME`, so the data directory was split in two — and the test suite read and wrote
+  the developer's real config, including the stored API key (one test persisted a theme into it,
+  which raced other tests). Config now lives in `dataHome()` like everything else; the default
+  path is unchanged, and a `$HOME`-pinned config is copied across (mode `600`) if you have
+  `PROJECTINATOR_HOME` set, so no keys are orphaned.
+
 ## 0.22.0 — 2026-09-16
 
 ### Fixed

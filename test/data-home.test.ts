@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, afterEach } from "vitest";
 import { dataHome, tuiRoot, projectRoot } from "../src/tui/engine.js";
+import { configPath } from "../src/tui/config.js";
 
 const realHome = process.env.PROJECTINATOR_HOME;
 afterEach(() => { process.env.PROJECTINATOR_HOME = realHome; });
@@ -51,6 +52,35 @@ describe("user data location", () => {
       rmSync(home, { recursive: true, force: true });
       rmSync(join(legacy, "test-migrate-me"), { recursive: true, force: true });
       rmSync(join(legacy, "test-keep-mine"), { recursive: true, force: true });
+    }
+  });
+});
+
+describe("config location", () => {
+  it("follows PROJECTINATOR_HOME, so a test run can't touch the real config", () => {
+    const home = mkdtempSync(join(tmpdir(), "pi-home-"));
+    process.env.PROJECTINATOR_HOME = home;
+    try {
+      expect(configPath()).toBe(join(home, "config.json"));
+    } finally { rmSync(home, { recursive: true, force: true }); }
+  });
+
+  it("carries a $HOME-pinned config across, keys and all, when PROJECTINATOR_HOME is set", () => {
+    // Config used to ignore PROJECTINATOR_HOME; setting it must not orphan someone's API keys.
+    const fakeHome = mkdtempSync(join(tmpdir(), "pi-fake-home-"));
+    const home = mkdtempSync(join(tmpdir(), "pi-home-"));
+    const realHomeEnv = process.env.HOME;
+    process.env.HOME = fakeHome;
+    process.env.PROJECTINATOR_HOME = home;
+    mkdirSync(join(fakeHome, ".projectinator"), { recursive: true });
+    writeFileSync(join(fakeHome, ".projectinator", "config.json"), '{"keys":{"openrouter":"sk-legacy"}}');
+    try {
+      const moved = JSON.parse(readFileSync(configPath(), "utf8"));
+      expect(moved.keys.openrouter, "legacy keys were not carried over").toBe("sk-legacy");
+    } finally {
+      process.env.HOME = realHomeEnv;
+      rmSync(fakeHome, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
     }
   });
 });
