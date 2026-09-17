@@ -8,8 +8,8 @@
 
 import { piRuntime } from "./executor.js";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
+import { dataHome } from "./tui/config.js";
 import type { Model, ModelCost } from "./types.js";
 
 /** A pickable OpenRouter model: our Model shape minus the provider (always "openrouter"). */
@@ -18,7 +18,7 @@ export type ORModel = Omit<Model, "provider"> & {
   created?: number;
 };
 
-const CACHE = join(homedir(), ".projectinator", "openrouter-models.json");
+const cachePath = () => join(dataHome(), "openrouter-models.json");
 
 let builtinMemo: ORModel[] | null = null;
 let diskMemo: ORModel[] | null | undefined; // undefined = not read yet, null = no cache
@@ -53,8 +53,8 @@ export async function warmBuiltinOpenRouterModels(): Promise<ORModel[]> {
 function readDiskCache(): ORModel[] | null {
   if (diskMemo !== undefined) return diskMemo;
   try {
-    if (existsSync(CACHE)) {
-      const parsed = JSON.parse(readFileSync(CACHE, "utf8")) as { models?: ORModel[] };
+    if (existsSync(cachePath())) {
+      const parsed = JSON.parse(readFileSync(cachePath(), "utf8")) as { models?: ORModel[] };
       diskMemo = Array.isArray(parsed.models) && parsed.models.length ? parsed.models : null;
     } else diskMemo = null;
   } catch {
@@ -109,8 +109,8 @@ export async function refreshOpenRouterModels(timeoutMs = 8000): Promise<ORModel
       .sort((a, b) => a.name.localeCompare(b.name));
     if (list.length) {
       try {
-        mkdirSync(join(homedir(), ".projectinator"), { recursive: true });
-        writeFileSync(CACHE, JSON.stringify({ fetchedAt: Date.now(), models: list }));
+        mkdirSync(dataHome(), { recursive: true });
+        writeFileSync(cachePath(), JSON.stringify({ fetchedAt: Date.now(), models: list }));
         diskMemo = list;
       } catch { /* cache write is best-effort */ }
       return list;

@@ -1,7 +1,7 @@
 // Per-model calibration: measured runs are folded into both the generic bucket and a
 // per-model bucket; the router prices with the per-model average once it has enough
-// samples and otherwise leaves the task's estimate alone. HOME is redirected so the
-// user's real ~/.projectinator/calibration.json is never touched.
+// samples and otherwise leaves the task's estimate alone. PROJECTINATOR_HOME is redirected so
+// the real calibration.json is never touched (it is the data-dir knob; HOME no longer is).
 
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -9,8 +9,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const home = mkdtempSync(join(tmpdir(), "pi-cal-"));
-const realHome = process.env.HOME;
-process.env.HOME = home; // must precede the imports below (os.homedir() reads it lazily)
+const realHome = process.env.PROJECTINATOR_HOME;
+process.env.PROJECTINATOR_HOME = home; // must precede the imports below (read lazily)
 
 const { recordActual, calibratedTokens, modelCalibratedTokens } = await import("../src/calibration.js");
 const { estimateAccuracy } = await import("../src/estimate.js");
@@ -18,8 +18,8 @@ const { route, DEFAULT_POLICY } = await import("../src/router.js");
 const { lockRegistryToProvider } = await import("../src/roles.js");
 const { findEntry } = await import("../src/registry.js");
 
-afterAll(() => { process.env.HOME = realHome; rmSync(home, { recursive: true, force: true }); });
-beforeEach(() => rmSync(join(home, ".projectinator"), { recursive: true, force: true }));
+afterAll(() => { process.env.PROJECTINATOR_HOME = realHome; rmSync(home, { recursive: true, force: true }); });
+beforeEach(() => rmSync(join(home, "calibration.json"), { force: true }));
 
 const registry = lockRegistryToProvider("anthropic");
 const modelFor = (cap: "code" | "test", tier: "fast" | "mid" | "high") => findEntry(cap, tier, registry).entry.byBackend.api.model;

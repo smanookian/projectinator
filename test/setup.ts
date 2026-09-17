@@ -1,9 +1,18 @@
-// Tests must never read or write the real user data directory. Projects now default to
-// ~/.projectinator/projects, so without this a test fixture would land among the user's real
-// builds (and the project-list walkers would pick whichever project happened to be there).
-import { mkdirSync } from "node:fs";
+// Every test file gets its own data directory.
+//
+// All user state — config.json, projects/, calibration.json, openrouter-models.json,
+// templates.json — resolves through dataHome(), i.e. $PROJECTINATOR_HOME. Without this, tests
+// would read and write the developer's real ~/.projectinator (including the stored API key), and
+// state written by one file would change what another file measures: calibration samples in
+// particular feed token estimates, so a stray recordActual() silently moves other tests' numbers.
+//
+// setupFiles runs once per test file, so mkdtemp here means per-file isolation.
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll } from "vitest";
 
-const home = join(process.cwd(), ".workspace", "test-home");
-mkdirSync(home, { recursive: true });
+const home = mkdtempSync(join(tmpdir(), "pi-test-home-"));
 process.env.PROJECTINATOR_HOME = home;
+
+afterAll(() => rmSync(home, { recursive: true, force: true }));

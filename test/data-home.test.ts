@@ -8,6 +8,8 @@ import { join } from "node:path";
 import { describe, it, expect, afterEach } from "vitest";
 import { dataHome, tuiRoot, projectRoot } from "../src/tui/engine.js";
 import { configPath } from "../src/tui/config.js";
+import { recordActual } from "../src/calibration.js";
+import { saveUserTemplate } from "../src/tui/templates.js";
 
 const realHome = process.env.PROJECTINATOR_HOME;
 afterEach(() => { process.env.PROJECTINATOR_HOME = realHome; });
@@ -81,6 +83,33 @@ describe("config location", () => {
       process.env.HOME = realHomeEnv;
       rmSync(fakeHome, { recursive: true, force: true });
       rmSync(home, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("everything under one data directory", () => {
+  // PROJECTINATOR_HOME used to move only projects, scattering calibration, the OpenRouter cache,
+  // templates and browser profiles across two roots — so a container volume or a relocated home
+  // silently lost half of them.
+  it("calibration and templates land under PROJECTINATOR_HOME, not $HOME", () => {
+    const home = mkdtempSync(join(tmpdir(), "pi-home-"));
+    const realHomeEnv = process.env.HOME;
+    const fakeHome = mkdtempSync(join(tmpdir(), "pi-fake-home-"));
+    process.env.PROJECTINATOR_HOME = home;
+    process.env.HOME = fakeHome;
+    try {
+      recordActual("code", "medium", 1000, 500, 0.1, "test/model", 1234);
+      expect(existsSync(join(home, "calibration.json")), "calibration.json escaped the data dir").toBe(true);
+
+      saveUserTemplate({ name: "data-home-probe", idea: "a probe" } as never);
+      expect(existsSync(join(home, "templates.json")), "templates escaped the data dir").toBe(true);
+
+      // nothing may have been written to $HOME/.projectinator
+      expect(existsSync(join(fakeHome, ".projectinator")), "wrote to $HOME anyway").toBe(false);
+    } finally {
+      process.env.HOME = realHomeEnv;
+      rmSync(home, { recursive: true, force: true });
+      rmSync(fakeHome, { recursive: true, force: true });
     }
   });
 });

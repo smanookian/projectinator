@@ -13,7 +13,18 @@
   and inside Docker it says to rebuild the image — so it can never npm-clobber a checkout you're
   working in. Projects and keys in `~/.projectinator` are untouched by an upgrade (since 0.22.0).
 
+### Internal
+- Each test file now gets its own `PROJECTINATOR_HOME` (`test/setup.ts`). Several tests were
+  reading the developer's real `calibration.json`, and once everything shared one test home,
+  calibration written by one file moved the token estimates another file asserted on. Two runs
+  back to back now give the same 309.
+
 ### Fixed
+- **`PROJECTINATOR_HOME` only moved half your data.** It relocated projects, but calibration
+  samples, the OpenRouter price cache, saved templates and the web-login browser profiles all
+  stayed pinned to `$HOME/.projectinator` — so a Docker volume or a relocated home silently
+  split the data directory in two and lost whichever half wasn't mounted. Every one of those
+  now resolves through `dataHome()`.
 - `doctor` printed a hardcoded `~/.projectinator/config.json` as the source of a saved key; it now
   prints the real `configPath()`, which differs when `PROJECTINATOR_HOME` is set.
 

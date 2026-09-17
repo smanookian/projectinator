@@ -4,8 +4,8 @@
 // differ a lot), then the generic bucket, then the static table. Persisted globally.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
+import { dataHome } from "./tui/config.js";
 import type { Capability, Difficulty } from "./types.js";
 
 interface Sample {
@@ -23,7 +23,7 @@ const MIN_SAMPLES = 2; // trust calibration only after a couple of runs
 const MAX_N = 20; // cap so old runs don't dominate
 
 function calPath(): string {
-  return join(homedir(), ".projectinator", "calibration.json");
+  return join(dataHome(), "calibration.json");
 }
 const key = (c: Capability, d: Difficulty, model?: string) => (model ? `${c}/${d}/${model}` : `${c}/${d}`);
 
@@ -38,7 +38,7 @@ function load(): Calibration {
 
 function save(cal: Calibration): void {
   try {
-    mkdirSync(join(homedir(), ".projectinator"), { recursive: true });
+    mkdirSync(dataHome(), { recursive: true });
     writeFileSync(calPath(), JSON.stringify(cal, null, 2) + "\n");
   } catch {
     /* best effort — never break a build on a calibration write */

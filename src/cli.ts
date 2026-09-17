@@ -13,7 +13,6 @@
 import { createInterface } from "node:readline";
 import { spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { OrchestratorEvent } from "./orchestrator.js";
@@ -126,7 +125,7 @@ async function doctor(): Promise<number> {
   const git = spawnSync("git", ["--version"], { encoding: "utf8" });
   checks.push({ label: "git", ok: git.status === 0, detail: git.status === 0 ? git.stdout.trim() : "not found — builds won't be versioned (undo/history disabled)" });
 
-  const home = join(homedir(), ".projectinator");
+  const home = dataHome();
   try { mkdirSync(home, { recursive: true }); accessSync(home, constants.W_OK); checks.push({ label: "Data dir", ok: true, detail: home }); }
   catch { checks.push({ label: "Data dir", ok: false, detail: `${home} not writable`, fatal: true }); }
 

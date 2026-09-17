@@ -1,10 +1,11 @@
 // Starter templates — curated, detailed idea prompts. Picking one skips the blank
 // page and gives the PM a strong brief to decompose. Users can also save their own
-// (persisted in ~/.projectinator/templates.json) and share them as portable files.
+// (persisted in <data dir>/templates.json) and share them as portable files.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { dataHome } from "./config.js";
 
 export interface Template {
   name: string;
@@ -53,7 +54,7 @@ export const TEMPLATES: Template[] = [
 // ---- user templates (saved + shared) ----
 
 function homeDir(): string {
-  const d = join(homedir(), ".projectinator");
+  const d = dataHome();
   mkdirSync(d, { recursive: true });
   return d;
 }

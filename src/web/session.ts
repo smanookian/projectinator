@@ -8,9 +8,9 @@
 
 import { chromium, type BrowserContext, type Page } from "playwright";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { dataHome } from "../tui/config.js";
 
 export type WebProvider = "chatgpt" | "claude" | "gemini";
 
@@ -50,7 +50,7 @@ const PROVIDERS: Record<WebProvider, ProviderConfig> = {
 };
 
 function profileDir(provider: WebProvider): string {
-  const dir = join(homedir(), ".projectinator", "web", provider);
+  const dir = join(dataHome(), "web", provider);
   mkdirSync(dir, { recursive: true });
   return dir;
 }

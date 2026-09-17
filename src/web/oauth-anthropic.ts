@@ -12,8 +12,8 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
+import { dataHome } from "../tui/config.js";
 
 const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const AUTHORIZE_URL = "https://claude.ai/oauth/authorize";
@@ -35,7 +35,7 @@ interface StoredTokens {
 }
 
 function tokenPath(): string {
-  const dir = join(homedir(), ".projectinator", "web", "claude");
+  const dir = join(dataHome(), "web", "claude");
   mkdirSync(dir, { recursive: true });
   return join(dir, "oauth.json");
 }
