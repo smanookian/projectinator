@@ -87,3 +87,28 @@ describe.skipIf(!existsSync("dist/cli.js"))("compiled dist (run `npm run compile
     expect(r.stdout.trim()).toMatch(/^ok \d+$/);
   });
 });
+
+describe("doctor severity", () => {
+  // A healthy install must report zero warnings. One provider key is enough to run everything,
+  // so the other providers and local models are alternatives, not gaps — counting them as
+  // warnings trains you to ignore the count.
+  const run = (env: Record<string, string>) =>
+    spawnSync(process.execPath, ["bin/projectinator.mjs", "doctor"], {
+      encoding: "utf8",
+      env: { ...process.env, ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", GEMINI_API_KEY: "", OPENROUTER_API_KEY: "", ...env },
+    });
+
+  it("one key is enough: no warnings, exit 0", () => {
+    const r = run({ OPENROUTER_API_KEY: "sk-test-doctor" });
+    expect(r.stdout).not.toMatch(/warning/);
+    expect(r.stdout).toMatch(/Ready/);
+    expect(r.status).toBe(0);
+  });
+
+  it("no provider at all is a blocking problem, not an optional extra", () => {
+    const r = run({});
+    expect(r.stdout).toMatch(/blocking problem/);
+    expect(r.stdout).toMatch(/warning/);
+    expect(r.status).toBe(1);
+  });
+});

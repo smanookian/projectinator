@@ -46,8 +46,10 @@ export const PROVIDER_LABEL: Record<Provider, string> = {
 
 /** Which providers are usable right now: a key present (cloud) or a configured local server. */
 export function availableProviders(): Provider[] {
+  // An exported-but-empty var is not a key: counting it turns a clear "no keys" into an
+  // auth failure mid-build.
   const keyed = (Object.keys(PROVIDER_KEYS) as Exclude<Provider, "local">[]).filter((p) =>
-    PROVIDER_KEYS[p].some((k) => !!process.env[k]),
+    PROVIDER_KEYS[p].some((k) => !!process.env[k]?.trim()),
   );
   return getLocalModels() ? [...keyed, "local"] : keyed;
 }

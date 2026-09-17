@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.23.2 — 2026-09-16
+
+### Fixed
+- **`doctor` cried wolf.** A working install reported `Ready · 4 warnings`, all of them things
+  you may deliberately not want: the three provider keys you don't need (one key runs the whole
+  roster) and local models. They now render as `·` and read
+  `Ready · 4 optional extras not set up`; a missing *everything* is still a blocking `✗`. A
+  warning count that flags a healthy setup trains you to ignore it.
+- **An exported-but-empty `*_API_KEY` counted as a key**, so `export OPENROUTER_API_KEY=` (or a
+  cleared var in a CI job) turned a clear "no keys — nothing can run" into an auth failure
+  partway through a build. Empty and whitespace-only values are now treated as unset.
+- Tests no longer inherit the developer's real config: `test/setup.ts` pre-seeds an empty
+  `config.json` in its temp data dir, since `configPath()`'s legacy migration would otherwise
+  copy the real one (API key included) into any fresh `PROJECTINATOR_HOME`.
+
 ## 0.23.1 — 2026-09-16
 
 ### Fixed

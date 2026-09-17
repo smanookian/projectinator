@@ -85,7 +85,10 @@ export function semverGte(a: string, b: string): boolean {
 
 // ---- doctor ----
 
-type Check = { label: string; ok: boolean; detail: string; fatal?: boolean };
+// `optional` = a capability you may deliberately not want (a second provider, local models).
+// It renders as a dot and never counts as a warning: a healthy install must end with none, or
+// the count stops meaning anything.
+type Check = { label: string; ok: boolean; detail: string; fatal?: boolean; optional?: boolean };
 
 async function doctor(): Promise<number> {
   const checks: Check[] = [];
@@ -98,10 +101,11 @@ async function doctor(): Promise<number> {
   for (const p of Object.keys(ENV_VAR) as KeyedProvider[]) {
     const has = providers.includes(p);
     const src = cfg.keys[p] ? configPath() : has ? "env" : "";
-    checks.push({ label: `Key: ${PROVIDER_LABEL[p]}`, ok: has, detail: has ? `set (${src})` : `not set — Settings → API keys, or export ${ENV_VAR[p]}` });
+    // One provider is enough to run; the rest are alternatives, not gaps.
+    checks.push({ label: `Key: ${PROVIDER_LABEL[p]}`, ok: has, optional: providers.length > 0, detail: has ? `set (${src})` : `not set — Settings → API keys, or export ${ENV_VAR[p]}` });
   }
   const local = getLocalModels();
-  checks.push({ label: "Local models", ok: !!local, detail: local ? `${local.models.length} model${local.models.length === 1 ? "" : "s"} at ${local.baseUrl}` : "none — Settings → Local models (Ollama / LM Studio); optional" });
+  checks.push({ label: "Local models", ok: !!local, optional: true, detail: local ? `${local.models.length} model${local.models.length === 1 ? "" : "s"} at ${local.baseUrl}` : "none — Settings → Local models (Ollama / LM Studio); optional" });
   if (providers.length === 0) checks.push({ label: "Any provider", ok: false, detail: "no keys and no local server — nothing can run", fatal: true });
 
   try {
@@ -133,10 +137,16 @@ async function doctor(): Promise<number> {
   checks.push({ label: "Prefs", ok: true, detail: `budget cap ${money(prefs.budgetCapUSD)} · ${prefs.concurrency} at once · task limits ${prefs.taskTimeoutMin || "∞"} min / ${prefs.taskCostCapUSD ? money(prefs.taskCostCapUSD) : "∞"}` });
 
   console.log("\n  projectinator doctor\n");
-  for (const c of checks) console.log(`  ${c.ok ? "✓" : c.fatal ? "✗" : "!"}  ${c.label.padEnd(22)} ${c.detail}`);
+  for (const c of checks) console.log(`  ${c.ok ? "✓" : c.fatal ? "✗" : c.optional ? "·" : "!"}  ${c.label.padEnd(22)} ${c.detail}`);
   const fatal = checks.filter((c) => !c.ok && c.fatal);
-  const warn = checks.filter((c) => !c.ok && !c.fatal);
-  console.log(`\n  ${fatal.length ? `${fatal.length} blocking problem${fatal.length === 1 ? "" : "s"}` : "Ready"}${warn.length ? ` · ${warn.length} warning${warn.length === 1 ? "" : "s"}` : ""}\n`);
+  const warn = checks.filter((c) => !c.ok && !c.fatal && !c.optional);
+  const extra = checks.filter((c) => !c.ok && !c.fatal && c.optional);
+  const parts = [
+    fatal.length ? `${fatal.length} blocking problem${fatal.length === 1 ? "" : "s"}` : "Ready",
+    warn.length ? `${warn.length} warning${warn.length === 1 ? "" : "s"}` : "",
+    extra.length ? `${extra.length} optional extra${extra.length === 1 ? "" : "s"} not set up` : "",
+  ].filter(Boolean);
+  console.log(`\n  ${parts.join(" · ")}\n`);
   return fatal.length ? 1 : 0;
 }
 

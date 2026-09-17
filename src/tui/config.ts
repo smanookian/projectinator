@@ -165,7 +165,7 @@ export function saveConfig(cfg: AppConfig): void {
 export function applyKeysToEnv(cfg: AppConfig = loadConfig()): void {
   for (const p of Object.keys(cfg.keys) as KeyedProvider[]) {
     const v = cfg.keys[p];
-    if (v && ENV_VAR[p] && !process.env[ENV_VAR[p]]) process.env[ENV_VAR[p]] = v;
+    if (v && ENV_VAR[p] && !process.env[ENV_VAR[p]]?.trim()) process.env[ENV_VAR[p]] = v;
   }
 }
 
