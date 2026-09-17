@@ -10,8 +10,14 @@ set -eu
 cd "$(dirname "$0")/.."
 v=$(node -p "require('./package.json').version")
 url="https://registry.npmjs.org/projectinator/-/projectinator-$v.tgz"
-sha=$(curl -sfL "$url" | sha256sum | cut -d' ' -f1)
-[ -n "$sha" ] || { echo "could not fetch $url — is $v published?" >&2; exit 1; }
+# Download first, then hash the file. Piping curl into sha256sum hides curl's failure (the
+# pipeline reports sha256sum's status) and happily yields the hash of zero bytes — which once
+# produced a formula pinned to e3b0c442..., the sha256 of nothing.
+tgz=$(mktemp)
+trap 'rm -f "$tgz"' EXIT
+curl -sfL "$url" -o "$tgz" || { echo "could not fetch $url — is $v published to npm yet?" >&2; exit 1; }
+[ -s "$tgz" ] || { echo "$url returned an empty tarball" >&2; exit 1; }
+sha=$(sha256sum "$tgz" | cut -d' ' -f1)
 sed -i.bak -e "s|^  url \".*\"|  url \"$url\"|" -e "s|^  sha256 \".*\"|  sha256 \"$sha\"|" homebrew/projectinator.rb
 rm -f homebrew/projectinator.rb.bak
 echo "homebrew/projectinator.rb → $v ($sha)"
