@@ -49,8 +49,11 @@ Ollama / LM Studio server for free, private runs. That's it — pick **New build
 docker build -t projectinator https://github.com/smanookian/projectinator.git
 docker run -it --rm -e OPENROUTER_API_KEY -v projectinator-home:/data projectinator
 
-# Homebrew (macOS / Linuxbrew)
-brew tap smanookian/projectinator && brew install projectinator
+# Homebrew (macOS / Linuxbrew). `brew trust` is required for any non-official tap since
+# Homebrew 6.0.0 — loading a tap runs Ruby from it, so it refuses until you opt in.
+brew tap smanookian/projectinator
+brew trust smanookian/projectinator
+brew install projectinator
 export PROJECTINATOR_HOME=~/.projectinator   # keep builds across upgrades
 ```
 </details>

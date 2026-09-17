@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.21.2 — 2026-09-16
+
+### Fixed
+- **Homebrew install instructions were incomplete**, so they ended in
+  `Error: Refusing to load formula from untrusted tap`. Since Homebrew 6.0.0 a non-official tap
+  must be trusted explicitly (loading a tap runs Ruby code from it), so the documented flow now
+  includes it:
+  ```sh
+  brew tap smanookian/projectinator
+  brew trust smanookian/projectinator
+  brew install projectinator
+  ```
+  The tap README explains why, offers the narrower `brew trust --formula …`, and points at
+  `npm install -g projectinator` for anyone who would rather not opt in. Note
+  `HOMEBREW_NO_REQUIRE_TAP_TRUST=1` is deprecated and shouldn't be used.
+
 ## 0.21.1 — 2026-09-16
 
 ### Added
