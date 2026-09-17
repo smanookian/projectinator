@@ -1943,9 +1943,6 @@ export default function App(): React.ReactElement {
           {paused ? <Text color={C.warn}>{"  · running tasks finish, nothing new starts"}</Text> : null}
           {slow ? <Text color={C.warn}>{`  · ${slow} slow (over the usual time — the per-task timeout still applies)`}</Text> : null}
         </Box>
-        {!gate && !steer ? (
-          <Text color={C.dim}>{`  p ${paused ? "resume" : "pause"} · a add a task · r remove a task · x stop after running tasks`}</Text>
-        ) : null}
         {steer?.kind === "add" ? (
           <Box marginTop={1}>
             <Panel title="Add to the running build" borderColor={C.accent}>
@@ -2021,12 +2018,23 @@ export default function App(): React.ReactElement {
         ) : null}
         <Box marginTop={1}>
           <Panel title="Board">
-            <Kanban tasks={board} compact maxPerCol={Math.max(2, Math.floor((termRows - (gate || steer ? 20 : 13)) / 2))} />
+            {/* Reserve every row the screen actually spends, or the board asks for more cards
+                than fit, the clipped frame squeezes them and two cards land on one line (a
+                card's tail survived as "…pagerm"). Non-card rows: frame chrome 5, header 1 +
+                gap 1, panel border/padding/title/column-header 8, gap + budget bar 2 = 17;
+                plus the standup chips and any open prompt. */}
+            <Kanban
+              tasks={board}
+              compact
+              maxPerCol={Math.max(1, termRows - 17 - (termRows >= 30 ? 4 : 0) - (gate || steer ? 9 : 0))}
+            />
           </Panel>
         </Box>
-        <Box marginTop={1}>
-          <Standup tasks={board} spent={spent} />
-        </Box>
+        {termRows >= 30 ? (
+          <Box marginTop={1}>
+            <Standup tasks={board} spent={spent} />
+          </Box>
+        ) : null}
         {(() => {
           const prefs = getPrefs();
           const cap = projectCap ?? prefs.budgetCapUSD;

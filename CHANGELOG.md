@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.20.4 — 2026-09-16
+
+### Fixed
+- **The live build board squeezed cards together.** Its card budget reserved 13 rows for
+  everything around the board while the screen actually spends ~22, so it asked for more cards
+  than fit; the clipped frame then squeezed two cards onto one line and only a tail survived
+  ("Test the page" + a "…form" card came out as "Test the pagerm"). The reserve now counts the
+  rows the screen really uses, including the standup chips and any open steering prompt, and
+  the chips yield on a short terminal. This is the screen you watch for the whole build.
+- Removed the build screen's inline steering hint — the status bar has shown the same keys
+  since 0.20.0, so it was duplicated (and cost a row the board needed).
+
+### Added
+- Building-screen test: a realistic mid-build state (8 tasks, some done, some running) asserts
+  no card id or title is run into by neighbouring text, and that the add-a-task prompt renders
+  whole alongside the board.
+
 ## 0.20.3 — 2026-09-16
 
 ### Fixed

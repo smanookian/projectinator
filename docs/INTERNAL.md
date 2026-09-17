@@ -83,7 +83,7 @@ The brief the planner sees is composed **purely** from state:
 npm start                 # the cockpit
 npm run build -- --live --mini            # cheap headless end-to-end (~$0.10)
 npm run bakeoff -- --capability design "…" # model comparison
-npm test                  # vitest (297)
+npm test                  # vitest (298)
 npm run typecheck         # tsc --noEmit — run this after every change
 ```
 

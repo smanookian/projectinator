@@ -191,3 +191,45 @@ describe("board editor on a short terminal", () => {
     } finally { planState.tasks = TASKS; }
   }, 30_000);
 });
+
+describe("building screen with a full board", () => {
+  it("keeps every task title and the steering prompt intact on a short terminal", async () => {
+    planState.tasks = BIG;
+    try {
+      const app = await toPlanScreen();
+      try {
+        await app.pick("Build everything now");
+        await until(() => app.frame().includes("Building"), app.frame);
+        // put the board in a realistic mid-build state: some done, some running, rest waiting
+        for (const t of BIG.slice(0, 5)) {
+          live.emit!({ type: "task_start", task: t, round: 0, provider: "openrouter", modelId: "anthropic/claude-opus-5" });
+          await tick(10);
+        }
+        for (const t of BIG.slice(0, 3)) {
+          live.emit!({
+            type: "task_done", runningTotal: 0.2,
+            outcome: { taskId: t.id, capability: t.capability, provider: "openrouter", modelId: "m", round: 0, cost: 0.05, files: [], finalText: "" },
+          });
+          await tick(10);
+        }
+        await tick(60);
+        const f = app.frame();
+        expect(f.split("\n").length, "frame grew past the viewport").toBeLessThanOrEqual(24);
+        for (const t of BIG) {
+          if (f.includes(t.id)) expect(f, `task id run into other text: ${t.id}`).toMatch(new RegExp(`${t.id}(?!\\S)`));
+          // a card either truncates with "…" or shows the whole title followed by space
+          if (f.includes(t.title)) expect(f, `card title run into other text: ${t.title}`).toMatch(new RegExp(`${t.title}(?!\\S)`));
+        }
+        expect(f.split("\n").every((l) => [...l].length <= 100), "a line grew wider than the terminal").toBe(true);
+        expect(f, "the steering hint is garbled").toContain("p pause");
+
+        // the add-a-task prompt shares the screen with the board — it must render whole
+        app.stdin.write("a");
+        await until(() => app.frame().includes("Add to the running build"), app.frame);
+        const g = app.frame();
+        expect(g.split("\n").length, "frame grew past the viewport with the prompt open").toBeLessThanOrEqual(24);
+        expect(g, "the prompt's help line is garbled").toContain("Esc to cancel");
+      } finally { app.unmount(); }
+    } finally { planState.tasks = TASKS; }
+  }, 30_000);
+});
