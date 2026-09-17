@@ -3,6 +3,10 @@
 PM cockpit for running an AI dev team. Pipeline: idea → backlog → design → code → test, best model per role, cost tracking.
 
 ## Done
+
+- [x] **0.22.0** — user data (projects, routing overrides) moved out of the installed package to
+      `~/.projectinator/`. Upgrading via `npm i -g` used to replace the package directory and
+      destroy every saved project; old locations are copied over on first run.
 - [x] Multi-LLM pipeline (idea → backlog → design → code → test), per-role routing, cost tracking
 - [x] TUI cockpit: board editor, Kanban, project board, team, standup, settings, exit stats
 - [x] Save / resume builds, parallel execution, mid-build gate, self-calibration

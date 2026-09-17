@@ -55,7 +55,7 @@ export function availableProviders(): Provider[] {
  *  (from Settings) when the chosen model belongs to that provider. */
 function lockedRegistry(provider: Provider): RegistryEntry[] {
   const base = lockRegistryToProvider(provider);
-  const overrides = loadRegistry(join(projectRoot(), OVERRIDES_FILENAME), REGISTRY);
+  const overrides = loadRegistry(overridesPath(), REGISTRY);
   return base.map((e) => {
     const o = overrides.find((x) => x.capability === e.capability && x.tier === e.tier);
     if (o && o.byBackend.api.provider === provider) {
@@ -68,8 +68,7 @@ function lockedRegistry(provider: Provider): RegistryEntry[] {
 
 /** Preferred provider wins (if it has a key); else one provider locks; else best-of-breed. */
 export function chooseRegistry(providers: Provider[]): { registry: RegistryEntry[]; lock?: Provider } {
-  const root = projectRoot();
-  const seed = loadRegistry(join(root, OVERRIDES_FILENAME), REGISTRY);
+  const seed = loadRegistry(overridesPath(), REGISTRY);
   const pref = loadConfig().preferredProvider;
   if (pref && providers.includes(pref)) return { registry: lockedRegistry(pref), lock: pref };
   if (providers.length === 1) return { registry: lockedRegistry(providers[0]!), lock: providers[0] };
@@ -106,6 +105,41 @@ export function projectRoot(): string {
   return dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 }
 
+/** Where user data lives: projects and routing overrides. NEVER inside the installed package —
+ *  `npm i -g projectinator@latest` replaces that directory, so anything kept there is destroyed
+ *  on every upgrade, not just on uninstall. `PROJECTINATOR_HOME` overrides (Docker mounts it). */
+export function dataHome(): string {
+  return process.env.PROJECTINATOR_HOME?.trim() || join(homedir(), ".projectinator");
+}
+
+/** Projects written by an older build, back when they lived inside the package. */
+function legacyProjectsDir(): string {
+  return join(projectRoot(), ".workspace", "tui");
+}
+
+/** Copy projects/overrides out of the package directory, once. Deliberately a copy and never a
+ *  move: the source is about to be deleted by the upgrade anyway, and a half-finished move would
+ *  cost someone their work. Best effort — a read-only or already-migrated install is a no-op. */
+function migrateFromPackageDir(target: string): void {
+  const legacy = legacyProjectsDir();
+  try {
+    if (!existsSync(legacy)) return;
+    const slugs = readdirSync(legacy).filter((f) => !f.startsWith("."));
+    if (!slugs.length) return;
+    mkdirSync(target, { recursive: true });
+    for (const slug of slugs) {
+      const to = join(target, slug);
+      if (existsSync(to)) continue; // already migrated (or a name clash) — keep what's there
+      try { cpSync(join(legacy, slug), to, { recursive: true }); } catch { /* skip this one */ }
+    }
+    const legacyOverrides = join(projectRoot(), OVERRIDES_FILENAME);
+    const movedOverrides = join(dataHome(), OVERRIDES_FILENAME);
+    if (existsSync(legacyOverrides) && !existsSync(movedOverrides)) {
+      try { cpSync(legacyOverrides, movedOverrides); } catch { /* keep the original */ }
+    }
+  } catch { /* never block startup on a migration */ }
+}
+
 // ---- role -> model assignments (Settings) ----
 
 /** The headline role slots shown in Settings (each capability at its main tier). */
@@ -119,7 +153,8 @@ export const ROLE_TIERS: { capability: Capability; tier: Tier; label: string }[]
 ];
 
 function overridesPath(): string {
-  return join(projectRoot(), OVERRIDES_FILENAME);
+  mkdirSync(dataHome(), { recursive: true });
+  return join(dataHome(), OVERRIDES_FILENAME);
 }
 
 export interface RoleAssignment {
@@ -279,12 +314,11 @@ export interface ProjectInfo {
   state: BuildState;
 }
 
-/** Where projects live. Default: `<package root>/.workspace/tui` (a clone keeps them next to
- *  the code). `PROJECTINATOR_HOME` overrides — a global install or a container mounts a
- *  volume there so builds survive upgrades. */
+/** Where projects live: `~/.projectinator/projects`, or `$PROJECTINATOR_HOME/projects`. */
 export function tuiRoot(): string {
-  const home = process.env.PROJECTINATOR_HOME?.trim();
-  return home ? join(home, "projects") : join(projectRoot(), ".workspace", "tui");
+  const dir = join(dataHome(), "projects");
+  migrateFromPackageDir(dir);
+  return dir;
 }
 
 /** List past builds, newest first. */

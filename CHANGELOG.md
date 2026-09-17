@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.22.0 — 2026-09-16
+
+### Fixed
+- **Upgrading wiped your projects.** Builds and the Scout's routing overrides were stored inside
+  the installed package (`<package>/.workspace/tui`), and `npm i -g projectinator@latest` replaces
+  that directory — so every upgrade silently destroyed all saved work, not just uninstalling did.
+  User data now lives in `~/.projectinator/` (`projects/`, `registry.overrides.json`), outside
+  anything a package manager touches. `PROJECTINATOR_HOME` still overrides it; Docker still uses
+  `/data`. Projects found in the old location are **copied** (never moved, so a failure can't cost
+  you anything) on first run, and never copied again over later edits.
+- API keys and prefs were always in `~/.projectinator/config.json` and are unaffected.
+
+### Internal
+- `test/setup.ts` pins `PROJECTINATOR_HOME` inside the repo for every test, so a fixture can never
+  be written among real projects.
+
 ## 0.21.2 — 2026-09-16
 
 ### Fixed

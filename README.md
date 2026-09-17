@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 217 passing](https://img.shields.io/badge/tests-299%20passing-brightgreen.svg)
+![tests: 302 passing](https://img.shields.io/badge/tests-302%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -54,7 +54,6 @@ docker run -it --rm -e OPENROUTER_API_KEY -v projectinator-home:/data projectina
 brew tap smanookian/projectinator
 brew trust smanookian/projectinator
 brew install projectinator
-export PROJECTINATOR_HOME=~/.projectinator   # keep builds across upgrades
 ```
 </details>
 
@@ -181,7 +180,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 299 tests
+npm test                                          # 302 tests
 npm run typecheck
 ```
 </details>
