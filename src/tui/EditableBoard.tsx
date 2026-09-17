@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { Capability, Difficulty, Task } from "../types.js";
-import { C, ROLE_META, KeyHint, TextField as TextInput } from "./components.js";
+import { C, ROLE_META, KeyHint, TextField as TextInput, useTermRows } from "./components.js";
 import { roleGlyph } from "./icons.js";
 import { estimateTokens } from "../estimate.js";
 import { groupByEpic } from "./Kanban.js";
@@ -30,6 +30,7 @@ export function EditableBoard({
   const [draft, setDraft] = useState("");
   const [warn, setWarn] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set()); // epic name → hidden
+  const termRows = useTermRows();
 
   const lanes = groupByEpic(items);
   const ordered = lanes.filter((l) => !collapsed.has(l.epic)).flatMap((l) => l.tasks);
@@ -174,7 +175,7 @@ export function EditableBoard({
         );
       })}
       <Box marginTop={1}>
-        <KeyHint hints={[
+        <KeyHint compact={termRows < 32} hints={[
           { keys: "↑↓", label: "pick" },
           { keys: "1-9", label: "collapse" },
           { keys: "[ ]", label: "reorder" },

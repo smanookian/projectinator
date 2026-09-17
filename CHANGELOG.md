@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.20.3 — 2026-09-16
+
+### Fixed
+- **The plan board overflowed a short terminal.** Each card was ~3 rows (id line, title line,
+  margin) and the 17-key legend rendered as bordered keycaps costing 3 rows per wrapped line —
+  together they blew past the viewport and the clipped frame merged rows ("Contact form" came
+  out as "Contact formw"). On a short terminal cards now render one line each and the legend
+  renders as a compact wrapped line (~2 rows instead of 9). Both board editors benefit.
+- `KeyHint` gained a compact form; it wraps rather than truncating, so no key is hidden.
+
+### Added
+- Board-editor rendering test with a realistic 8-task/3-epic backlog, asserting every card
+  title arrives intact (a plain substring check passes on "Contact formw", so it checks the
+  title is not run into by other text).
+
 ## 0.20.2 — 2026-09-16
 
 ### Fixed

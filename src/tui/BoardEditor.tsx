@@ -6,7 +6,7 @@ import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { Spinner } from "@inkjs/ui";
 import type { Capability, Difficulty, Task } from "../types.js";
-import { C, KeyHint, TextField as TextInput } from "./components.js";
+import { C, KeyHint, TextField as TextInput, useTermRows } from "./components.js";
 import { cleanDeps } from "./engine.js";
 import { estimateTokens } from "../estimate.js";
 import { groupByEpic } from "./Kanban.js";
@@ -162,6 +162,11 @@ export function BoardEditor({
     else if (key.escape) onCancel();
   });
 
+  // Each full card is ~3 rows (id line, title line, margin); 8 of them overflow a short
+  // terminal and the clipped frame merges rows. Fall back to one line per card.
+  const termRows = useTermRows();
+  const tight = termRows < 32;
+
   const readyCount = items.filter((c) => !c.parked).length;
   const backlogCount = items.length - readyCount;
 
@@ -170,22 +175,32 @@ export function BoardEditor({
       {cards.length === 0 ? <Text color={C.dim}>·</Text> : cards.map((c) => {
         const sel = selected?.id === c.id;
         return (
-          <Box key={c.id} flexDirection="column" marginBottom={1}>
+          <Box key={c.id} flexDirection="column" marginBottom={tight ? 0 : 1}>
             <Box>
               <Text color={C.accent}>{sel ? "› " : "  "}</Text>
               <Text color={C.dim}>{c.id} </Text>
-              <Text color={C.accent}>{c.capability}/{c.difficulty}</Text>
-            </Box>
-            <Box>
-              <Text> </Text>
-              {sel && editing && editField === "title" ? (
-                <TextInput value={draft} onChange={setDraft} onSubmit={() => { update(c.id, { title: draft.trim() || c.title }); setEditing(false); }} />
+              {tight ? (
+                sel && editing && editField === "title" ? (
+                  <TextInput value={draft} onChange={setDraft} onSubmit={() => { update(c.id, { title: draft.trim() || c.title }); setEditing(false); }} />
+                ) : (
+                  <Text color={sel ? C.text : C.dim} wrap="truncate-end">{c.title}</Text>
+                )
               ) : (
-                <Text color={sel ? C.text : C.dim} wrap="truncate-end">{c.title}</Text>
+                <Text color={C.accent}>{c.capability}/{c.difficulty}</Text>
               )}
             </Box>
-            {(c.dependsOn ?? []).length ? <Text color={C.dim}>  ↖ {(c.dependsOn ?? []).join(", ")}</Text> : null}
-            {c.notes ? <Text color={C.dim} wrap="truncate-end">  ✎ {c.notes}</Text> : null}
+            {tight ? null : (
+              <Box>
+                <Text> </Text>
+                {sel && editing && editField === "title" ? (
+                  <TextInput value={draft} onChange={setDraft} onSubmit={() => { update(c.id, { title: draft.trim() || c.title }); setEditing(false); }} />
+                ) : (
+                  <Text color={sel ? C.text : C.dim} wrap="truncate-end">{c.title}</Text>
+                )}
+              </Box>
+            )}
+            {tight || !(c.dependsOn ?? []).length ? null : <Text color={C.dim}>  ↖ {(c.dependsOn ?? []).join(", ")}</Text>}
+            {tight || !c.notes ? null : <Text color={C.dim} wrap="truncate-end">  ✎ {c.notes}</Text>}
           </Box>
         );
       })}
@@ -252,7 +267,7 @@ export function BoardEditor({
         );
       })}
       <Box marginTop={1}>
-        <KeyHint hints={[
+        <KeyHint compact={tight} hints={[
           { keys: "↑↓", label: "pick" },
           { keys: "1-9", label: "collapse" },
           { keys: "→/←", label: "col" },

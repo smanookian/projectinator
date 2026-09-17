@@ -17,6 +17,9 @@ const TASKS: Task[] = [
   { id: "T-02", title: "Review the wiring", capability: "review", difficulty: "low", dependsOn: ["T-01"], epic: "Core", estTokens: { input: 5_000, output: 2_000 } },
 ];
 
+/** The backlog the mocked PM returns; a test can swap it to stress a screen. */
+const planState: { tasks: Task[] } = { tasks: TASKS };
+
 /** Captured so a test can drive the build the way the orchestrator would. */
 const live: { emit?: (e: OrchestratorEvent) => void; finish?: (r: unknown) => void; control?: ReturnType<typeof createBuildControl> } = {};
 
@@ -25,7 +28,7 @@ vi.mock("../src/tui/engine.js", async (orig) => {
   return {
     ...actual,
     assessBuild: async () => [], // a clear request: skip the interview
-    planBuild: async () => ({ tasks: TASKS, provider: "openrouter" as const, modelId: "anthropic/claude-sonnet-5", estCost: 0.42, registry: REGISTRY }),
+    planBuild: async () => ({ tasks: planState.tasks, provider: "openrouter" as const, modelId: "anthropic/claude-sonnet-5", estCost: 0.42, registry: REGISTRY }),
     startBuild: (_idea: string, _plan: unknown, opts: { onEvent: (e: OrchestratorEvent) => void }) => {
       const control = createBuildControl();
       live.emit = opts.onEvent;
@@ -92,6 +95,17 @@ async function toPlanScreen() {
   return { ...r, frame, pick };
 }
 
+/** A realistic backlog: several epics, enough cards to overflow a short terminal. */
+const BIG: Task[] = [
+  ["E-1", "Scaffold the page", "code", "Core"], ["E-2", "Style the header", "code", "Core"],
+  ["E-3", "Review the markup", "review", "Core"], ["E-4", "Contact form", "code", "Forms"],
+  ["E-5", "Validate the form", "code", "Forms"], ["E-6", "Review the form", "review", "Forms"],
+  ["E-7", "Test the page", "test", "QA"], ["E-8", "Deploy notes", "ops", "QA"],
+].map(([id, title, capability, epic]) => ({
+  id: id!, title: title!, capability: capability as Task["capability"], difficulty: "low",
+  dependsOn: [], epic, estTokens: { input: 5_000, output: 2_000 },
+}));
+
 describe("build flow screens", () => {
   it("the plan screen shows the backlog and the estimate the PM returned", async () => {
     const app = await toPlanScreen();
@@ -148,5 +162,32 @@ describe("build flow screens", () => {
       expect(done, "an action row is garbled — rows overlapped").toContain("Add a file / image");
       expect(done, "an action row is garbled — rows overlapped").toContain("New build");
     } finally { app.unmount(); }
+  }, 30_000);
+});
+
+describe("board editor on a short terminal", () => {
+  it("renders its columns, cards and legend without merging rows", async () => {
+    planState.tasks = BIG;
+    try {
+      const app = await toPlanScreen();
+      try {
+        await app.pick("Plan the sprint on the board");
+        await until(() => app.frame().includes("BACKLOG"), app.frame);
+        const f = app.frame();
+        // column headers, an epic lane and card titles must all arrive intact
+        expect(f).toContain("BACKLOG");
+        expect(f).toContain("READY");
+        expect(f, "epic lane header garbled").toMatch(/[▾▸] 1/);
+        // Columns sit side by side, so a title is never at end of line — but it must be
+        // followed by whitespace. When rows merged, "Contact form" rendered as "Contact formw",
+        // which a plain toContain() happily accepts.
+        for (const t of BIG) {
+          expect(f, `card title garbled (text ran into it): ${t.title}`).toMatch(new RegExp(`${t.title}(?!\\S)`));
+        }
+        // the legend is a wrapping row of bordered keycaps; it must not eat the board
+        expect(f, "the legend is garbled — rows overlapped").toContain("collapse");
+        expect(f.split("\n").length, "frame grew past the viewport").toBeLessThanOrEqual(24);
+      } finally { app.unmount(); }
+    } finally { planState.tasks = TASKS; }
   }, 30_000);
 });

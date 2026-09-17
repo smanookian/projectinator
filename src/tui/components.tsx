@@ -183,7 +183,18 @@ export interface Hint {
  *  (Frame.tsx PHASE_HINTS) so EVERY screen shows them the same way — use this only for a
  *  screen whose key set the footer can't express: the board editors' full legend, a
  *  MultiSelect's Space, the prefs form's field-by-field Enter. */
-export function KeyHint({ hints }: { hints: Hint[] }): React.ReactElement {
+export function KeyHint({ hints, compact }: { hints: Hint[]; compact?: boolean }): React.ReactElement {
+  // A long legend as bordered keycaps costs 3 rows per wrapped line, which overflows a short
+  // terminal. Compact renders the same keys as one dim line, like the status bar.
+  if (compact) {
+    return (
+      // Wrap rather than truncate: a long legend still fits in ~2 rows instead of the 9 the
+      // bordered keycaps need, and no key gets hidden.
+      <Text color={C.dim}>
+        {hints.map((h) => `${h.keys} ${h.label}`).join(" · ")}
+      </Text>
+    );
+  }
   return (
     <Box flexWrap="wrap">
       {hints.map((h, i) => (
