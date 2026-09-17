@@ -4,7 +4,8 @@
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { parseArgv, semverGte } from "../src/cli.js";
+import { installKind, parseArgv, semverGte } from "../src/cli.js";
+import { sep } from "node:path";
 
 describe("parseArgv", () => {
   it("separates positionals from --flag value, --flag=value and bare --flag", () => {
@@ -26,6 +27,25 @@ describe("semverGte", () => {
   });
 });
 
+describe("installKind", () => {
+  // `update` may only npm-install over itself when it IS the global install. Getting this wrong
+  // means clobbering someone's clone or a project dependency with a global package.
+  const g = ["", "usr", "lib", "node_modules"].join(sep);
+  it("recognises the global install it may replace", () => {
+    expect(installKind([g, "projectinator", "dist", "cli.js"].join(sep), { globalRoot: g })).toBe("npm-global");
+  });
+  it("treats a project dependency as local, not global", () => {
+    const local = ["", "home", "me", "app", "node_modules", "projectinator", "dist", "cli.js"].join(sep);
+    expect(installKind(local, { globalRoot: g })).toBe("npm-local");
+  });
+  it("a checkout outside node_modules is a clone", () => {
+    expect(installKind(["", "home", "me", "projectinator", "src", "cli.ts"].join(sep), { globalRoot: g })).toBe("clone");
+  });
+  it("Docker wins over any path shape", () => {
+    expect(installKind([g, "projectinator", "dist", "cli.js"].join(sep), { docker: true, globalRoot: g })).toBe("docker");
+  });
+});
+
 describe("launcher (bin/projectinator.mjs)", () => {
   const run = (...args: string[]) => spawnSync(process.execPath, ["bin/projectinator.mjs", ...args], { encoding: "utf8" });
   it("--version prints package.json's version and exits 0", () => {
@@ -36,7 +56,7 @@ describe("launcher (bin/projectinator.mjs)", () => {
   });
   it("--help lists every command", () => {
     const r = run("--help");
-    for (const c of ["doctor", "build", "projects", "models"]) expect(r.stdout).toContain(`projectinator ${c}`);
+    for (const c of ["doctor", "build", "projects", "models", "update"]) expect(r.stdout).toContain(`projectinator ${c}`);
     expect(r.status).toBe(0);
   });
   it("unknown commands and options exit 2 without booting the app", () => {

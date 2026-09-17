@@ -4,6 +4,8 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 
 ## Done
 
+- [x] **0.23.0** — `projectinator update` (self-upgrade, refuses to clobber a clone/dep/container).
+
 - [x] **0.22.0** — user data (projects, routing overrides) moved out of the installed package to
       `~/.projectinator/`. Upgrading via `npm i -g` used to replace the package directory and
       destroy every saved project; old locations are copied over on first run.

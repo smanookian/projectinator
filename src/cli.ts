@@ -4,6 +4,7 @@
 //   doctor                 check Node, keys, Chromium, Pi catalog, git
 //   build "<idea>" [...]   plan + build without the TUI
 //   projects               list past builds
+//   update                 upgrade to the latest published version
 //   models                 the roster as it will actually run, with prices
 //
 // The launcher (bin/projectinator.mjs) handles --version/--help itself and only
@@ -11,9 +12,10 @@
 
 import { createInterface } from "node:readline";
 import { spawnSync } from "node:child_process";
-import { accessSync, constants, mkdirSync } from "node:fs";
+import { accessSync, constants, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { OrchestratorEvent } from "./orchestrator.js";
 import type { Provider } from "./types.js";
 import { MODELS, getModel } from "./models.js";
@@ -24,7 +26,7 @@ import { proposeUpdate, formatProposal } from "./scout.js";
 import { writeFileSync } from "node:fs";
 import { piRuntime, resolvePiModel } from "./executor.js";
 import { chromiumAvailable, CHROMIUM_INSTALL_HINT } from "./preview.js";
-import { applyKeysToEnv, getPrefs, getWebhookUrl, loadConfig, ENV_VAR, type KeyedProvider } from "./tui/config.js";
+import { applyKeysToEnv, configPath, dataHome, getPrefs, getWebhookUrl, loadConfig, ENV_VAR, type KeyedProvider } from "./tui/config.js";
 import { getLocalModels } from "./local-models.js";
 import { postWebhook } from "./tui/notify.js";
 import { stackInstruction, stackChoiceFor, type StackChoice, type StackProfileId } from "./stack.js";
@@ -33,6 +35,7 @@ import {
   effectiveRoster,
   listProjects,
   planBuild,
+  projectRoot,
   tuiRoot,
   startBuild,
   PROVIDER_LABEL,
@@ -95,7 +98,7 @@ async function doctor(): Promise<number> {
   const providers = availableProviders();
   for (const p of Object.keys(ENV_VAR) as KeyedProvider[]) {
     const has = providers.includes(p);
-    const src = cfg.keys[p] ? "~/.projectinator/config.json" : has ? "env" : "";
+    const src = cfg.keys[p] ? configPath() : has ? "env" : "";
     checks.push({ label: `Key: ${PROVIDER_LABEL[p]}`, ok: has, detail: has ? `set (${src})` : `not set — Settings → API keys, or export ${ENV_VAR[p]}` });
   }
   const local = getLocalModels();
@@ -151,6 +154,67 @@ function projects(): number {
     console.log(`      ${p.idea.slice(0, 90)}${p.idea.length > 90 ? "…" : ""}`);
   }
   console.log(`\n  ${list.length} project${list.length === 1 ? "" : "s"} · ${money(list.reduce((a, p) => a + p.totalCost, 0))} all time · ${tuiRoot()}\n`);
+  return 0;
+}
+
+// ---- update ----
+
+/** How this copy was installed, which decides how it can be upgraded. */
+export type InstallKind = "npm-global" | "npm-local" | "clone" | "docker";
+
+export function installKind(modulePath: string, opts: { docker?: boolean; globalRoot?: string } = {}): InstallKind {
+  if (opts.docker) return "docker";
+  // `npm root -g` is the global node_modules; anything under it is the global install.
+  if (opts.globalRoot && modulePath.startsWith(opts.globalRoot + sep)) return "npm-global";
+  return modulePath.includes(`${sep}node_modules${sep}`) ? "npm-local" : "clone";
+}
+
+/** Latest published version, or null if npm can't be reached. */
+async function latestVersion(): Promise<string | null> {
+  try {
+    const res = await fetch("https://registry.npmjs.org/projectinator/latest", { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { version?: string };
+    return typeof body.version === "string" ? body.version : null;
+  } catch { return null; }
+}
+
+async function update(argv: Argv): Promise<number> {
+  const current = JSON.parse(readFileSync(join(projectRoot(), "package.json"), "utf8")).version as string;
+  const checkOnly = argv.flags.check === true;
+
+  console.log(`\n  Installed: ${current}`);
+  const latest = await latestVersion();
+  if (!latest) { console.error("  Latest:    unknown — couldn't reach registry.npmjs.org\n"); return 1; }
+  console.log(`  Latest:    ${latest}`);
+
+  if (semverGte(current, latest)) { console.log("\n  Already up to date.\n"); return 0; }
+
+  const kind = installKind(fileURLToPath(import.meta.url), {
+    docker: existsSync("/.dockerenv"),
+    globalRoot: spawnSync("npm", ["root", "-g"], { encoding: "utf8" }).stdout?.trim() || undefined,
+  });
+
+  // Only a global install can safely replace itself; everything else needs its own workflow.
+  if (kind !== "npm-global") {
+    const how = {
+      clone: "you're running from a git clone — `git pull && npm install && npm run compile`",
+      "npm-local": "this is a project dependency — `npm install projectinator@latest` in that project",
+      docker: "you're in the Docker image — rebuild it to upgrade",
+    }[kind];
+    console.log(`\n  ${latest} is available, but ${how}.\n`);
+    return 0;
+  }
+
+  if (checkOnly) { console.log(`\n  Run \`projectinator update\` to install ${latest}.\n`); return 0; }
+
+  console.log(`\n  Updating to ${latest} …\n`);
+  const r = spawnSync("npm", ["install", "-g", `projectinator@${latest}`], { stdio: "inherit" });
+  if (r.status !== 0) {
+    console.error("\n  npm failed. If it's a permissions error, either fix your npm prefix or re-run with sudo.\n");
+    return 1;
+  }
+  console.log(`\n  Updated to ${latest}. Your projects and keys in ${dataHome()} are untouched.\n`);
   return 0;
 }
 
@@ -300,6 +364,7 @@ const USAGE = `Usage: projectinator <command> [options]
   projects                      list past builds with status and cost
   models                        the roster as it will run, with prices
   scout [--findings <file>]     live OpenRouter catalog: price drift, new models, proposed registry diff
+  update [--check]              upgrade to the latest published version (--check only reports)
   mcp                           MCP server on stdio (tools: plan, build, build_status, build_control, projects, models)
 
 Exit codes: 0 ok · 1 environment problem · 2 bad usage · 3 build halted`;
@@ -315,6 +380,7 @@ export async function main(args: string[]): Promise<number> {
     case "scout": return scout(argv);
     case "mcp": { const { serveStdio } = await import("./mcp.js"); await serveStdio(); await new Promise(() => {}); return 0; }
     case "build": return build(argv);
+    case "update": return update(argv);
     case undefined: case "help": console.log(USAGE); return cmd ? 0 : 2;
     default: console.error(`projectinator: unknown command "${cmd}".\n\n${USAGE}`); return 2;
   }

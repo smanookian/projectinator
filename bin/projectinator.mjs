@@ -27,6 +27,7 @@ Usage
   projectinator projects               list past builds with status and cost
   projectinator models                 the roster as it will run, with prices
   projectinator scout                  live OpenRouter catalog: price drift, new models, proposed diff
+  projectinator update [--check]       upgrade to the latest published version
   projectinator mcp                    MCP server on stdio for other agents (plan/build/status/steer)
   projectinator --version | --help
 
@@ -40,7 +41,7 @@ Docs: https://github.com/smanookian/projectinator#readme`);
   process.exit(0);
 }
 
-const COMMANDS = new Set(["doctor", "build", "projects", "models", "scout", "mcp"]);
+const COMMANDS = new Set(["doctor", "build", "projects", "models", "scout", "mcp", "update"]);
 if (args.length && !COMMANDS.has(args[0])) {
   console.error(`projectinator: unknown ${args[0].startsWith("-") ? "option" : "command"} "${args[0]}". Try --help.`);
   process.exit(2);

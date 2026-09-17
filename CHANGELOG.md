@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.23.0 — 2026-09-16
+
+### Added
+- **`projectinator update`** — upgrade in place, instead of remembering the npm incantation:
+  ```
+  projectinator update            # check, then install the latest
+  projectinator update --check    # just report; change nothing
+  ```
+  It compares your version against the registry and only self-installs when it *is* the global
+  npm install. A git clone is told to `git pull`, a project dependency is told to update itself,
+  and inside Docker it says to rebuild the image — so it can never npm-clobber a checkout you're
+  working in. Projects and keys in `~/.projectinator` are untouched by an upgrade (since 0.22.0).
+
+### Fixed
+- `doctor` printed a hardcoded `~/.projectinator/config.json` as the source of a saved key; it now
+  prints the real `configPath()`, which differs when `PROJECTINATOR_HOME` is set.
+
 ## 0.22.1 — 2026-09-16
 
 ### Removed

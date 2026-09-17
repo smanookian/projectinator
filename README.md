@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 304 passing](https://img.shields.io/badge/tests-304%20passing-brightgreen.svg)
+![tests: 308 passing](https://img.shields.io/badge/tests-308%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -167,6 +167,7 @@ projectinator projects                                # past builds, status, cos
 projectinator scout                                             # price drift + new models + proposed diff
 projectinator mcp                                               # MCP server on stdio (plan/build/status/steer)
 projectinator models                                  # the roster as it will run, with prices
+projectinator update      # upgrade to the latest published version
 ```
 
 Exit codes: `0` ok · `1` environment problem · `2` bad usage · `3` build halted (resume it in the app).
@@ -179,7 +180,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 304 tests
+npm test                                          # 308 tests
 npm run typecheck
 ```
 </details>
