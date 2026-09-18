@@ -73,18 +73,11 @@ export function loadConfig(): AppConfig {
   try {
     if (!existsSync(configPath())) return { keys: {} };
     const parsed = JSON.parse(readFileSync(configPath(), "utf-8")) as AppConfig;
-    return {
-      keys: parsed.keys ?? {},
-      budgetCapUSD: parsed.budgetCapUSD,
-      concurrency: parsed.concurrency,
-      budgetAlertPct: parsed.budgetAlertPct,
-      preferredProvider: parsed.preferredProvider,
-      defaultMode: parsed.defaultMode,
-      notify: parsed.notify,
-      preferredStack: parsed.preferredStack,
-      theme: parsed.theme,
-      icons: parsed.icons,
-    };
+    // Return the parsed config as-is. This used to project an explicit field list, which meant
+    // every field somebody forgot to add here was written to disk and then silently dropped on
+    // read: taskTimeoutMin, taskCostCapUSD, parallelCode, reviewPolicy and webhookUrl all
+    // round-tripped to their defaults, so those settings appeared to do nothing.
+    return { ...parsed, keys: parsed.keys ?? {} };
   } catch {
     return { keys: {} };
   }

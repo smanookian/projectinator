@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.24.1 — 2026-09-18
+
+### Fixed
+- **Five settings never persisted.** `loadConfig()` projected an explicit list of fields, so
+  anything missing from that list was written to `config.json` and then silently dropped when
+  read back. `taskTimeoutMin`, `taskCostCapUSD`, `parallelCode`, `reviewPolicy` and `webhookUrl`
+  all reverted to their defaults, which means the **webhook, both per-task limits and the
+  parallel-code toggle have never worked across a restart** — you could set them, they looked
+  saved, and nothing used them. The config is no longer filtered on read, and a test now asserts
+  every pref round-trips.
+
+  Found immediately after adding the review-policy setting: the new toggle wrote `all` to disk
+  and read back `high`.
+
 ## 0.24.0 — 2026-09-18
 
 ### Changed
