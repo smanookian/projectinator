@@ -50,11 +50,24 @@ export async function startServer(dir: string, profile: StackProfile): Promise<R
     stdio: ["ignore", "pipe", "pipe"],
   });
   const lines: string[] = [];
-  const keep = (chunk: Buffer) => { for (const l of chunk.toString().split("\n")) if (l.trim()) { lines.push(l); if (lines.length > 200) lines.shift(); } };
+  // Chunks are not lines: a boundary can fall mid-line, and splitting each chunk on its own
+  // inserted a newline there — "listening on 41765" arrived as "listening on" + " 41765", so a
+  // readiness check (or anyone reading a stack trace out of this log) saw corrupted output.
+  let partial = "";
+  const keep = (chunk: Buffer) => {
+    partial += chunk.toString();
+    const parts = partial.split("\n");
+    partial = parts.pop() ?? ""; // an unterminated tail waits for the rest
+    for (const l of parts) if (l.trim()) { lines.push(l); if (lines.length > 200) lines.shift(); }
+  };
+  /** Flush an unterminated last line (a crash message often has no trailing newline). */
+  const flush = () => { if (partial.trim()) { lines.push(partial); partial = ""; } };
   child.stdout?.on("data", keep);
   child.stderr?.on("data", keep);
+  child.stdout?.on("end", flush);
+  child.stderr?.on("end", flush);
   const url = `http://127.0.0.1:${port}`;
-  const log = () => lines.join("\n");
+  const log = () => [...lines, ...(partial.trim() ? [partial] : [])].join("\n");
   const close = () => killTree(child);
 
   const deadline = Date.now() + SERVER_READY_MS;

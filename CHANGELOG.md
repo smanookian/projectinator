@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.25.0 — 2026-09-18
+
+### Fixed
+- **Plan estimates ran ~2x low, so caps halted builds against their own plan.** Measured on three
+  real builds: est $0.62 → actual $1.00, est $1.35 → actual $2.46, est $0.82 → $1.00 at 6/10
+  tasks. The token counts were right (calibration measures them); the *pricing* was wrong. Cost
+  was derived assuming input served from cache bills at the cheap `cacheRead` rate, but real
+  bills behave as if there is no cache discount at all — a task estimated at $0.15 with 95% cache
+  assumed, and $0.54 with none, actually cost $0.50.
+
+  Two changes:
+  - Every real run now records its **measured USD**, and the router prices a task from that once
+    the bucket has two runs on that model (`calibratedCostUSD`). This is self-correcting and
+    needs no assumption about how a provider bills caching.
+  - Until a bucket has measured runs, tokens are priced **without** a cache discount. On the
+    completed scratchpad build this turns est $1.35 (actual $2.46) into est $3.63 — deliberately
+    conservative, because being told $3.63 and spending $2.46 beats being told $1.35 and halting
+    at $1.
+- **A server's startup line could be corrupted, and a crash message lost.** `serve.ts` split each
+  stdout *chunk* into lines on its own, so a chunk boundary falling mid-line inserted a newline:
+  `listening on 41765` arrived as `listening on` + ` 41765`. That failed the Python stack's
+  readiness check about 1 run in 6 (the intermittent test failure noted in 0.23.3 — it was never
+  a port race), and would equally mangle a stack trace the Tester reads out of the log. Partial
+  lines are now buffered across chunks, and an unterminated final line is flushed instead of
+  dropped, so `FATAL: …` with no trailing newline still reaches the error message.
+
 ## 0.24.3 — 2026-09-18
 
 ### Fixed

@@ -15,6 +15,10 @@ interface Sample {
   n: number; // sample count (capped so recent runs still move the average)
   /** Mean wall-clock ms per run (absent for samples recorded before timing existed). */
   ms?: number;
+  /** Mean measured USD per run. Recorded because deriving cost from tokens was ~2x low: the
+   *  usage stats report ~95% cache-read input, but the bill behaves as if there is no cache
+   *  discount, so a measured price is the only trustworthy one. */
+  usd?: number;
 }
 
 type Calibration = Record<string, Sample>;
@@ -45,10 +49,10 @@ function save(cal: Calibration): void {
   }
 }
 
-function fold(cal: Calibration, k: string, inputTotal: number, output: number, cachedFraction: number, ms?: number): void {
+function fold(cal: Calibration, k: string, inputTotal: number, output: number, cachedFraction: number, ms?: number, usd?: number): void {
   const prev = cal[k];
   if (!prev) {
-    cal[k] = { input: inputTotal, output, cachedFraction, n: 1, ...(ms ? { ms } : {}) };
+    cal[k] = { input: inputTotal, output, cachedFraction, n: 1, ...(ms ? { ms } : {}), ...(usd ? { usd } : {}) };
     return;
   }
   const n = Math.min(prev.n, MAX_N);
@@ -58,6 +62,7 @@ function fold(cal: Calibration, k: string, inputTotal: number, output: number, c
     cachedFraction: (prev.cachedFraction * n + cachedFraction) / (n + 1),
     n: prev.n + 1,
     ...(ms ? { ms: prev.ms ? (prev.ms * n + ms) / (n + 1) : ms } : prev.ms ? { ms: prev.ms } : {}),
+    ...(usd ? { usd: prev.usd ? (prev.usd * n + usd) / (n + 1) : usd } : prev.usd ? { usd: prev.usd } : {}),
   };
 }
 
@@ -70,11 +75,12 @@ export function recordActual(
   cachedFraction: number,
   modelId?: string,
   durationMs?: number,
+  costUSD?: number,
 ): void {
   if (!(inputTotal > 0)) return;
   const cal = load();
-  fold(cal, key(capability, difficulty), inputTotal, output, cachedFraction, durationMs);
-  if (modelId) fold(cal, key(capability, difficulty, modelId), inputTotal, output, cachedFraction, durationMs);
+  fold(cal, key(capability, difficulty), inputTotal, output, cachedFraction, durationMs, costUSD);
+  if (modelId) fold(cal, key(capability, difficulty, modelId), inputTotal, output, cachedFraction, durationMs, costUSD);
   save(cal);
 }
 
@@ -108,4 +114,14 @@ export function calibratedTokens(capability: Capability, difficulty: Difficulty)
  *  Undefined when that model hasn't run this bucket enough — callers keep their estimate. */
 export function modelCalibratedTokens(capability: Capability, difficulty: Difficulty, modelId: string) {
   return fromSample(load()[key(capability, difficulty, modelId)]);
+}
+
+/** Measured USD for a bucket on a specific model, once enough runs exist.
+ *  Preferred over token math: the token estimate assumes a cache discount the bill doesn't
+ *  give, which made plan estimates run ~2x low and halted builds against their own cap. */
+export function calibratedCostUSD(capability: Capability, difficulty: Difficulty, modelId?: string): number | undefined {
+  const cal = load();
+  const s = (modelId && cal[key(capability, difficulty, modelId)]) || cal[key(capability, difficulty)];
+  if (!s || s.n < MIN_SAMPLES || !(s.usd! > 0)) return undefined;
+  return s.usd;
 }

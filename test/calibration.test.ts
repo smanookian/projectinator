@@ -54,6 +54,7 @@ describe("per-model calibration", () => {
     recordActual("code", "high", 4_000, 1_500, 0.9, model);
     const d = route(task, { policy, registry });
     expect(d.cost).toBeLessThan(before); // 4k/1.5k tokens is far below the 100k/20k estimate
-    expect(d.reasons).toContain(`tokens from measured runs on ${model}`);
+    // Wording is not the contract: the decision trail must say the tokens came from real runs.
+    expect(d.reasons.join(" ")).toMatch(new RegExp(`measured runs on ${model}`));
   });
 });

@@ -16,7 +16,7 @@ import type {
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
 import { findEntry, REGISTRY } from "./registry.js";
-import { modelCalibratedTokens } from "./calibration.js";
+import { calibratedCostUSD, modelCalibratedTokens } from "./calibration.js";
 
 export interface RouterPrompts {
   /** Ask the user which backend to use. Called only when backendMode === "ask". */
@@ -87,10 +87,18 @@ export function route(task: Task, ctx: RouteContext): RouteDecision {
   const model = getModel(modelId);
   reasons.push(`model=${model.id} (${model.provider})`);
 
-  // 5. Cost. Once real runs exist for this model, their average beats the PM-time estimate.
+  // 5. Cost. Prefer what this bucket actually BILLED on this model. Deriving cost from tokens
+  // assumes input served from cache bills at the cacheRead rate; measured runs show the bill
+  // behaving as if there were no cache discount, which made estimates ~2x low and halted builds
+  // against their own cap. Token math remains the fallback for a model that hasn't run yet.
   const est = modelCalibratedTokens(task.capability, task.difficulty, model.id) ?? task.estTokens;
-  const cost = estimateCost(est, model);
-  if (est !== task.estTokens) reasons.push(`tokens from measured runs on ${model.id}`);
+  const measured = calibratedCostUSD(task.capability, task.difficulty, model.id);
+  // No measured price yet: price the tokens as if none of the input gets a cache discount.
+  // Measured runs bill that way (a task estimated at $0.15 with 95% cache assumed, and $0.54
+  // with none, actually cost $0.50), so the optimistic assumption is what made caps unusable.
+  const cost = measured ?? estimateCost({ ...est, cachedInputFraction: 0 }, model);
+  if (measured !== undefined) reasons.push(`cost from ${model.id}'s measured runs`);
+  else if (est !== task.estTokens) reasons.push(`tokens from measured runs on ${model.id}, priced without a cache discount`);
   const runningTotal = Math.round(((ctx.runningTotalBefore ?? 0) + cost) * 10_000) / 10_000;
   const overCap = runningTotal > policy.budgetCapUSD;
   if (overCap) reasons.push(`OVER CAP: running $${runningTotal} > cap $${policy.budgetCapUSD}`);
