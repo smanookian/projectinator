@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.0 — 2026-09-18
+
+### Added
+- **The transcript viewer is a split pane.** On a terminal at least 100 columns wide the run list
+  stays beside the text, marking which run is open, and **←/→ move between runs** without going
+  back to the picker — reading three transcripts was three round-trips. Narrower terminals keep
+  the text full-width rather than squeezing both. The status bar carries the new keys.
+
 ## 0.25.1 — 2026-09-18
 
 ### Fixed

@@ -28,7 +28,7 @@ const PHASE_HINTS: Record<string, string> = {
   burndown: "←/→ sprint · Esc back",
   idea: TYPING, change: TYPING, rename: TYPING, addAsset: TYPING, setCap: TYPING,
   importProject: TYPING, saveTemplate: TYPING, intake: TYPING,
-  transcript: `${PAGER} · 1-9 open a screenshot`,
+  transcript: `${PAGER} · ←/→ next run · 1-9 open a screenshot`,
   diff: PAGER,
   board: "↑↓ pick · Enter build · Esc back · legend below",
   editBoard: "↑↓ pick · Enter save · Esc back · legend below",

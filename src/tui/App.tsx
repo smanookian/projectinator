@@ -8,7 +8,7 @@ import { Spinner, StatusMessage } from "@inkjs/ui";
 import InkSpinner from "ink-spinner"; // a Text-based spinner, safe as an inline glyph inside <Text>
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
-import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, useTermRows, TextField as TextInput, ROLE_META, type TaskView, type MenuGroup } from "./components.js";
+import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, useTermRows, useTermCols, TextField as TextInput, ROLE_META, type TaskView, type MenuGroup } from "./components.js";
 import { roleGlyph } from "./icons.js";
 import { Kanban, type BoardTask } from "./Kanban.js";
 import { BoardEditor } from "./BoardEditor.js";
@@ -149,10 +149,11 @@ export default function App(): React.ReactElement {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [phase]);
-  const [transcript, setTranscript] = useState<{ outcome: TaskOutcome; scroll: number } | null>(null);
+  const [transcript, setTranscript] = useState<{ ix: number; scroll: number } | null>(null);
   const [diffView, setDiffView] = useState<{ hash: string; msg: string; lines: string[]; scroll: number } | null>(null);
 
   const termRows = useTermRows();
+  const termCols = useTermCols();
 
   // Reload the projects list and re-point `selected` at the given dir (after a mutation).
   const reselect = (dir: string | null) => {
@@ -265,8 +266,16 @@ export default function App(): React.ReactElement {
     const pager = phase === "transcript" && transcript ? transcript : phase === "diff" && diffView ? diffView : null;
     if (pager) {
       if (phase === "transcript" && selected && /^[1-9]$/.test(input)) {
-        const shot = transcript!.outcome.screenshots?.[Number(input) - 1];
+        const shot = selected.state.outcomes[transcript!.ix]?.screenshots?.[Number(input) - 1];
         if (shot) openInBrowser(join(selected.dir, shot));
+        return;
+      }
+      // ←/→ walk the run list beside the text, so reading three transcripts is not three
+      // round-trips through the picker. Scroll resets: the new text is a different document.
+      if (phase === "transcript" && selected && (key.leftArrow || key.rightArrow)) {
+        const last = selected.state.outcomes.length - 1;
+        const ix = Math.min(last, Math.max(0, transcript!.ix + (key.rightArrow ? 1 : -1)));
+        if (ix !== transcript!.ix) setTranscript({ ix, scroll: 0 });
         return;
       }
       const page = Math.max(4, termRows - 18);
@@ -1259,7 +1268,7 @@ export default function App(): React.ReactElement {
                 ]}
                 onSelect={(i) => {
                   if (i.value === "back") return setPhase("projectActions");
-                  setTranscript({ outcome: outcomes[Number(i.value)]!, scroll: 0 });
+                  setTranscript({ ix: Number(i.value), scroll: 0 });
                   setPhase("transcript");
                 }}
               />
@@ -1273,7 +1282,9 @@ export default function App(): React.ReactElement {
   }
 
   if (phase === "transcript" && selected && transcript) {
-    const o = transcript.outcome;
+    const runs = selected.state.outcomes;
+    const o = runs[transcript.ix];
+    if (!o) return <Text color={C.bad}>That run is gone.</Text>;
     const title = selected.state.tasks.find((t) => t.id === o.taskId)?.title ?? o.taskId;
     const lines: string[] = [];
     if (o.error) lines.push(`⛔ Aborted: ${o.error}`, "");
@@ -1289,15 +1300,40 @@ export default function App(): React.ReactElement {
     if (shots.length) lines.push("", `Screenshots: ${shots.map((s, i) => `[${i + 1}] ${s.replace(/^\.checks\//, "")}`).join("  ")}  — press the number to open`);
     const page = Math.max(4, termRows - 18);
     const scroll = Math.min(transcript.scroll, Math.max(0, lines.length - page));
+    // The run list stays beside the text on a wide terminal: reading three transcripts should
+    // not be three round-trips through the picker. Narrow terminals keep the text full-width —
+    // a squeezed side pane costs the column the transcript needs.
+    const wide = termCols >= 100;
+    const listWidth = 30;
+    // Keep the focused run in view without scrolling the list off either end.
+    const from = Math.max(0, Math.min(transcript.ix - Math.floor(page / 2), Math.max(0, runs.length - page)));
     return (
       <Box flexDirection="column">
         <Panel title={`${o.taskId} · ${ROLE_META[o.capability].label}${o.round ? ` · round ${o.round}` : ""} · ${modelLabel(o.modelId)} · $${o.cost.toFixed(2)}`}>
           <Text bold wrap="truncate-end">{title}</Text>
-          <Box marginTop={1} flexDirection="column">
-            {lines.slice(scroll, scroll + page).map((l, i) => <Text key={scroll + i} wrap="truncate-end">{l || " "}</Text>)}
+          <Box marginTop={1}>
+            {wide ? (
+              <Box flexDirection="column" width={listWidth} flexShrink={0} marginRight={2}>
+                {runs.slice(from, from + page).map((r, i) => {
+                  const ix = from + i;
+                  const on = ix === transcript.ix;
+                  return (
+                    <Text key={ix} color={on ? C.accent : C.textMuted} wrap="truncate-end">
+                      {on ? "❯ " : "  "}{r.taskId.padEnd(6)} {r.capability.padEnd(7)} ${r.cost.toFixed(2)}
+                    </Text>
+                  );
+                })}
+              </Box>
+            ) : null}
+            <Box flexDirection="column" flexGrow={1}>
+              {lines.slice(scroll, scroll + page).map((l, i) => <Text key={scroll + i} wrap="truncate-end">{l || " "}</Text>)}
+            </Box>
           </Box>
           <Box marginTop={1}>
-            <Text color={C.textSubtle}>{lines.length > page ? `lines ${scroll + 1}–${Math.min(scroll + page, lines.length)} of ${lines.length}   ` : ""}</Text>
+            <Text color={C.textSubtle}>
+              {lines.length > page ? `lines ${scroll + 1}–${Math.min(scroll + page, lines.length)} of ${lines.length}   ` : ""}
+              {runs.length > 1 ? `run ${transcript.ix + 1} of ${runs.length}` : ""}
+            </Text>
           </Box>
         </Panel>
       </Box>

@@ -4,6 +4,8 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 
 ## Done
 
+- [x] **0.26.0** — split-pane transcript viewer (list beside the text, ←/→ between runs). Deferred restyle item.
+
 - [x] **0.25.0** — cost estimates calibrate on measured USD; conservative pricing until a bucket has runs. Estimates were ~2x low, which halted every build at its cap.
 
 - [x] **0.24.0** — review policy (default: hard code tasks only). Reviews measured at 22% of spend / 0 bugs; plan for the same idea went 18 tasks/$1.42 → 7/$0.47.

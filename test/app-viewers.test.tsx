@@ -104,6 +104,93 @@ describe("transcript viewer", () => {
   });
 });
 
+describe("transcript split pane", () => {
+  // The run list stays beside the text on a wide terminal and ←/→ walk it, so reading several
+  // transcripts isn't a round-trip through the picker each time.
+  const RIGHT = "\u001b[C";
+  const LEFT = "\u001b[D";
+
+  it("←/→ move between runs without leaving the viewer, and the list shows which is open", async () => {
+    const dir = fixtureDir("test-split-fixture");
+    mkdirSync(dir, { recursive: true });
+    const runs = [
+      { taskId: "S-1", capability: "design", finalText: "ALPHA-MARKER the spec" },
+      { taskId: "S-2", capability: "code", finalText: "BRAVO-MARKER the code" },
+      { taskId: "S-3", capability: "test", finalText: "CHARLIE-MARKER the test" },
+    ];
+    writeFileSync(join(dir, "build-state.json"), JSON.stringify({
+      id: "test-split-fixture", idea: "split fixture", status: "complete", totalCost: 0.3,
+      tasks: runs.map((r) => ({ id: r.taskId, title: `${r.taskId} title`, capability: r.capability, difficulty: "low", dependsOn: [], estTokens: { input: 1, output: 1 } })),
+      outcomes: runs.map((r) => ({ ...r, provider: "anthropic", modelId: "claude-opus-5", round: 0, cost: 0.1, files: [] })),
+    }));
+    const app = mountApp();
+    try {
+      await tick(150);
+      await app.pick("Start a build");
+      await app.pick("Projects (");
+      await app.pick("split fixture");
+      await app.pick("Transcripts (what each role said)");
+      await app.pick("S-1");
+      expect(app.frame()).toContain("ALPHA-MARKER");
+      expect(app.frame()).toContain("run 1 of 3");
+
+      app.stdin.write(RIGHT);
+      await until(() => app.frame().includes("BRAVO-MARKER"), app.frame);
+      expect(app.frame()).toContain("run 2 of 3");
+      expect(app.frame()).not.toContain("ALPHA-MARKER"); // the text really switched
+
+      app.stdin.write(LEFT);
+      await until(() => app.frame().includes("ALPHA-MARKER"), app.frame);
+      expect(app.frame()).toContain("run 1 of 3");
+    } finally {
+      app.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // NOTE: the narrow fallback (termCols < 100 hides the side list) is NOT covered here.
+  // ink-testing-library renders through its own stdout pinned at 100 columns and ignores a
+  // custom one, so a width assertion would pass or fail for the wrong reason. Don't add one
+  // back without a harness that actually controls the width.
+
+  it("stops at the ends instead of wrapping", async () => {
+    const dir = fixtureDir("test-split-edge");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "build-state.json"), JSON.stringify({
+      id: "test-split-edge", idea: "edge fixture", status: "complete", totalCost: 0.2,
+      tasks: [
+        { id: "E-1", title: "one", capability: "code", difficulty: "low", dependsOn: [], estTokens: { input: 1, output: 1 } },
+        { id: "E-2", title: "two", capability: "code", difficulty: "low", dependsOn: [], estTokens: { input: 1, output: 1 } },
+      ],
+      outcomes: [
+        { taskId: "E-1", capability: "code", provider: "anthropic", modelId: "claude-opus-5", round: 0, cost: 0.1, files: [], finalText: "FIRST-RUN-MARKER" },
+        { taskId: "E-2", capability: "code", provider: "anthropic", modelId: "claude-opus-5", round: 0, cost: 0.1, files: [], finalText: "LAST-RUN-MARKER" },
+      ],
+    }));
+    const app = mountApp();
+    try {
+      await tick(150);
+      await app.pick("Start a build");
+      await app.pick("Projects (");
+      await app.pick("edge fixture");
+      await app.pick("Transcripts (what each role said)");
+      await app.pick("E-1");
+      app.stdin.write(LEFT); // already at the first run
+      await tick(80);
+      expect(app.frame(), "left at the first run wrapped to the last").toContain("FIRST-RUN-MARKER");
+      app.stdin.write(RIGHT);
+      await until(() => app.frame().includes("LAST-RUN-MARKER"), app.frame);
+      app.stdin.write(RIGHT); // already at the last run
+      await tick(80);
+      expect(app.frame(), "right at the last run wrapped to the first").toContain("LAST-RUN-MARKER");
+      expect(app.frame().split("\n").length).toBeLessThanOrEqual(24);
+    } finally {
+      app.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe.skipIf(!hasGit)("commit diff", () => {
   const dir = fixtureDir("test-diff-fixture");
 
