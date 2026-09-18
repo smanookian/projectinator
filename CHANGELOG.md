@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.26.3 — 2026-09-18
+
+### Docs
+- **A visual tour in the README** ([`docs/tour.svg`](docs/tour.svg)): four real screens — home,
+  projects with what each build cost, a finished project, and the split-pane transcript viewer.
+  Regenerate with `npx tsx scripts/capture-tour.tsx`.
+
+### Internal
+- `scripts/capture-tour.tsx` captures those frames through `ink-testing-library` rather than a
+  terminal recording. A PTY-driven asciinema capture is **not** reproducible here: the TUI
+  intermittently fails to emit its first frame under a pseudo-terminal (14 bytes, then nothing —
+  identical inputs gave 14 / 181 / 3104 bytes across runs). It renders normally in a real
+  terminal, and the same components render deterministically under the test renderer.
+
 ## 0.26.2 — 2026-09-18
 
 ### Docs

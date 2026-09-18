@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="791" height="1750.5" viewBox="0 0 791 1750.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5">
+<rect width="791" height="1750.5" fill="#0b0a08"/>
+<text x="14" y="26" fill="#e0a72d" font-size="14" font-weight="600">Home — your projects, spend, and what to do next</text>
+<rect x="8" y="38" width="769" height="388" rx="7" fill="#12100d" stroke="#2a251d"/>
+<text xml:space="preserve" x="14" y="56" fill="#e0a72d" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ▌ PROJECTINATOR   ·  Home                                                       your AI build team</text>
+<text xml:space="preserve" x="14" y="71.5" fill="#8a8375" textLength="755.0" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="14" y="102.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ╭────────────────────────────────────────────────────────────────────────────────────────────────╮</text>
+<text xml:space="preserve" x="14" y="118" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="133.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  What would you like to do?                                                                    │</text>
+<text xml:space="preserve" x="14" y="149" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="164.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  ❯ New build                                                                                   │</text>
+<text xml:space="preserve" x="14" y="180" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    Start from a template                                                                       │</text>
+<text xml:space="preserve" x="14" y="195.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    Import an existing folder                                                                   │</text>
+<text xml:space="preserve" x="14" y="211" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    Projects (4)                                                                                │</text>
+<text xml:space="preserve" x="14" y="226.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    Compare models (bake-off)                                                                   │</text>
+<text xml:space="preserve" x="14" y="242" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    Settings                                                                                    │</text>
+<text xml:space="preserve" x="14" y="257.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    Quit                                                                                        │</text>
+<text xml:space="preserve" x="14" y="273" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="288.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ╰────────────────────────────────────────────────────────────────────────────────────────────────╯</text>
+<text xml:space="preserve" x="14" y="397" fill="#8a8375" textLength="755.0" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="14" y="412.5" fill="#d8d2c6" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ↑↓ pick · Enter confirm · Esc back · q quit                              session $0.00  ·  cap $25</text>
+<text x="14" y="464" fill="#e0a72d" font-size="14" font-weight="600">Projects — every build with status and cost</text>
+<rect x="8" y="476" width="769" height="388" rx="7" fill="#12100d" stroke="#2a251d"/>
+<text xml:space="preserve" x="14" y="494" fill="#e0a72d" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ▌ PROJECTINATOR   ·  Projects                                                   your AI build team</text>
+<text xml:space="preserve" x="14" y="509.5" fill="#8a8375" textLength="755.0" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="14" y="540.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ╭────────────────────────────────────────────────────────────────────────────────────────────────╮</text>
+<text xml:space="preserve" x="14" y="556" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="571.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  Your projects                                                                                 │</text>
+<text xml:space="preserve" x="14" y="587" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="602.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  ╭────────────╮ ╭───────────────╮ ╭──────────╮ ╭────────────╮                                  │</text>
+<text xml:space="preserve" x="14" y="618" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  │ 4 projects │ │ ● $5.32 spent │ │ ● 3 done │ │ ● 1 halted │                                  │</text>
+<text xml:space="preserve" x="14" y="633.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  ╰────────────╯ ╰───────────────╯ ╰──────────╯ ╰────────────╯                                  │</text>
+<text xml:space="preserve" x="14" y="649" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="664.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  ❯ ✓  A static site with three independent pages: ab…   $1.77                                  │</text>
+<text xml:space="preserve" x="14" y="680" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    ✓  A markdown scratchpad: type notes in a textare…   $2.46                                  │</text>
+<text xml:space="preserve" x="14" y="695.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    ⚠  A markdown scratchpad: type notes in a textare…   $1.00                                  │</text>
+<text xml:space="preserve" x="14" y="711" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    ✓  A single HTML page that shows the current time…   $0.09                                  │</text>
+<text xml:space="preserve" x="14" y="726.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    Back                                                                                        │</text>
+<text xml:space="preserve" x="14" y="742" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="757.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ╰────────────────────────────────────────────────────────────────────────────────────────────────╯</text>
+<text xml:space="preserve" x="14" y="835" fill="#8a8375" textLength="755.0" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="14" y="850.5" fill="#d8d2c6" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ↑↓ pick · Enter confirm · Esc back · q quit                              session $0.00  ·  cap $25</text>
+<text x="14" y="902" fill="#e0a72d" font-size="14" font-weight="600">A finished project — tasks, epics, and what it cost</text>
+<rect x="8" y="914" width="769" height="388" rx="7" fill="#12100d" stroke="#2a251d"/>
+<text xml:space="preserve" x="14" y="932" fill="#e0a72d" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ▌ PROJECTINATOR   A static site with three independent pa…   ·  Project         your AI build team</text>
+<text xml:space="preserve" x="14" y="947.5" fill="#8a8375" textLength="755.0" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="14" y="978.5" fill="#d8d2c6" textLength="747.4" lengthAdjust="spacingAndGlyphs"> A static site with three independent pages: about.html with a bio, contact.html with …  ● complete</text>
+<text xml:space="preserve" x="14" y="1025" fill="#8a8375" textLength="407.7" lengthAdjust="spacingAndGlyphs"> ╭───────────╮ ╭───────────╮ ╭───────────╮ ╭─────────╮</text>
+<text xml:space="preserve" x="14" y="1040.5" fill="#8a8375" textLength="407.7" lengthAdjust="spacingAndGlyphs"> │ ● 10 done │ │ ● 0 ready │ │ 0 backlog │ │ ● $1.77 │</text>
+<text xml:space="preserve" x="14" y="1056" fill="#8a8375" textLength="407.7" lengthAdjust="spacingAndGlyphs"> ╰───────────╯ ╰───────────╯ ╰───────────╯ ╰─────────╯</text>
+<text xml:space="preserve" x="14" y="1087" fill="#e0a72d" textLength="362.4" lengthAdjust="spacingAndGlyphs"> ❯ Add to backlog (describe it, the PM plans it)</text>
+<text xml:space="preserve" x="14" y="1102.5" fill="#d8d2c6" textLength="286.9" lengthAdjust="spacingAndGlyphs">   Board (view · add · reorder · edit)</text>
+<text xml:space="preserve" x="14" y="1118" fill="#d8d2c6" textLength="158.5" lengthAdjust="spacingAndGlyphs">   Add a file / image</text>
+<text xml:space="preserve" x="14" y="1133.5" fill="#d8d2c6" textLength="362.4" lengthAdjust="spacingAndGlyphs">   Preview in browser (live server, auto-reload)</text>
+<text xml:space="preserve" x="14" y="1149" fill="#d8d2c6" textLength="181.2" lengthAdjust="spacingAndGlyphs">   Retro (build summary)</text>
+<text xml:space="preserve" x="14" y="1164.5" fill="#d8d2c6" textLength="369.9" lengthAdjust="spacingAndGlyphs">   Sprints &amp; burndown (velocity, progress, spend)</text>
+<text xml:space="preserve" x="14" y="1180" fill="#d8d2c6" textLength="218.9" lengthAdjust="spacingAndGlyphs">   History (per-task commits)</text>
+<text xml:space="preserve" x="14" y="1195.5" fill="#d8d2c6" textLength="271.8" lengthAdjust="spacingAndGlyphs">   Transcripts (what each role said)</text>
+<text xml:space="preserve" x="14" y="1211" fill="#d8d2c6" textLength="294.4" lengthAdjust="spacingAndGlyphs">   Deploy (Cloudflare, Vercel, Netlify)</text>
+<text xml:space="preserve" x="14" y="1226.5" fill="#d8d2c6" textLength="294.4" lengthAdjust="spacingAndGlyphs">   Export (Markdown, CSV, Jira, Trello)</text>
+<text xml:space="preserve" x="14" y="1242" fill="#d8d2c6" textLength="226.5" lengthAdjust="spacingAndGlyphs">   Share (zip the built files)</text>
+<text xml:space="preserve" x="14" y="1257.5" fill="#d8d2c6" textLength="324.6" lengthAdjust="spacingAndGlyphs">   Publish to GitHub (create a repo &amp; push)</text>
+<text xml:space="preserve" x="14" y="1273" fill="#8a8375" textLength="755.0" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="14" y="1288.5" fill="#d8d2c6" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ↑↓ pick · Enter confirm · Esc back · q quit                              session $0.00  ·  cap $25</text>
+<text x="14" y="1340" fill="#e0a72d" font-size="14" font-weight="600">Transcripts — the run list beside what the role actually said</text>
+<rect x="8" y="1352" width="769" height="372.5" rx="7" fill="#12100d" stroke="#2a251d"/>
+<text xml:space="preserve" x="14" y="1370" fill="#e0a72d" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ▌ PROJECTINATOR   A static site with three independent pa…   ·  Transcript      your AI build team</text>
+<text xml:space="preserve" x="14" y="1385.5" fill="#8a8375" textLength="755.0" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="14" y="1416.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ╭────────────────────────────────────────────────────────────────────────────────────────────────╮</text>
+<text xml:space="preserve" x="14" y="1432" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="1447.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  T-04 · Developer · Claude Opus 5 (OpenRouter) · $0.15                                         │</text>
+<text xml:space="preserve" x="14" y="1463" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="1478.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  Build about.html with a bio section                                                           │</text>
+<text xml:space="preserve" x="14" y="1494" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="1509.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    T-01   design  $0.07          Done. Created `about.html` (standalone, duplicated nav with…  │</text>
+<text xml:space="preserve" x="14" y="1525" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  ❯ T-04   code    $0.15                                                                        │</text>
+<text xml:space="preserve" x="14" y="1540.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    T-03   code    $0.16          Files after this run: .gitignore, DESIGN.md, about.html, cs…  │</text>
+<text xml:space="preserve" x="14" y="1556" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    T-02   code    $0.14                                                                        │</text>
+<text xml:space="preserve" x="14" y="1571.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    T-05   code    $0.08                                                                        │</text>
+<text xml:space="preserve" x="14" y="1587" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │    T-03   code    $0.08                                                                        │</text>
+<text xml:space="preserve" x="14" y="1602.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="1618" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │  run 2 of 13                                                                                   │</text>
+<text xml:space="preserve" x="14" y="1633.5" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> │                                                                                                │</text>
+<text xml:space="preserve" x="14" y="1649" fill="#8a8375" textLength="747.4" lengthAdjust="spacingAndGlyphs"> ╰────────────────────────────────────────────────────────────────────────────────────────────────╯</text>
+<text xml:space="preserve" x="14" y="1695.5" fill="#8a8375" textLength="755.0" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="14" y="1711" fill="#d8d2c6" textLength="755.0" lengthAdjust="spacingAndGlyphs"> ↑↓ / PgUp PgDn scroll · Esc back · ←/→ next run · 1-9 open a screenshot ·… session$0.00  ·  cap $25</text>
+</svg>

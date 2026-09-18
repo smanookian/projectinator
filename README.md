@@ -77,6 +77,16 @@ npm start
 
 ---
 
+## A quick tour
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/smanookian/projectinator/main/docs/tour.svg" alt="Projectinator — home, projects, a finished project, and the transcript viewer" width="780" />
+</p>
+
+Four real screens, captured from the running app: the home menu, your projects with what each
+one cost, a finished build, and the transcript viewer — the run list beside what that role
+actually said.
+
 ## What it does
 
 Type an idea → it plans → you approve → it builds, tests, and hands you working files.
