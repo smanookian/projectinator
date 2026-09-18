@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.1 — 2026-09-18
+
+### Fixed
+- **The council's epic-approval screen could hide its own choices.** It rendered every proposed
+  epic with a wrapping rationale, and the approve/skip menu sits *below* that list — so with ten
+  epics on a 24-row terminal "Skip epics — quick plan instead" was pushed off the screen
+  entirely. This was the last screen never audited for the overflow class that hit five others.
+  The list is now budgeted against `termRows` (two rows per epic, rationale truncated rather
+  than wrapped, `… N more epics` when trimmed), so the menu always survives.
+
 ## 0.26.0 — 2026-09-18
 
 ### Added

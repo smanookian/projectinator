@@ -1746,17 +1746,25 @@ export default function App(): React.ReactElement {
 
   if (phase === "approveEpics" && council.result) {
     const epics = council.result.epics;
+    // The menu below is the only actionable element: budget the list so it can never be pushed
+    // off a short terminal. Two rows per epic (name + one-line rationale), and the rationale is
+    // truncated rather than wrapped — a wrapped one costs an unpredictable number of rows.
+    const room = Math.max(1, Math.floor((termRows - 14) / 2));
+    const shown = epics.slice(0, room);
     return (
       <Box flexDirection="column">
         <Panel title={`Proposed epics (${epics.length})`}>
           <Text color={C.textMuted}>The council merged the architect / product / risk views. Approve to expand into tasks.</Text>
           <Box marginTop={1} flexDirection="column">
-            {epics.map((e, i) => (
-              <Box key={i} flexDirection="column" marginBottom={1}>
+            {shown.map((e, i) => (
+              <Box key={i} flexDirection="column">
                 <Text><Text color={C.accent}>{i + 1}. {e.name}</Text></Text>
-                <Text color={C.textSubtle} wrap="wrap">   {e.rationale}</Text>
+                <Text color={C.textSubtle} wrap="truncate-end">   {e.rationale}</Text>
               </Box>
             ))}
+            {epics.length > shown.length ? (
+              <Text color={C.dim}>   … {epics.length - shown.length} more epic{epics.length - shown.length === 1 ? "" : "s"} (approve to see them as tasks)</Text>
+            ) : null}
           </Box>
           <SelectInput
             items={[

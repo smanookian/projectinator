@@ -23,6 +23,9 @@ const planState: { tasks: Task[] } = { tasks: TASKS };
 /** Clarifying questions the mocked PM asks (empty = skip the interview). */
 const intakeState: { questions: unknown[] } = { questions: [] };
 
+/** Epics the mocked council proposes; a test can swap it to stress the approval screen. */
+const councilState: { result: { epics: { name: string; rationale: string }[] } } = { result: { epics: [] } };
+
 /** Captured so a test can drive the build the way the orchestrator would. */
 const live: { emit?: (e: OrchestratorEvent) => void; finish?: (r: unknown) => void; control?: ReturnType<typeof createBuildControl> } = {};
 
@@ -31,6 +34,7 @@ vi.mock("../src/tui/engine.js", async (orig) => {
   return {
     ...actual,
     assessBuild: async () => intakeState.questions, // [] = a clear request, skip the interview
+    councilBuild: async () => councilState.result,
     planBuild: async () => ({ tasks: planState.tasks, provider: "openrouter" as const, modelId: "anthropic/claude-sonnet-5", estCost: 0.42, registry: REGISTRY }),
     startBuild: (_idea: string, _plan: unknown, opts: { onEvent: (e: OrchestratorEvent) => void }) => {
       const control = createBuildControl();
@@ -265,5 +269,33 @@ describe("intake screen", () => {
         expect(f.split("\n").length, "frame grew past the viewport").toBeLessThanOrEqual(24);
       } finally { app.unmount(); }
     } finally { intakeState.questions = []; }
+  }, 30_000);
+});
+
+describe("council epic approval", () => {
+  // The approval menu sits BELOW the epic list, so an unbounded list pushes the only actionable
+  // element out of a short terminal — the overflow class that already hit five screens.
+  const EPICS = Array.from({ length: 10 }, (_, i) => ({
+    name: `Epic number ${i + 1}`,
+    rationale: `A rationale long enough to wrap onto a second line when the terminal is narrow, for epic ${i + 1}.`,
+  }));
+
+  it("keeps the approve/skip choices reachable and the frame intact with many epics", async () => {
+    councilState.result = { epics: EPICS };
+    const app = await toIdeaSubmitted();
+    try {
+      await until(() => app.frame().includes("How should the team plan this?"), app.frame, 5000);
+      await app.pick("Deep plan");
+      await until(() => app.frame().includes("Proposed epics"), app.frame, 5000);
+      const f = app.frame();
+      expect(f.split("\n").length, "the screen overflowed the 24-row frame").toBeLessThanOrEqual(24);
+      expect(f, "the approve choice was pushed off the screen").toContain("Approve");
+      expect(f).toMatch(/Skip epics(?!\S)/);
+      // A label run into by other text is the corruption signature Yoga produces when squeezed.
+      expect(f).toMatch(/Proposed epics(?!\S)/);
+    } finally {
+      councilState.result = { epics: [] };
+      app.unmount();
+    }
   }, 30_000);
 });
