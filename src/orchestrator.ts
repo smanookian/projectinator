@@ -214,6 +214,17 @@ export async function runBacklog(tasks: Task[], opts: RunOptions): Promise<RunRe
       return outcome;
     }
     running += outcome.cost;
+    // A judge that returns no verdict has judged nothing. Without this the build reported
+    // "Complete" off a Tester that produced empty text and no verdict for $0.01 — the code was
+    // never exercised, and `halted: false` claimed otherwise.
+    if ((task.capability === "test" || task.capability === "review") && !outcome.error && !outcome.verdict) {
+      outcome = { ...outcome, error: `the ${task.capability === "test" ? "tester" : "reviewer"} returned no verdict` };
+      record.push(outcome);
+      halted = true;
+      haltReason = `${task.id}: ${outcome.error}`;
+      emit({ type: "task_failed", outcome, runningTotal: round2(running) });
+      return outcome;
+    }
     outcomes.set(task.id, outcome);
     record.push(outcome);
     emit({ type: "task_done", outcome, runningTotal: round2(running) });

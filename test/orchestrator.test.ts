@@ -143,6 +143,36 @@ describe("runBacklog — developer retries escalate one tier", () => {
   });
 });
 
+describe("runBacklog — a judge with no verdict", () => {
+  // A real build reported "Complete" off a Tester that returned empty text and no verdict for
+  // $0.01: nothing was ever exercised, yet halted was false. A judge that judges nothing must
+  // not be able to certify a build.
+  const silentJudge: RoleExecutor = async ({ task }) => ({
+    finalText: task.capability === "test" ? "" : `did ${task.id}`,
+    files: [],
+    cost: 0.01,
+    verdict: undefined, // the model never called submit_verdict
+  });
+
+  it("halts instead of passing the build", async () => {
+    const tasks = [t("C", "code"), t("T", "test", ["C"])];
+    const events: string[] = [];
+    const res = await runBacklog(tasks, {
+      policy: policy(), execute: silentJudge, registry: anthropic,
+      onProgress: (e) => events.push(e.type),
+    });
+    expect(res.halted, "a build with no verdict was reported complete").toBe(true);
+    expect(res.haltReason).toMatch(/no verdict/);
+    expect(events).toContain("task_failed");
+  });
+
+  it("does not count the judge as done, so a resume re-runs it", async () => {
+    const tasks = [t("C", "code"), t("T", "test", ["C"])];
+    const res = await runBacklog(tasks, { policy: policy(), execute: silentJudge, registry: anthropic });
+    expect(res.outcomes.find((o) => o.taskId === "T")!.error).toMatch(/no verdict/);
+  });
+});
+
 describe("runBacklog — budget halt", () => {
   it("stops before running a task that would cross the cap", async () => {
     const tasks = [t("A", "code"), t("B", "code"), t("C", "code")];

@@ -25,7 +25,12 @@ function gated() {
     const { promise, resolve } = Promise.withResolvers<void>();
     gates.set(task.id, resolve);
     await promise;
-    return { finalText: `did ${task.id}`, files: [], cost: 0.1 };
+    // Judges must return a verdict: a verdict-less test/review is a failed outcome that halts
+    // the build, so a fixture without one would stop the schedule this test is exercising.
+    const verdict = task.capability === "test" || task.capability === "review"
+      ? { passed: true, bugs: [], runtimeChecked: true }
+      : undefined;
+    return { finalText: `did ${task.id}`, files: [], cost: 0.1, verdict };
   };
   const release = async (id: string) => { gates.get(id)?.(); gates.delete(id); await settle(); };
   return { exec, started, release, waiting: () => [...gates.keys()] };

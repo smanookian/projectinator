@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.24.3 — 2026-09-18
+
+### Fixed
+- **A build could report "Complete" without being tested.** The feedback loop only reacted to a
+  verdict that *failed*, so a judge that returned no verdict at all counted as success. A real
+  build finished `halted: false` off a Tester that produced empty text and no verdict for $0.01
+  — nothing was ever executed, and the summary claimed otherwise. A `test` or `review` task that
+  produces no verdict is now a failed outcome: the build halts naming the task, and because
+  failed outcomes never count as done, resuming re-runs it.
+
 ## 0.24.2 — 2026-09-18
 
 ### Fixed
