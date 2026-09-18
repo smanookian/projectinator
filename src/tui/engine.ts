@@ -867,13 +867,17 @@ export function startBuild(
     parallelCode?: boolean;
   },
 ): RunHandle {
-  const workspace = opts.workspace ?? join(tuiRoot(), slugify(idea));
+  // A fresh build must never land on an existing project's folder. Building the same idea twice
+  // used to reuse the slug directory: the second run overwrote the first's build-state.json
+  // (task list, costs, outcomes — gone) and wrote its code on top of the first's files.
+  // Resume/change pass `workspace` explicitly and keep addressing the same project.
+  const workspace = opts.workspace ?? uniqueDir(slugify(idea));
   mkdirSync(workspace, { recursive: true });
   const statePath = join(workspace, "build-state.json");
   // Reuse the existing state when resuming/changing an existing project so we keep
   // its id and cached retro narrative; only start fresh for a brand-new build.
   const prior = opts.workspace ? loadState(statePath) : undefined;
-  const state = prior ?? newBuildState(slugify(idea), plan.tasks, idea, opts.mode);
+  const state = prior ?? newBuildState(basename(workspace), plan.tasks, idea, opts.mode);
   if (prior) {
     state.tasks = plan.tasks; // authoritative backlog for this run
     state.status = "running";

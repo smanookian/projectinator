@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.24.2 — 2026-09-18
+
+### Fixed
+- **Building the same idea twice destroyed the first build's record.** A new build derived its
+  folder from the idea's slug and reused it if it already existed, so the second run overwrote
+  `build-state.json` — task list, costs, outcomes, retro — and wrote its code on top of the first
+  build's files. (Found by building the same scratchpad idea twice: the 18-task/$1.20 record was
+  gone, the two builds' commits interleaved in one git history.) A fresh build now takes the next
+  free folder (`slug-2`, `slug-3`, …), the same helper duplicate/import already used; resume and
+  change-builds still address the project they were given. The build id matches its folder again.
+
 ## 0.24.1 — 2026-09-18
 
 ### Fixed
