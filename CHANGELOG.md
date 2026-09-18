@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.24.0 — 2026-09-18
+
+### Changed
+- **Reviews now default to hard code tasks only.** Measured across every build to date, the
+  Reviewer was **22% of all spend and found zero bugs** — one review cost $0.21, more than the
+  $0.17 code task it was reviewing, because reviews read the code and so get more expensive as
+  the project grows. Meanwhile the Tester, which actually *runs* the app in Chromium, averaged
+  $0.02. On the same scratchpad idea this takes the plan from **18 tasks / $1.42** to
+  **7 tasks / $0.47**, and it now fits under a $1 cap instead of being doomed from the start.
+
+  Settings → Build defaults → **Code reviews** cycles `Hard tasks only` → `Every code task` →
+  `Off`. The sample is small (4 reviews), so the capability is kept, not deleted — it is now
+  spent where a bug is most likely.
+
+  The policy is *enforced* in `normalizeBacklog()`, not just requested in the PM prompt: a model
+  that adds reviews anyway would otherwise quietly spend the money. Dropping a review rewires
+  whatever depended on it onto the code it was reviewing, so the test still waits for that code.
+  It keys on the difficulty of the **reviewed code**, not the review task's own — reviews are
+  cheap/low by construction, so reading their own field would have dropped every one.
+
 ## 0.23.3 — 2026-09-18
 
 Found by running a real $1.20 build end to end instead of auditing code.

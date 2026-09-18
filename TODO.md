@@ -4,6 +4,8 @@ PM cockpit for running an AI dev team. Pipeline: idea → backlog → design →
 
 ## Done
 
+- [x] **0.24.0** — review policy (default: hard code tasks only). Reviews measured at 22% of spend / 0 bugs; plan for the same idea went 18 tasks/$1.42 → 7/$0.47.
+
 - [x] **0.23.0** — `projectinator update` (self-upgrade, refuses to clobber a clone/dep/container).
 
 - [x] **0.22.0** — user data (projects, routing overrides) moved out of the installed package to

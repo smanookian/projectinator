@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
-import type { Capability, Provider, Tier } from "../types.js";
+import type { Capability, Provider, ReviewPolicy, Tier } from "../types.js";
 import { C, Panel, Menu as SelectInput, GroupedMenu, KeyHint, TextField as TextInput, Password, type MenuGroup } from "./components.js";
 import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
@@ -26,6 +26,17 @@ const SUB_PARENT: Partial<Record<Sub, Sub>> = {
 
 /** Human label for a stack value, so menu rows read "Ask" not "ask" (consistent with On/Off). */
 const STACK_VALUE_LABEL: Record<string, string> = { ask: "Ask", vanilla: "Vanilla", react: "React", ai: "AI" };
+
+const REVIEW_LABEL: Record<ReviewPolicy, string> = {
+  high: "Hard tasks only",
+  all: "Every code task",
+  off: "Off",
+};
+const REVIEW_NOTICE: Record<ReviewPolicy, string> = {
+  high: "Reviews on hard code tasks only — where a bug is most likely. The Tester still runs the app on every build.",
+  all: "A review after every code task. Thorough, but reviews read the code, so this grows with the project (22% of spend on a measured build).",
+  off: "Reviews off. The Tester still runs the app and catches runtime errors.",
+};
 
 export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
   const [sub, setSub] = useState<Sub>("menu");
@@ -70,6 +81,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         { label: `Default stack: ${STACK_VALUE_LABEL[getPreferredStack()] ?? getPreferredStack()}`, value: "stack" },
         { label: "Budget, speed & alerts", value: "prefs" },
         { label: `Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
+        { label: `Code reviews: ${REVIEW_LABEL[getPrefs().reviewPolicy]}`, value: "reviewPolicy" },
         { label: `Parallel code tasks (git worktrees): ${getPrefs().parallelCode ? "On" : "Off"}`, value: "parallelCode" },
         { label: `Webhook: ${getWebhookUrl() || "Off"}`, value: "webhook" },
       ] },
@@ -97,6 +109,13 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                 const next = !getNotify();
                 setNotify(next);
                 setNotice(`Notifications ${next ? "on" : "off"}.`);
+              } else if (i.value === "reviewPolicy") {
+                // Cycle high -> all -> off -> high. Reviews read the code, so their cost grows
+                // with the project; "high" reviews only where a bug is most likely.
+                const order: ReviewPolicy[] = ["high", "all", "off"];
+                const next = order[(order.indexOf(getPrefs().reviewPolicy) + 1) % order.length]!;
+                setPrefs({ reviewPolicy: next });
+                setNotice(REVIEW_NOTICE[next]);
               } else if (i.value === "parallelCode") {
                 const next = !getPrefs().parallelCode;
                 setPrefs({ parallelCode: next });
@@ -639,6 +658,7 @@ function PrefsEditor({
       taskTimeoutMin: parse0(tmo, initial.taskTimeoutMin),
       taskCostCapUSD: parse0(tcap, initial.taskCostCapUSD),
       parallelCode: initial.parallelCode,
+      reviewPolicy: initial.reviewPolicy,
     });
   };
 

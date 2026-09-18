@@ -5,7 +5,7 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { Provider } from "../types.js";
+import type { Provider, ReviewPolicy } from "../types.js";
 import type { ThemeId } from "./theme.js";
 
 export type WorkflowMode = "auto" | "approval";
@@ -22,6 +22,7 @@ export interface AppConfig {
   /** Run independent code tasks in parallel, each in its own git worktree, merged back per task.
    *  Off by default: conflicts cost a serial re-run. */
   parallelCode?: boolean;
+  reviewPolicy?: ReviewPolicy;
   /** If set, always route to this provider (when it has a key), ignoring the others. */
   preferredProvider?: Provider;
   /** POST a JSON summary here when a build finishes or halts. Empty = off. */
@@ -184,6 +185,7 @@ export interface Prefs {
   taskTimeoutMin: number;
   taskCostCapUSD: number;
   parallelCode: boolean;
+  reviewPolicy: ReviewPolicy;
 }
 
 export function getPrefs(): Prefs {
@@ -195,6 +197,7 @@ export function getPrefs(): Prefs {
     taskTimeoutMin: cfg.taskTimeoutMin ?? 10,
     taskCostCapUSD: cfg.taskCostCapUSD ?? 3,
     parallelCode: cfg.parallelCode ?? false,
+    reviewPolicy: cfg.reviewPolicy ?? "high",
   };
 }
 
@@ -206,5 +209,6 @@ export function setPrefs(prefs: Partial<Prefs>): void {
   if (prefs.taskTimeoutMin !== undefined) cfg.taskTimeoutMin = prefs.taskTimeoutMin;
   if (prefs.taskCostCapUSD !== undefined) cfg.taskCostCapUSD = prefs.taskCostCapUSD;
   if (prefs.parallelCode !== undefined) cfg.parallelCode = prefs.parallelCode;
+  if (prefs.reviewPolicy !== undefined) cfg.reviewPolicy = prefs.reviewPolicy;
   saveConfig(cfg);
 }

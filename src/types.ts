@@ -215,3 +215,9 @@ export interface TaskOutcome extends RoleResult {
   modelId: string;
   round: number;
 }
+
+/** Which code tasks get a Reviewer pass. Reviews read the code, so their cost grows with the
+ *  codebase: on measured builds they were 22% of total spend and found no bugs, while the Tester
+ *  — which actually runs the app — cost a tenth as much. Default is the tasks where a bug is
+ *  most likely, not every one. */
+export type ReviewPolicy = "off" | "high" | "all";

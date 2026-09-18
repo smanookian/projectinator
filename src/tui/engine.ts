@@ -11,7 +11,7 @@ import { DEFAULT_POLICY, route } from "../router.js";
 import { REGISTRY } from "../registry.js";
 import { MODELS } from "../models.js";
 import { loadRegistry, saveOverrides, OVERRIDES_FILENAME } from "../registry-store.js";
-import { dataHome, loadConfig } from "./config.js";
+import { dataHome, getPrefs, loadConfig } from "./config.js";
 export { dataHome } from "./config.js";
 import { getLocalModels } from "../local-models.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
@@ -291,7 +291,7 @@ export async function planBuild(
 
   // On a change, hand the PM the existing project so it plans against what's really there.
   const projectContext = scope === "change" && workspace ? buildProjectContext(workspace) : undefined;
-  const res = await decomposeIdea(idea, { backend: "api", modelOverride, scope, projectContext, epics });
+  const res = await decomposeIdea(idea, { backend: "api", modelOverride, scope, projectContext, epics, reviewPolicy: getPrefs().reviewPolicy });
   const { total } = estimateTasks(res.tasks, registry);
   return { tasks: res.tasks, provider: res.provider, modelId: res.modelId, estCost: total, registry, lock };
 }
@@ -774,7 +774,7 @@ export async function breakdownEpic(
     existing || "(none yet)",
   ].join("\n");
   const projectContext = workspace ? buildProjectContext(workspace) : undefined;
-  const res = await decomposeIdea(request, { backend: "api", modelOverride, scope: "full", projectContext });
+  const res = await decomposeIdea(request, { backend: "api", modelOverride, scope: "full", projectContext, reviewPolicy: getPrefs().reviewPolicy });
   return res.tasks.map((t) => ({ ...t, epic }));
 }
 
@@ -802,7 +802,7 @@ export async function planExtraTasks(
     `A new task may dependsOn existing task ids when it builds on their output. Add a review task after every new code task.`,
   ].join("\n");
   const projectContext = workspace ? buildProjectContext(workspace) : undefined;
-  const res = await decomposeIdea(prompt, { backend: "api", modelOverride, scope: "change", projectContext });
+  const res = await decomposeIdea(prompt, { backend: "api", modelOverride, scope: "change", projectContext, reviewPolicy: getPrefs().reviewPolicy });
   const taken = new Set(current.map((t) => t.id));
   return res.tasks.filter((t) => !taken.has(t.id));
 }
@@ -829,7 +829,7 @@ export async function replanTask(
     `Only code tasks — no review or test tasks (they are added automatically). Keep dependsOn to these new ids or existing ones: ${info.task.dependsOn?.join(", ") || "(none)"}.`,
   ].join("\n");
   const projectContext = workspace ? buildProjectContext(workspace) : undefined;
-  const res = await decomposeIdea(prompt, { backend: "api", modelOverride, scope: "change", projectContext });
+  const res = await decomposeIdea(prompt, { backend: "api", modelOverride, scope: "change", projectContext, reviewPolicy: getPrefs().reviewPolicy });
   const taken = new Set(info.backlog.map((t) => t.id));
   return res.tasks.filter((t) => !taken.has(t.id) && t.capability === "code").slice(0, 4);
 }

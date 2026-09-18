@@ -36,6 +36,50 @@ const sample: Backlog = {
   ],
 };
 
+// Reviews read the code, so their cost grows with the project: on a measured build they were
+// 22% of spend and found no bugs. The policy is enforced here rather than trusted to the PM
+// prompt, and dropping a review must not orphan the test that waited on it.
+const reviewed: Backlog = {
+  tasks: [
+    { id: "C1", title: "easy code", capability: "code", difficulty: "low", dependsOn: [] },
+    { id: "R1", title: "review easy", capability: "review", difficulty: "low", dependsOn: ["C1"] },
+    { id: "C2", title: "hard code", capability: "code", difficulty: "high", dependsOn: [] },
+    { id: "R2", title: "review hard", capability: "review", difficulty: "low", dependsOn: ["C2"] },
+    { id: "T1", title: "test", capability: "test", difficulty: "low", dependsOn: ["R1", "R2"] },
+  ],
+};
+
+describe("normalizeBacklog — review policy", () => {
+  it('"high" keeps the review of hard code and drops the rest', () => {
+    const { backlog, diagnostics } = normalizeBacklog(reviewed, "high");
+    expect(backlog.tasks.map((t) => t.id)).toEqual(["C1", "C2", "R2", "T1"]);
+    expect(diagnostics.some((d) => d.includes("review policy"))).toBe(true);
+  });
+
+  it("the test inherits the dropped review's code dependency, so it still waits for the code", () => {
+    const { backlog } = normalizeBacklog(reviewed, "high");
+    // R1 is gone: T1 must now depend on C1 directly, and keep the surviving R2.
+    expect(backlog.tasks.find((t) => t.id === "T1")!.dependsOn!.sort()).toEqual(["C1", "R2"]);
+  });
+
+  it('"off" drops every review and rewires the test onto both code tasks', () => {
+    const { backlog } = normalizeBacklog(reviewed, "off");
+    expect(backlog.tasks.map((t) => t.id)).toEqual(["C1", "C2", "T1"]);
+    expect(backlog.tasks.find((t) => t.id === "T1")!.dependsOn!.sort()).toEqual(["C1", "C2"]);
+  });
+
+  it('"all" is untouched', () => {
+    const { backlog } = normalizeBacklog(reviewed, "all");
+    expect(backlog.tasks.map((t) => t.id)).toEqual(["C1", "R1", "C2", "R2", "T1"]);
+  });
+
+  it("keys on the reviewed code's difficulty, not the review task's own", () => {
+    // Reviews are cheap/low by construction; reading their own difficulty would drop all of them.
+    const { backlog } = normalizeBacklog(reviewed, "high");
+    expect(backlog.tasks.some((t) => t.id === "R2"), "the hard task's review was dropped").toBe(true);
+  });
+});
+
 describe("normalizeBacklog", () => {
   it("drops duplicate task ids and dangling dependsOn", () => {
     const { backlog, diagnostics } = normalizeBacklog(sample);

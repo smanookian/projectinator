@@ -14,7 +14,7 @@ import {
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
-import type { Backend, Capability, Difficulty, Provider, Task } from "./types.js";
+import type { Backend, Capability, Difficulty, Provider, ReviewPolicy, Task } from "./types.js";
 import { estimateTokens } from "./estimate.js";
 import { findEntry } from "./registry.js";
 import { piRuntime, resolvePiModel } from "./executor.js";
@@ -77,9 +77,9 @@ export function pmSystemPrompt(scope: Scope = "full"): string {
       ? [
           "This is a CHANGE to an EXISTING project whose files are already on disk.",
           "Produce the FEWEST tasks that accomplish the change — usually 1 code task plus 1",
-          "`review` task that dependsOn it (cheap read-only wiring check), plus 1 test task",
-          "(dependsOn the review) only if the change is risky. Do NOT re-plan the whole project,",
-          "do NOT add design/setup/deploy tasks. One small tweak = code + review.",
+          "`review` task that dependsOn it (cheap read-only wiring check) only when the change is",
+          "`high` difficulty, plus 1 test task only if the change is risky. Do NOT re-plan the",
+          "whole project, do NOT add design/setup/deploy tasks. One small tweak = one code task.",
         ]
       : [
           "Scale the number of tasks to the request. A tiny page = a few tasks; a full app = many.",
@@ -91,9 +91,10 @@ export function pmSystemPrompt(scope: Scope = "full"): string {
           "src/components/Header.jsx') and keep file names CONSISTENT across tasks — decide one",
           "structure and reuse it. When several files must agree, add ONE early design task that",
           "defines the file tree, and have the code tasks depend on it.",
-          "After EVERY code task add one `review` task that dependsOn that code task (a cheap",
-          "read-only wiring check). The test task must dependsOn the review task(s), not the code",
-          "task(s) directly. Order: design -> code -> review -> test.",
+          "For each code task whose difficulty is `high`, add one `review` task that dependsOn it",
+          "(a cheap read-only wiring check). Do NOT add reviews for low/medium code tasks — the",
+          "Tester runs the app and covers them. The test task must dependsOn the review task(s)",
+          "where they exist, else the code tasks. Order: design -> code -> [review] -> test.",
         ];
   return [
     "You are the PROJECT MANAGER on an autonomous software team.",
@@ -122,8 +123,12 @@ export interface NormalizeResult {
   diagnostics: string[];
 }
 
-/** Clean a raw backlog: drop duplicate task ids, strip dangling dependsOn refs. */
-export function normalizeBacklog(raw: Backlog): NormalizeResult {
+/** Clean a raw backlog: drop duplicate task ids, strip dangling dependsOn refs, and apply the
+ *  review policy. The policy is enforced here rather than trusted to the PM prompt: a model that
+ *  adds a review anyway would otherwise quietly spend the money. Dropping a review rewires
+ *  whatever depended on it (the test task) onto the review's own code dependencies, so the
+ *  test still waits for the code it is testing. */
+export function normalizeBacklog(raw: Backlog, reviewPolicy: ReviewPolicy = "all"): NormalizeResult {
   const diagnostics: string[] = [];
   const seen = new Set<string>();
   const allIds = new Set(raw.tasks.map((t) => t.id));
@@ -147,6 +152,41 @@ export function normalizeBacklog(raw: Backlog): NormalizeResult {
       });
       return { ...t, dependsOn: deps };
     });
+
+  // Apply the review policy. "all" keeps every review the PM planned.
+  if (reviewPolicy !== "all") {
+    const byId = new Map(tasks.map((t) => [t.id, t]));
+    const isReview = (t: { capability: string }) => coerceCap(t.capability) === "review";
+    // Key on the difficulty of the CODE being reviewed, not the review task's own difficulty —
+    // reviews are cheap/low by construction, so testing their own field drops every one.
+    const reviewsHardCode = (t: (typeof tasks)[number]) =>
+      (t.dependsOn ?? []).some((d) => {
+        const dep = byId.get(d);
+        return !!dep && coerceCap(dep.capability) === "code" && coerceDiff(dep.difficulty) === "high";
+      });
+    const keep = (t: (typeof tasks)[number]) =>
+      !isReview(t) || (reviewPolicy === "high" && reviewsHardCode(t));
+    const dropped = new Set(tasks.filter((t) => !keep(t)).map((t) => t.id));
+    if (dropped.size) {
+      // Inherit the dropped review's dependencies so a test that waited on the review now waits
+      // on the code the review was reading.
+      const inherited = (id: string): string[] => {
+        const r = byId.get(id);
+        return (r?.dependsOn ?? []).flatMap((d) => (dropped.has(d) ? inherited(d) : [d]));
+      };
+      const rewired = tasks
+        .filter((t) => !dropped.has(t.id))
+        .map((t) => {
+          const deps = (t.dependsOn ?? []).flatMap((d) => (dropped.has(d) ? inherited(d) : [d]));
+          return { ...t, dependsOn: [...new Set(deps)] };
+        });
+      diagnostics.push(
+        `review policy "${reviewPolicy}": dropped ${dropped.size} review task(s) (${[...dropped].join(", ")})`,
+      );
+      return { backlog: { tasks: rewired }, diagnostics };
+    }
+  }
+
   return { backlog: { tasks }, diagnostics };
 }
 
@@ -223,6 +263,9 @@ export interface DecomposeOptions {
   projectContext?: string;
   /** Council-approved epics: organize ALL tasks under exactly these. */
   epics?: { name: string; rationale: string }[];
+  /** Which code tasks get a Reviewer pass. Enforced on the returned backlog, not just asked
+   *  for in the prompt. Default "all" keeps whatever the PM planned. */
+  reviewPolicy?: ReviewPolicy;
 }
 
 export interface DecomposeResult {
@@ -286,7 +329,7 @@ export async function decomposeIdea(idea: string, opts: DecomposeOptions): Promi
       );
     }
 
-    const { backlog, diagnostics } = normalizeBacklog(raw);
+    const { backlog, diagnostics } = normalizeBacklog(raw, opts.reviewPolicy ?? "all");
     return {
       provider: pick.provider,
       modelId: pick.model,
