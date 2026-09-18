@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.27.0 — 2026-09-18
+
+### Added
+- **The Tester now sees its own screenshots.** It has always rendered the app at three viewports
+  — and then judged it from text. The screenshots were captioned "saved for the human reviewer";
+  the model never received them. They are now passed as images (Pi's `PromptOptions.images`),
+  resized through Pi's `resizeImage` to keep them inside a sane token budget, capped at one per
+  viewport, and only for models whose `input` includes `"image"`. The model is asked to judge
+  what only pixels show — overlap, clipping, unreadable contrast, a collapsed layout — and then
+  submit or revise its verdict.
+
+  **Honest result: I could not demonstrate this catching anything the text-only Tester missed.**
+  Three paired live runs (a white-on-white + overlapping-sections page, a list clipped by
+  `overflow: hidden`, and a minified Vite-style bundle) were all caught by *both* variants,
+  because the Tester can read the stylesheet. Measured cost was the same either way ($0.05 per
+  test task with and without). It is kept because it closes a real hole rather than a
+  demonstrated one: a stylesheet the workspace doesn't contain, canvas or image output, and
+  runtime-computed styles are invisible to source reading. Notably the text-only control claimed
+  "visual inspection of rendered screenshots" it had never been given — now that claim is true.
+
 ## 0.26.3 — 2026-09-18
 
 ### Docs

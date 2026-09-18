@@ -7,6 +7,7 @@
 import {
   createAgentSession,
   defineTool,
+  resizeImage,
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
@@ -411,6 +412,37 @@ function fallbackChain(primary: Provider, primaryModel: string, cap: Capability)
 }
 
 /** Extract the last assistant text from a session, tolerant of content shape. */
+/** What the Tester is asked once it can actually see the page. Deliberately concrete: a model
+ *  handed a screenshot with no brief tends to narrate it instead of judging it. */
+const VISUAL_PASS_PROMPT = [
+  "Here are the screenshots you just captured, in the order listed above (desktop, tablet, phone).",
+  "Look at them and judge what you can only see, not what the DOM says:",
+  "  - text overlapping other text or running outside its container",
+  "  - content cut off at the viewport edge, or a horizontal scrollbar on phone width",
+  "  - text that is unreadable against its background",
+  "  - a layout that collapsed: overlapping blocks, everything stacked in one column on desktop,",
+  "    controls sitting on top of each other",
+  "  - an empty or nearly empty page when content was expected",
+  "Ignore taste: colour choices, spacing and font preferences are NOT bugs.",
+  "Then call submit_verdict. If the screenshots contradict a passing verdict you were about to",
+  "give, fail it and describe what you SAW, naming the viewport.",
+].join("\n");
+
+/** Screenshots as model input. Pi's resizer keeps each one inside a sane token budget; a raw
+ *  1280px PNG is worth more tokens than the rest of the test prompt put together. */
+export async function loadScreenshots(paths: string[]): Promise<{ type: "image"; data: string; mimeType: string }[]> {
+  const out: { type: "image"; data: string; mimeType: string }[] = [];
+  for (const p of paths.slice(0, 3)) { // one per viewport; more is cost without signal
+    try {
+      const bytes = readFileSync(p);
+      const resized = await resizeImage(new Uint8Array(bytes), "image/png", { maxWidth: 900, maxHeight: 900, maxBytes: 400_000 });
+      if (resized) out.push({ type: "image", data: resized.data, mimeType: resized.mimeType });
+      else out.push({ type: "image", data: bytes.toString("base64"), mimeType: "image/png" });
+    } catch { /* a missing screenshot must never fail the test task */ }
+  }
+  return out;
+}
+
 function lastAssistantText(session: AgentSession): string {
   const msgs = session.messages as Array<{ role?: string; content?: unknown }>;
   for (let i = msgs.length - 1; i >= 0; i--) {
@@ -537,6 +569,20 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
       // An aborted prompt may reject with Pi's own error; the breach is the real cause.
       await session.prompt(buildRolePrompt(task, fullContext, opts.profile)).catch((e: unknown) => { if (!breach) throw e; });
       if (breach) throw breach;
+
+      // The Tester renders the app at three viewports but, until now, only ever read text about
+      // it. A text-only judge cannot see overlapping rows, invisible-on-invisible contrast, or a
+      // layout pushed off-screen — so show it the pixels before its verdict counts.
+      if (isTest && model.input?.includes("image")) {
+        const shots = checkTool?.screenshots() ?? [];
+        const images = await loadScreenshots(shots);
+        if (images.length) {
+          await session
+            .prompt(VISUAL_PASS_PROMPT, { images })
+            .catch((e: unknown) => { if (!breach) throw e; });
+          if (breach) throw breach;
+        }
+      }
 
       let verdict = verdictTool?.get();
       if (verdictTool && !verdict) {
