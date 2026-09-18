@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.25.1 — 2026-09-18
+
+### Fixed
+- **A sub-minute task timeout aborted with "ran longer than 0 min".** The limit was rounded to
+  whole minutes, and `0` means *unlimited* in the preferences — so the message contradicted the
+  setting that caused the abort. It now reads `ran longer than 3s`, and keeps a fraction
+  (`1.5 min`) above a minute.
+
+### Verified
+- Exercised the four features that could not persist before 0.24.1, against real builds:
+  **per-task cost cap** (`T-01 aborted: spent $0.03 > per-task cap $0.02`), **per-task timeout**,
+  **webhook** (a real receiver got `build.finished` for both a halted and a completed build), and
+  **parallel code tasks** — a 10-task site built across git worktrees, hit three merge conflicts
+  (`css/index.css`, `css/contact.css`, `css/pricing.css`), recovered each with a serial rebuild,
+  finished complete at $1.77, and left no stale worktrees or branches. That build also produced
+  the first Tester verdict with `runtimeChecked: true` — the app was really executed.
+
 ## 0.25.0 — 2026-09-18
 
 ### Fixed

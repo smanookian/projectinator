@@ -458,6 +458,14 @@ function listFiles(dir: string): string[] {
 
 /** Build a real RoleExecutor backed by Pi. Each call spends money. Falls back to
  *  another key-holding provider when the routed one errors or returns 0 tokens. */
+/** A timeout for humans. Rounding to whole minutes printed "ran longer than 0 min" for any
+ *  sub-minute limit — and 0 means *unlimited* in the prefs, so the message contradicted itself. */
+export function formatLimit(ms: number): string {
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  const min = ms / 60_000;
+  return `${Number.isInteger(min) ? min : min.toFixed(1)} min`;
+}
+
 export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
   // One attempt on a specific provider/model. Returns the result + total tokens
   // (0 tokens = the provider call didn't really happen → treat as a failure).
@@ -512,7 +520,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
         })
       : undefined;
     const timer = limits.timeoutMs > 0
-      ? setTimeout(() => trip(new TaskLimitError("timeout", task.id, round2(session.getSessionStats().cost), `ran longer than ${Math.round(limits.timeoutMs / 60_000)} min`)), limits.timeoutMs)
+      ? setTimeout(() => trip(new TaskLimitError("timeout", task.id, round2(session.getSessionStats().cost), `ran longer than ${formatLimit(limits.timeoutMs)}`)), limits.timeoutMs)
       : undefined;
     try {
       // Give code/review/test the WHOLE current file tree (not just direct-dep files), so a
