@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.26.2 — 2026-09-18
+
+### Docs
+- **Two more example builds, committed unedited**: a
+  [markdown scratchpad](examples/markdown-scratchpad/) (11 tasks, $2.46 — live preview,
+  `localStorage` persistence, selection-wrapping toolbar, word/char count, copy button) and a
+  [multi-page site](examples/multi-page-site/) (10 tasks, $1.77, built with parallel code tasks
+  in git worktrees, three merge conflicts all auto-recovered). Both finished with the Tester's
+  `runtimeChecked: true`, and both were then driven by hand in a browser — every feature the
+  idea asked for is listed with what it actually did. The README now leads with that evidence
+  instead of only describing the pipeline.
+
 ## 0.26.1 — 2026-09-18
 
 ### Fixed

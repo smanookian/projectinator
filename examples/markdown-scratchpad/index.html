@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scratchpad</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="toolbar" id="toolbar">
+    <h1 class="toolbar__title">Scratchpad</h1>
+
+    <div class="toolbar__group" role="group" aria-label="View mode">
+      <button type="button" class="btn" id="btn-edit" title="Editor only">Edit</button>
+      <button type="button" class="btn is-active" id="btn-split" title="Editor and preview">Split</button>
+      <button type="button" class="btn" id="btn-preview" title="Preview only">Preview</button>
+    </div>
+
+    <div class="toolbar__group" role="group" aria-label="Formatting">
+      <button type="button" class="btn btn--fmt" id="btn-bold" title="Bold (Ctrl+B)" aria-label="Bold"><strong>B</strong></button>
+      <button type="button" class="btn btn--fmt" id="btn-italic" title="Italic (Ctrl+I)" aria-label="Italic"><em>I</em></button>
+      <button type="button" class="btn btn--fmt" id="btn-heading" title="Heading (Ctrl+H) — cycles H1…H6" aria-label="Heading">H</button>
+      <button type="button" class="btn btn--fmt" id="btn-list" title="Bullet list (Ctrl+L)" aria-label="Bullet list">&bull;&nbsp;List</button>
+    </div>
+
+    <div class="toolbar__spacer"></div>
+
+    <div class="toolbar__group">
+      <button type="button" class="btn" id="btn-theme" title="Toggle light/dark theme">Theme</button>
+      <button type="button" class="btn" id="btn-copy" title="Copy markdown to clipboard">Copy</button>
+      <button type="button" class="btn" id="btn-download" title="Download as .md file">Download</button>
+      <button type="button" class="btn btn--danger" id="btn-clear" title="Clear the scratchpad">Clear</button>
+    </div>
+  </header>
+
+  <main class="panes panes--split" id="panes">
+    <section class="pane pane--editor" aria-label="Markdown editor">
+      <textarea id="editor" spellcheck="false" autocomplete="off" autocapitalize="off"
+                aria-label="Markdown source" placeholder="Type markdown here…"></textarea>
+    </section>
+    <section class="pane pane--preview" aria-label="Preview">
+      <article id="preview" class="markdown"></article>
+    </section>
+  </main>
+
+  <footer class="statusbar" id="statusbar">
+    <span id="stat-words">0 words</span>
+    <span id="stat-chars">0 characters</span>
+    <span id="stat-lines">1 line</span>
+    <span class="statusbar__spacer"></span>
+    <span id="stat-saved">Ready</span>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

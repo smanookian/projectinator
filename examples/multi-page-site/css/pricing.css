@@ -1,0 +1,351 @@
+/* pricing.css — self-contained styles for pricing.html */
+
+/* --- reset / base --- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body, h1, h2, h3, p, ul, li, dl, dt, dd, table, figure { margin: 0; padding: 0; }
+ul { list-style: none; }
+img { max-width: 100%; display: block; }
+
+:root {
+  --ink: #16202b;
+  --ink-soft: #4c5a68;
+  --line: #dde3ea;
+  --bg: #ffffff;
+  --bg-alt: #f5f7fa;
+  --accent: #1f6feb;
+  --accent-dark: #1550b3;
+  --accent-soft: #eaf1fe;
+  --ok: #1a7f4b;
+  --radius: 10px;
+  --maxw: 68rem;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, "Noto Sans", sans-serif;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.65;
+  font-size: 17px;
+}
+
+a { color: var(--accent); }
+a:hover { color: var(--accent-dark); }
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* --- header / nav --- */
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.site-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+}
+
+.site-nav a {
+  text-decoration: none;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  padding: 0.25rem 0;
+  border-bottom: 2px solid transparent;
+}
+.site-nav a:hover { color: var(--ink); }
+.site-nav a.is-current {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+/* --- layout --- */
+main {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 1.5rem 3rem;
+}
+
+main section { padding: 2.75rem 0; border-bottom: 1px solid var(--line); }
+main section:last-child { border-bottom: 0; }
+
+h1 { font-size: clamp(2rem, 5vw, 2.85rem); line-height: 1.15; letter-spacing: -0.02em; }
+h2 { font-size: 1.45rem; letter-spacing: -0.01em; margin-bottom: 1rem; }
+h3 { font-size: 1.1rem; margin-bottom: 0.25rem; }
+
+.page-head .lede {
+  margin-top: 0.9rem;
+  max-width: 42rem;
+  font-size: 1.15rem;
+  color: var(--ink-soft);
+}
+
+/* --- tier cards --- */
+.tiers h2,
+.compare h2,
+.faq h2 { color: var(--ink); }
+
+.tier-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(16.5rem, 1fr));
+  align-items: start;
+}
+
+.tier {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.4rem;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+.tier:hover {
+  border-color: #c3cede;
+  box-shadow: 0 8px 20px rgba(22, 32, 43, 0.08);
+  transform: translateY(-2px);
+}
+
+.tier.is-featured {
+  border-color: var(--accent);
+  box-shadow: 0 10px 26px rgba(31, 111, 235, 0.14);
+  background: linear-gradient(180deg, var(--accent-soft), var(--bg) 55%);
+}
+.tier.is-featured:hover {
+  border-color: var(--accent-dark);
+  box-shadow: 0 14px 30px rgba(31, 111, 235, 0.2);
+}
+
+.tier-flag {
+  align-self: flex-start;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  margin-bottom: 0.4rem;
+}
+
+.tier-name {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.tier-price { display: flex; align-items: baseline; gap: 0.3rem; }
+.tier-price .amount {
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.tier-price .per { color: var(--ink-soft); font-size: 0.9rem; }
+
+.tier-note {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+}
+
+.tier-features {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 1.35rem;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+.tier-features li {
+  position: relative;
+  padding-left: 1.4rem;
+}
+.tier-features li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.tier-cta {
+  margin-top: auto;
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: var(--bg);
+}
+.tier-cta:hover {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+.tier.is-featured .tier-cta {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.tier.is-featured .tier-cta:hover {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+  color: #fff;
+}
+
+/* --- comparison table --- */
+.table-scroll { overflow-x: auto; }
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  min-width: 34rem;
+}
+.compare-table caption {
+  text-align: left;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  padding-bottom: 0.6rem;
+}
+.compare-table th,
+.compare-table td {
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+.compare-table thead th {
+  background: var(--bg-alt);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  border-bottom: 2px solid var(--line);
+}
+.compare-table tbody th { font-weight: 600; color: var(--ink); }
+.compare-table tbody tr:hover { background: #fafbfd; }
+.compare-table td { color: var(--ink-soft); }
+.compare-table .yes { color: var(--ok); font-weight: 600; }
+.compare-table .no { color: #9aa6b3; }
+.compare-table .col-featured { background: var(--accent-soft); color: var(--ink); }
+.compare-table thead .col-featured { color: var(--accent-dark); }
+.compare-table tbody tr:hover .col-featured { background: #dfeaff; }
+.compare-table tbody tr:last-child th,
+.compare-table tbody tr:last-child td { border-bottom: 0; }
+.compare-table th[scope="row"] {
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+}
+.compare-table tbody tr:hover th[scope="row"] { background: #fafbfd; }
+.compare-table thead th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--bg-alt);
+  border-right: 1px solid var(--line);
+}
+
+/* --- faq --- */
+.faq-list { max-width: 44rem; }
+.faq-list dt {
+  font-weight: 600;
+  margin-top: 1.1rem;
+}
+.faq-list dt:first-child { margin-top: 0; }
+.faq-list dd {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  margin-top: 0.2rem;
+}
+.fine {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--line);
+  font-size: 0.85rem;
+  color: #6b7885;
+  max-width: 44rem;
+}
+
+/* --- cta --- */
+.cta p { color: var(--ink-soft); max-width: 40rem; }
+
+/* --- footer --- */
+.site-footer {
+  border-top: 1px solid var(--line);
+  background: var(--bg-alt);
+}
+.site-footer p,
+.site-footer nav {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+.site-footer p {
+  padding-top: 1.5rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+.site-footer ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  padding-bottom: 1.75rem;
+  padding-top: 0.5rem;
+}
+.site-footer a { font-size: 0.9rem; text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tier { transition: none; }
+  .tier:hover { transform: none; }
+}
+
+@media (max-width: 34rem) {
+  body { font-size: 16px; }
+  .site-header { padding: 1rem 1.15rem; }
+  main { padding: 0 1.15rem 2rem; }
+  main section { padding: 2rem 0; }
+  .tier { padding: 1.25rem 1.15rem; }
+  .tier-price .amount { font-size: 1.85rem; }
+  .compare-table { font-size: 0.9rem; }
+  .compare-table th,
+  .compare-table td { padding: 0.55rem 0.7rem; }
+}
+
+@media print {
+  body { font-size: 12pt; color: #000; }
+  .site-nav, .site-footer nav, .cta { display: none; }
+  .tier, .compare-table { box-shadow: none; }
+  .tier:hover { transform: none; }
+  .table-scroll { overflow: visible; }
+  .compare-table { min-width: 0; }
+}

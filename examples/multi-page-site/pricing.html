@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pricing</title>
+<link rel="stylesheet" href="css/pricing.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Northwind Studio</a>
+  <nav class="site-nav" aria-label="Main">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a class="is-current" href="pricing.html" aria-current="page">Pricing</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <section class="page-head">
+    <h1>Pricing</h1>
+    <p class="lede">Three engagement sizes, one honest rate card. Every plan is
+    billed monthly, cancels with 30 days' notice, and includes the whole team —
+    design, engineering and delivery.</p>
+  </section>
+
+  <section class="tiers">
+    <h2>Plans</h2>
+    <ul class="tier-grid">
+      <li class="tier">
+        <h3 class="tier-name">Starter</h3>
+        <p class="tier-price"><span class="amount">$2,400</span><span class="per">/month</span></p>
+        <p class="tier-note">For a single small product or a focused fix-up.</p>
+        <ul class="tier-features">
+          <li>40 hours of build time per month</li>
+          <li>One active workstream</li>
+          <li>Weekly written progress note</li>
+          <li>Email support, 2 business days</li>
+          <li>Source code handed over each release</li>
+        </ul>
+        <a class="tier-cta" href="contact.html">Start with Starter</a>
+      </li>
+
+      <li class="tier is-featured">
+        <p class="tier-flag">Most popular</p>
+        <h3 class="tier-name">Studio</h3>
+        <p class="tier-price"><span class="amount">$6,800</span><span class="per">/month</span></p>
+        <p class="tier-note">Our standard engagement for teams shipping continuously.</p>
+        <ul class="tier-features">
+          <li>120 hours of build time per month</li>
+          <li>Up to three parallel workstreams</li>
+          <li>Design and engineering in one team</li>
+          <li>Shared Slack channel, same-day replies</li>
+          <li>Fortnightly roadmap review</li>
+          <li>Staging environment and release notes</li>
+        </ul>
+        <a class="tier-cta" href="contact.html">Talk about Studio</a>
+      </li>
+
+      <li class="tier">
+        <h3 class="tier-name">Partner</h3>
+        <p class="tier-price"><span class="amount">$14,500</span><span class="per">/month</span></p>
+        <p class="tier-note">Embedded, long-horizon work with priority capacity.</p>
+        <ul class="tier-features">
+          <li>Dedicated squad of three</li>
+          <li>Unlimited workstreams within capacity</li>
+          <li>Named technical lead on your calls</li>
+          <li>4-hour response, on-call escalation path</li>
+          <li>Quarterly architecture and security audit</li>
+          <li>Hiring and handover support</li>
+        </ul>
+        <a class="tier-cta" href="contact.html">Request a Partner slot</a>
+      </li>
+    </ul>
+  </section>
+
+  <section class="compare">
+    <h2>Plan comparison</h2>
+    <div class="table-scroll">
+      <table class="compare-table">
+        <caption>What is included at each level</caption>
+        <thead>
+          <tr>
+            <th scope="col">Feature</th>
+            <th scope="col">Starter</th>
+            <th scope="col" class="col-featured">Studio</th>
+            <th scope="col">Partner</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Monthly build hours</th>
+            <td>40</td>
+            <td class="col-featured">120</td>
+            <td>360</td>
+          </tr>
+          <tr>
+            <th scope="row">Parallel workstreams</th>
+            <td>1</td>
+            <td class="col-featured">3</td>
+            <td>Unlimited</td>
+          </tr>
+          <tr>
+            <th scope="row">Dedicated design time</th>
+            <td class="no">—</td>
+            <td class="yes col-featured">Yes</td>
+            <td class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Support response</th>
+            <td>2 business days</td>
+            <td class="col-featured">Same day</td>
+            <td>4 hours</td>
+          </tr>
+          <tr>
+            <th scope="row">Staging environment</th>
+            <td class="no">—</td>
+            <td class="yes col-featured">Yes</td>
+            <td class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">On-call escalation</th>
+            <td class="no">—</td>
+            <td class="no col-featured">—</td>
+            <td class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Quarterly audit</th>
+            <td class="no">—</td>
+            <td class="no col-featured">—</td>
+            <td class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Minimum term</th>
+            <td>1 month</td>
+            <td class="col-featured">3 months</td>
+            <td>6 months</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="faq">
+    <h2>Questions &amp; fine print</h2>
+    <dl class="faq-list">
+      <dt>What happens to unused hours?</dt>
+      <dd>Up to 20% of your monthly hours roll over once. Beyond that they expire,
+      because we reserve capacity for you either way.</dd>
+
+      <dt>Can we change plans?</dt>
+      <dd>Yes — move up at any time, effective immediately. Moving down takes
+      effect at the start of the next billing cycle.</dd>
+
+      <dt>Do you charge for discovery?</dt>
+      <dd>The first call and a written scope summary are free. Longer research
+      engagements are billed against your plan hours.</dd>
+
+      <dt>Who owns the code?</dt>
+      <dd>You do. Every repository, design file and credential is yours from the
+      first commit, with no licence conditions attached.</dd>
+
+      <dt>How does billing work?</dt>
+      <dd>Invoiced on the first working day of each month, net 14, by bank
+      transfer or card. Prices are in USD and exclude local sales tax.</dd>
+    </dl>
+    <p class="fine">Travel and third-party services (hosting, monitoring, paid
+    APIs) are passed through at cost with receipts. Rates shown are valid for
+    engagements starting in 2025.</p>
+  </section>
+
+  <section class="cta">
+    <h2>Not sure which plan fits?</h2>
+    <p>Tell us what you are building and we will suggest the smallest plan that
+    gets it done. <a href="contact.html">Contact us</a> or read more
+    <a href="about.html">about the studio</a>.</p>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>&copy; 2025 Northwind Studio. All rights reserved.</p>
+  <nav aria-label="Footer">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+  </nav>
+</footer>
+</body>
+</html>

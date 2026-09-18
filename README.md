@@ -95,6 +95,19 @@ Type an idea → it plans → you approve → it builds, tests, and hands you wo
   **per-task timeout and cost ceiling**, and predicted-vs-actual reporting that sharpens
   itself over real runs.
 
+### What that produces, concretely
+
+Two real builds, unedited, committed in [`examples/`](examples/) — same command, no hand-fixing:
+
+| build | tasks | cost | result |
+|---|---|---|---|
+| [Markdown scratchpad](examples/markdown-scratchpad/) | 11 | **$2.46** | live preview, localStorage persistence, selection-wrapping toolbar, word/char count, copy button |
+| [Multi-page site](examples/multi-page-site/) | 10 | **$1.77** | 4 linked pages, per-page CSS, a form and a pricing table — built in **parallel git worktrees**, 3 merge conflicts auto-recovered |
+
+Both finished with the Tester's `runtimeChecked: true` — it opened the app in headless Chromium
+rather than just reading the code — and both were then driven by hand in a browser to confirm
+every feature the idea asked for. Each opens by double-clicking `index.html`; no server, no build.
+
 ## Highlights
 
 | | |
@@ -143,8 +156,16 @@ token use) and **self-calibrate** from measured runs.
 
 ## Examples
 
-Real, unedited output from a full build, kept in [`examples/`](examples/):
+Real, unedited output from full builds, kept in [`examples/`](examples/). Each was produced by
+one sentence and shipped exactly as the roles wrote it:
 
+- **[Markdown scratchpad](examples/markdown-scratchpad/)** — 11 tasks, **$2.46**. Live preview,
+  `localStorage` persistence across a reload, a toolbar that wraps the selected text, live
+  word/char count, copy-as-markdown. Hand-written markdown parser, because a `static` build has
+  to run from `file://`.
+- **[Multi-page site](examples/multi-page-site/)** — 10 tasks, **$1.77**, built with
+  **parallel code tasks** in git worktrees. Three merges conflicted and all three recovered with
+  a serial rebuild — the artifact for what happens when parallel work collides.
 - **[Tip calculator](examples/tip-calculator/)** — PM → design → 3× code → test, $0.46,
   tester PASS. Three separate files (`index.html`, `styles.css`, `app.js`) that run on
   double-click (`file://`) *and* over http — the regression artifact for the

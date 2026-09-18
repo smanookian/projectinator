@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact</title>
+<link rel="stylesheet" href="css/contact.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Northwind Studio</a>
+  <nav class="site-nav" aria-label="Main">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a class="is-current" href="contact.html" aria-current="page">Contact</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <section class="page-head">
+    <h1>Contact us</h1>
+    <p class="lede">Tell us what you are building and when you need it. We reply to
+    every enquiry within one business day.</p>
+  </section>
+
+  <section class="contact-layout">
+    <form class="contact-form" method="post" action="mailto:hello@northwindstudio.example" enctype="text/plain">
+      <h2>Send a message</h2>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="name">Name <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="name" name="name" placeholder="Dana Reyes" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="email">Email <span class="req" aria-hidden="true">*</span></label>
+          <input type="email" id="email" name="email" placeholder="you@company.com" autocomplete="email" required>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="phone">Phone <span class="hint">(optional)</span></label>
+          <input type="tel" id="phone" name="phone" placeholder="+1 555 0123" autocomplete="tel">
+        </div>
+        <div class="field">
+          <label for="topic">What is this about?</label>
+          <select id="topic" name="topic">
+            <option value="new-project">New project</option>
+            <option value="ongoing-support">Ongoing support</option>
+            <option value="pricing">Pricing question</option>
+            <option value="other">Something else</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="message">Message <span class="req" aria-hidden="true">*</span></label>
+        <textarea id="message" name="message" placeholder="A few sentences about your project, timeline and budget." minlength="20" required></textarea>
+        <span class="hint">At least 20 characters, please.</span>
+      </div>
+
+      <label class="check" for="newsletter">
+        <input type="checkbox" id="newsletter" name="newsletter" value="yes">
+        <span>Send me the occasional studio note — roughly four emails a year.</span>
+      </label>
+
+      <div class="form-actions">
+        <button class="btn" type="submit">Send message</button>
+        <button class="btn btn-secondary" type="reset">Clear form</button>
+        <p class="form-note">Fields marked * are required.</p>
+      </div>
+    </form>
+
+    <aside class="contact-details">
+      <h2>Other ways to reach us</h2>
+      <dl>
+        <dt>Email</dt>
+        <dd><a href="mailto:hello@northwindstudio.example">hello@northwindstudio.example</a></dd>
+
+        <dt>Phone</dt>
+        <dd><a href="tel:+15550100200">+1 (555) 010-0200</a></dd>
+
+        <dt>Studio</dt>
+        <dd>
+          <address>
+            48 Harbour Lane, Floor 2<br>
+            Portland, OR 97209<br>
+            United States
+          </address>
+        </dd>
+      </dl>
+
+      <div>
+        <h3>Office hours</h3>
+        <ul class="hours">
+          <li><span>Monday – Thursday</span> <span>9:00 – 17:00</span></li>
+          <li><span>Friday</span> <span>9:00 – 13:00</span></li>
+          <li><span>Weekends</span> <span>Closed</span></li>
+        </ul>
+      </div>
+
+      <p class="form-note">Looking for numbers first? See <a href="pricing.html">pricing</a>
+      or read more <a href="about.html">about the studio</a>.</p>
+    </aside>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>&copy; 2025 Northwind Studio. All rights reserved.</p>
+  <nav aria-label="Footer">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+  </nav>
+</footer>
+</body>
+</html>
