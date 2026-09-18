@@ -12,7 +12,7 @@ const IDEA = "a collision probe app";
 const opts = {
   concurrency: 1,
   budgetCapUSD: 1,
-  taskLimits: { timeoutMin: 0, costCapUSD: 0 },
+  taskLimits: { timeoutMs: 0, costCapUSD: 0 },
   onEvent: () => {},
   mode: "auto" as const,
 };
