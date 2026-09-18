@@ -5,7 +5,7 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { Provider, ReviewPolicy } from "../types.js";
+import type { BuildMode, Provider, ReviewPolicy } from "../types.js";
 import type { ThemeId } from "./theme.js";
 
 export type WorkflowMode = "auto" | "approval";
@@ -23,6 +23,7 @@ export interface AppConfig {
    *  Off by default: conflicts cost a serial re-run. */
   parallelCode?: boolean;
   reviewPolicy?: ReviewPolicy;
+  buildMode?: BuildMode;
   /** If set, always route to this provider (when it has a key), ignoring the others. */
   preferredProvider?: Provider;
   /** POST a JSON summary here when a build finishes or halts. Empty = off. */
@@ -179,6 +180,7 @@ export interface Prefs {
   taskCostCapUSD: number;
   parallelCode: boolean;
   reviewPolicy: ReviewPolicy;
+  buildMode: BuildMode;
 }
 
 export function getPrefs(): Prefs {
@@ -191,6 +193,7 @@ export function getPrefs(): Prefs {
     taskCostCapUSD: cfg.taskCostCapUSD ?? 3,
     parallelCode: cfg.parallelCode ?? false,
     reviewPolicy: cfg.reviewPolicy ?? "high",
+    buildMode: cfg.buildMode ?? "safe",
   };
 }
 
@@ -203,5 +206,6 @@ export function setPrefs(prefs: Partial<Prefs>): void {
   if (prefs.taskCostCapUSD !== undefined) cfg.taskCostCapUSD = prefs.taskCostCapUSD;
   if (prefs.parallelCode !== undefined) cfg.parallelCode = prefs.parallelCode;
   if (prefs.reviewPolicy !== undefined) cfg.reviewPolicy = prefs.reviewPolicy;
+  if (prefs.buildMode !== undefined) cfg.buildMode = prefs.buildMode;
   saveConfig(cfg);
 }

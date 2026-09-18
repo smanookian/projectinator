@@ -82,6 +82,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         { label: "Budget, speed & alerts", value: "prefs" },
         { label: `Notify on done: ${getNotify() ? "On" : "Off"}`, value: "notify" },
         { label: `Code reviews: ${REVIEW_LABEL[getPrefs().reviewPolicy]}`, value: "reviewPolicy" },
+        { label: `Build mode: ${getPrefs().buildMode === "safe" ? "Safe" : "Auto (no guard)"}`, value: "buildMode" },
         { label: `Parallel code tasks (git worktrees): ${getPrefs().parallelCode ? "On" : "Off"}`, value: "parallelCode" },
         { label: `Webhook: ${getWebhookUrl() || "Off"}`, value: "webhook" },
       ] },
@@ -109,6 +110,12 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
                 const next = !getNotify();
                 setNotify(next);
                 setNotice(`Notifications ${next ? "on" : "off"}.`);
+              } else if (i.value === "buildMode") {
+                const next = getPrefs().buildMode === "safe" ? "auto" : "safe";
+                setPrefs({ buildMode: next });
+                setNotice(next === "safe"
+                  ? "Safe: a build can't delete things outside its own folder, read your keys, sudo, or push to a remote. It is a guard, not a sandbox."
+                  : "Auto: no guard. The roles can run any command with your permissions — use it only for a workspace you don't mind losing.");
               } else if (i.value === "reviewPolicy") {
                 // Cycle high -> all -> off -> high. Reviews read the code, so their cost grows
                 // with the project; "high" reviews only where a bug is most likely.
@@ -659,6 +666,7 @@ function PrefsEditor({
       taskCostCapUSD: parse0(tcap, initial.taskCostCapUSD),
       parallelCode: initial.parallelCode,
       reviewPolicy: initial.reviewPolicy,
+      buildMode: initial.buildMode,
     });
   };
 

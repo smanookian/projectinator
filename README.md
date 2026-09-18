@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/projectinator.svg?color=e0a72d&label=npm)](https://www.npmjs.com/package/projectinator)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![node](https://img.shields.io/badge/node-%E2%89%A522.19-brightgreen.svg)
-![tests: 338 passing](https://img.shields.io/badge/tests-338%20passing-brightgreen.svg)
+![tests: 351 passing](https://img.shields.io/badge/tests-351%20passing-brightgreen.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![built on Pi](https://img.shields.io/badge/built%20on-Pi%20agent%20harness-e0a72d.svg)
 
@@ -146,6 +146,7 @@ every feature the idea asked for. Each opens by double-clicking `index.html`; no
 | ⚡ **Parallel code** | Opt-in: independent code tasks build at once in git worktrees, merged back per task; a conflict costs one serial re-run. |
 | 🖥 **Local models** | Ollama, LM Studio or vLLM as a provider — $0, no key. Best on the Reviewer/Tester slots; the PM's structured tool calls need a strong model. |
 | 📦 **Share** | Zip a build's files (tar.gz where `zip` is absent) from the project menu. |
+| 🛡 **Safe by default** | Builds run real shell commands on your machine. Safe mode refuses what a build never needs — deleting outside its own folder, reading `~/.ssh` or your API keys, `sudo`, `curl \| sh`, `git push` — and explains the refusal so the model routes around it. Switch to `Auto` to lift the guard. It is a guard, not a sandbox. |
 | 🐙 **GitHub** | Publish a build as a repo, open a pull request for each change, export the backlog as issues — through your own `gh` login. Imported repos only ever get a branch + PR, never a push to main. |
 
 ## How it works
@@ -211,7 +212,7 @@ npm start                                         # the cockpit
 npm run build -- --live --mini                    # fixed 4-task build, cheap end-to-end proof (~$0.10)
 npm run build -- --live --mini --resume           # resume a halted run
 npm run bakeoff -- --capability design "Design a pricing page"   # model bake-off
-npm test                                          # 338 tests
+npm test                                          # 351 tests
 npm run typecheck
 ```
 </details>

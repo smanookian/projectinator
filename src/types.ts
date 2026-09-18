@@ -221,3 +221,8 @@ export interface TaskOutcome extends RoleResult {
  *  — which actually runs the app — cost a tenth as much. Default is the tasks where a bug is
  *  most likely, not every one. */
 export type ReviewPolicy = "off" | "high" | "all";
+
+/** How much freedom the roles get on this machine. `safe` refuses commands a build has no
+ *  business running (destruction outside the project, reading credentials, sudo); `auto` is the
+ *  old behaviour, everything allowed. Not a sandbox — Pi has none — but it stops the accident. */
+export type BuildMode = "safe" | "auto";

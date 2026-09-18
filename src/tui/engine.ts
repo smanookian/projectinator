@@ -888,7 +888,7 @@ export function startBuild(
   if (!prior && opts.stack) state.stack = opts.stack;
   const profile = state.allowInstallScripts ? profileWithScripts(PROFILES[state.stack ?? "static"]) : PROFILES[state.stack ?? "static"];
 
-  const executor = makePiExecutor({ workspace, backend: "api", profile });
+  const executor = makePiExecutor({ workspace, backend: "api", profile, buildMode: getPrefs().buildMode });
   const policy = { ...DEFAULT_POLICY, backendMode: "api" as const, budgetCapUSD: opts.budgetCapUSD, taskLimits: opts.taskLimits };
 
   // Version the workspace: init a repo, then commit after each finished task.

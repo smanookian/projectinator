@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.28.0 — 2026-09-19
+
+### Added
+- **Build modes — `Safe` (new default) and `Auto`.** The roles write files and run shell
+  commands on your machine with your permissions, and Pi ships no sandbox by design. Safe mode
+  refuses, before execution, the things a build has no business doing:
+  - deleting or overwriting anything **outside the project folder** (including `rm -rf /`)
+  - **reading your credentials** — `~/.ssh`, `~/.aws`, `~/.npmrc`, `~/.pi/agent/auth.json`,
+    and Projectinator's own `config.json` where your API key lives
+  - `sudo`, machine-level commands (`shutdown`, `mkfs`, `systemctl`, fork bombs)
+  - piping a download straight into a shell (`curl … | sh`)
+  - `git push` — publishing stays a decision you make in Ship
+
+  A refusal is explained to the model so it finds another way; it does not kill the task.
+  Everything a build genuinely needs — `npm install`, `npm run build`, `rm -rf node_modules`,
+  writing files in its own folder — is untouched, verified by a live build that finished clean.
+
+  Settings → Build defaults → **Build mode** switches to `Auto`, which restores the old
+  behaviour (no guard).
+
+  Implemented on Pi's `tool_call` extension hook, the only point where a command can be refused.
+  Sessions also now load with `noExtensions`, so Pi never executes an extension written into the
+  workspace by a model.
+
+### Known limits
+- **This is a guard, not a sandbox.** It stops the realistic accident — a destructive command
+  aimed outside the project, or a role reading your keys. It cannot stop a determined exploit:
+  a build may legitimately write a script inside its own folder and run it. Containerised
+  execution remains the strong fix.
+- There is no `Ask` mode yet. Builds run up to three tasks at once and headless/MCP runs have
+  nobody to ask, so a prompt-per-command needs a question queue and per-run-mode behaviour.
+  Safe mode needs none of that and works identically everywhere.
+
 ## 0.27.0 — 2026-09-18
 
 ### Added

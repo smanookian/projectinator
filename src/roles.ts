@@ -7,6 +7,8 @@
 import {
   createAgentSession,
   defineTool,
+  DefaultResourceLoader,
+  getAgentDir,
   resizeImage,
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
@@ -32,6 +34,8 @@ import { prepareForTest, type PrepareResult } from "./prepare.js";
 import { startServer, type RunningServer } from "./serve.js";
 import { estimateCost } from "./cost.js";
 import { getModel } from "./models.js";
+import { checkToolCall, refusalFor } from "./guard.js";
+import type { BuildMode } from "./types.js";
 import { addSessionCost } from "./session-cost.js";
 import { recordActual } from "./calibration.js";
 import { getLocalModels } from "./local-models.js";
@@ -383,6 +387,39 @@ export interface PiExecutorOptions {
   onFallback?: (info: { taskId: string; from: Provider; to: Provider; model: string }) => void;
   /** Never try another provider (a bake-off measures exactly one model). */
   noFallback?: boolean;
+  /** `safe` (default) refuses tool calls a build has no business making; `auto` allows all. */
+  buildMode?: BuildMode;
+}
+
+/** A Pi extension that applies the build mode to every tool call, before it executes. Pi has no
+ *  sandbox, so this is the only point where a command can be refused. */
+/** The build-mode guard as a Pi inline extension. Exported so its wiring is testable without
+ *  a model: Pi calls the registered `tool_call` handler before every tool runs. */
+export function guardExtension(mode: BuildMode, workspace: string) {
+  return {
+    name: "projectinator-safe-mode",
+    factory: (pi: { on: (event: "tool_call", handler: (e: { toolName: string; input: unknown }) => unknown) => void }) => {
+      pi.on("tool_call", (event) => {
+        const { reason } = checkToolCall(mode, event.toolName, event.input as Record<string, unknown>, workspace);
+        // `terminate: false`: the model is told why and can pick another route, rather than the
+        // whole task dying on one refused command.
+        return reason ? { block: true, reason: refusalFor(reason), terminate: false } : undefined;
+      });
+    },
+  };
+}
+
+async function guardLoader(mode: BuildMode, workspace: string): Promise<DefaultResourceLoader> {
+  const loader = new DefaultResourceLoader({
+    cwd: workspace,
+    agentDir: getAgentDir(),
+    // The workspace is written by the models. Never load extensions out of it: those are
+    // TypeScript modules Pi would execute. Inline factories (ours, below) load regardless.
+    noExtensions: true,
+    extensionFactories: [guardExtension(mode, workspace) as never],
+  });
+  await loader.reload();
+  return loader;
 }
 
 // Env vars that hold each provider's key (mirrors run-build's check).
@@ -526,6 +563,7 @@ export function makePiExecutor(opts: PiExecutorOptions): RoleExecutor {
       model,
       cwd: ws,
       modelRuntime: runtime,
+      resourceLoader: await guardLoader(opts.buildMode ?? "safe", ws),
       thinkingLevel: opts.thinkingLevel ?? "medium",
       ...(isTest
         ? { customTools: [verdictTool!.tool, checkTool!.tool, interactTool!.tool], tools: ["read", "bash", "ls", "grep", "find", "check_app", "interact_app", "submit_verdict"] }
