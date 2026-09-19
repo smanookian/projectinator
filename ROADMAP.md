@@ -2,9 +2,11 @@
 
 Projectinator is usable today — this page is what comes next, and where help is welcome.
 
-If something here interests you, **open an issue saying so before you start** (or comment on the
-linked issue). I'll tell you what I know about the area and where the traps are, so you don't
-lose an evening to something I already learned the hard way.
+Everything below is also a GitHub issue — **comment on it before you start** and I'll tell you
+what I know about the area and where the traps are, so you don't lose an evening to something I
+already learned the hard way.
+[Browse them by size](https://github.com/smanookian/projectinator/issues), or jump to
+[good first issues](https://github.com/smanookian/projectinator/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
 
 ## What already works
 
@@ -31,47 +33,47 @@ hit are in [`docs/INTERNAL.md`](./docs/INTERNAL.md) — read that before a first
 
 ## Next up
 
-### Cheaper retries — reuse the session on a fix round
+### Cheaper retries — reuse the session on a fix round · [#1](https://github.com/smanookian/projectinator/issues/1)
 **Medium.** When the Tester fails a task, the Developer's fix round starts a brand-new session
 and re-sends the whole context (~90k input tokens on a typical code task). Pi's `fork()` reuses
 an existing session instead. This is the single largest remaining cost saving in a build.
 Touches `src/roles.ts` and the feedback loop in `src/orchestrator.ts`. Needs a before/after
 measurement on a real build to prove the saving.
 
-### Mid-task steering
+### Mid-task steering · [#2](https://github.com/smanookian/projectinator/issues/2)
 **Medium.** `BuildControl` (pause / inject / remove / stop) is consulted *between* task
 launches, so a task heading the wrong way runs to completion and you pay for it. Pi exposes
 `session.steer()`, which delivers a correction after the current tool batch. Wiring that up
 turns steering from "queue a change for later" into "change course now".
 
-### Contained execution
+### Contained execution · [#4](https://github.com/smanookian/projectinator/issues/4)
 **Large.** Safe mode (`src/guard.ts`) blocks the realistic accident, but it is a guard, not a
 sandbox: a build can still write a script inside its own workspace and run it. The real fix is
 running builds in a container. The hard part isn't the container — it's keeping the stack
 profiles working, since Vite/Node/Python builds spawn servers and the Tester must still reach
 them over HTTP.
 
-### Project skills
+### Project skills · [#3](https://github.com/smanookian/projectinator/issues/3)
 **Small.** Pi discovers skills from `.pi/skills/` and `.agents/skills/` in the working
 directory, and our sessions already run with the project as cwd — so dropping a skill into a
 project may already teach every role your conventions. Nobody has verified it. If it works:
 document it and add an example skill. If it doesn't: wire it through the resource loader.
 
-### Ask mode
+### Ask mode · [#5](https://github.com/smanookian/projectinator/issues/5)
 **Medium, and deliberately not started yet.** A per-command approval prompt sounds obvious, but
 builds run up to three tasks at once, and headless/MCP runs have nobody to ask. It needs a
 question queue, a timeout policy, remembered answers, and different behaviour per run mode.
 Worth building once Safe mode has blocked something it shouldn't have — real examples beat
 guesses about which commands deserve a prompt.
 
-### Mobile and desktop targets
+### Mobile and desktop targets · [#6](https://github.com/smanookian/projectinator/issues/6)
 **Large.** Both currently fall back to a web build. A real target means a stack profile that can
 install a toolchain, build, and — the part that matters — let the Tester actually run the result
 and see it.
 
 ## Parked
 
-- **Web login for paid subscriptions** (use a Claude/ChatGPT plan instead of API keys). Vendors
+- **Web login for paid subscriptions** ([#7](https://github.com/smanookian/projectinator/issues/7)) (use a Claude/ChatGPT plan instead of API keys). Vendors
   closed third-party subscription auth in 2026; browser automation half-works for one provider
   and breaks on any login-page change. Behind `PROJECTINATOR_WEB=1`. Not worth maintaining
   unless the situation changes.
@@ -80,7 +82,7 @@ and see it.
 
 You don't need to take on a roadmap item to be useful:
 
-- **Run a build and file what went wrong.** Real builds are how nearly every bug in this
+- **[Run a build and file what went wrong](https://github.com/smanookian/projectinator/issues/8).** Real builds are how nearly every bug in this
   project has been found. Paste the plan, the cost, and what the app did.
 - **A new stack profile** (`src/stack.ts`) — Go, Rust, Deno, Svelte. The profile interface is
   install / build / serve / entry, and there are four working examples to copy.
