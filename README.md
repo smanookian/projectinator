@@ -243,4 +243,4 @@ MIT — see [LICENSE](LICENSE). © 2026 Stepan Manookian.
 
 ## Roadmap
 
-See [`TODO.md`](./TODO.md). Internal architecture + how-to: [`docs/INTERNAL.md`](./docs/INTERNAL.md).
+See [`ROADMAP.md`](./ROADMAP.md) — what is next and where help is welcome. Internal architecture + how-to: [`docs/INTERNAL.md`](./docs/INTERNAL.md).
