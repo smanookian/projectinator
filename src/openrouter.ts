@@ -21,6 +21,7 @@ export type ORModel = Omit<Model, "provider"> & {
 const cachePath = () => join(dataHome(), "openrouter-models.json");
 
 let diskMemo: ORModel[] | null | undefined; // undefined = not read yet, null = no cache
+let diskFetchedAt = 0; // when the disk cache was fetched (epoch ms); 0 = no cache
 
 /** Pi's built-in OpenRouter catalog — offline, names + pricing, sorted by name. Empty until
  *  warmPiCatalog() (pi-catalog.ts) has run once at startup. */
@@ -34,8 +35,9 @@ function readDiskCache(): ORModel[] | null {
   if (diskMemo !== undefined) return diskMemo;
   try {
     if (existsSync(cachePath())) {
-      const parsed = JSON.parse(readFileSync(cachePath(), "utf8")) as { models?: ORModel[] };
+      const parsed = JSON.parse(readFileSync(cachePath(), "utf8")) as { fetchedAt?: number; models?: ORModel[] };
       diskMemo = Array.isArray(parsed.models) && parsed.models.length ? parsed.models : null;
+      diskFetchedAt = diskMemo && typeof parsed.fetchedAt === "number" ? parsed.fetchedAt : 0;
     } else diskMemo = null;
   } catch {
     diskMemo = null;
@@ -43,15 +45,25 @@ function readDiskCache(): ORModel[] | null {
   return diskMemo;
 }
 
-/** The list to show / price against: live-fetched disk cache if present, else Pi's built-in. */
-export function openRouterModels(): ORModel[] {
-  const cached = readDiskCache();
-  return cached && cached.length ? cached : builtinOpenRouterModels();
+/** How old the live-fetched catalog on disk is (ms); Infinity when there is none. */
+export function openRouterCacheAge(now = Date.now()): number {
+  return readDiskCache() && diskFetchedAt ? now - diskFetchedAt : Infinity;
 }
 
-/** Look up one model's pricing/name by slug (cache first, then built-in). Sync. */
+/** The list to show / price against: the live-fetched disk cache, plus any model in Pi's
+ *  built-in list the cache doesn't have. A cache fetched before a model came out (Opus 5.5 vs a
+ *  September fetch) would otherwise hide it from the picker and the newer-model check. */
+export function openRouterModels(): ORModel[] {
+  const cached = readDiskCache();
+  if (!cached?.length) return builtinOpenRouterModels();
+  const have = new Set(cached.map((m) => m.id));
+  const missing = builtinOpenRouterModels().filter((m) => !have.has(m.id));
+  return missing.length ? [...cached, ...missing].sort((a, b) => a.name.localeCompare(b.name)) : cached;
+}
+
+/** Look up one model's pricing/name by slug (live cache first, then Pi's built-in). Sync. */
 export function findOpenRouterModel(id: string): ORModel | undefined {
-  return openRouterModels().find((m) => m.id === id) ?? builtinOpenRouterModels().find((m) => m.id === id);
+  return openRouterModels().find((m) => m.id === id);
 }
 
 /** Map OpenRouter's API pricing (USD per token, strings) to our per-1M-token cost. */
@@ -92,6 +104,7 @@ export async function refreshOpenRouterModels(timeoutMs = 8000): Promise<ORModel
         mkdirSync(dataHome(), { recursive: true });
         writeFileSync(cachePath(), JSON.stringify({ fetchedAt: Date.now(), models: list }));
         diskMemo = list;
+        diskFetchedAt = Date.now();
       } catch { /* cache write is best-effort */ }
       return list;
     }

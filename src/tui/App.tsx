@@ -19,6 +19,7 @@ import { ModelUpdates } from "./ModelUpdates.js";
 import { UpdateAsk, UpdateDialog, findRelease, type Release } from "./Update.js";
 import { currentVersion, isSkipped, requestRestart, takeDue } from "../update.js";
 import { warmPiCatalog } from "../pi-catalog.js";
+import { openRouterCacheAge, refreshOpenRouterModels } from "../openrouter.js";
 import type { ModelUpgrade } from "../model-updates.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
@@ -217,8 +218,14 @@ export default function App(): React.ReactElement {
     if (!isTTY) return;
     const u = getUpdateCheck();
     if (!u.asked) setPhase("updateAsk");
-    else if (u.on && takeDue()) {
-      void findRelease(version).then((rel) => { if (rel && !isSkipped(rel.version)) setRelease(rel); });
+    else if (u.on) {
+      if (takeDue()) void findRelease(version).then((rel) => { if (rel && !isSkipped(rel.version)) setRelease(rel); });
+      // A week-old OpenRouter list misses models that came out since; fetch it again in the
+      // background (Pi's built-in list fills the gap meanwhile).
+      const age = openRouterCacheAge();
+      if (age !== Infinity && age > 7 * 24 * 60 * 60 * 1000) {
+        void refreshOpenRouterModels().then(refreshUpgrades);
+      }
     }
   }, []);
   // A key added or a provider preferred changes the team, so re-check its models.

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.29.1 — 2026-11-25
+
+### Fixed
+- **Newer models didn't show for OpenRouter users.** A downloaded OpenRouter model list (Settings →
+  OpenRouter browse) replaced Pi's built-in list entirely, so a list fetched before Claude Opus 5.5
+  came out hid it: no `M` notice, and the picker didn't offer it. The two lists are now merged
+  (the download's prices win for models it has). With update checks on, a list older than a week
+  is fetched again in the background.
+
 ## 0.29.0 — 2026-11-25
 
 ### Changed

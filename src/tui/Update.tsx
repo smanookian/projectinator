@@ -28,8 +28,8 @@ export function UpdateAsk({ onAnswer }: { onAnswer: (yes: boolean) => void }): R
   }, { isActive: active });
   return (
     <Panel title="Check for updates once a day?">
-      <Text color={C.text}>When it starts, Projectinator asks npm whether a new version is out.</Text>
-      <Text color={C.text}>Nothing else is sent. Change it in Settings → Updates.</Text>
+      <Text color={C.text}>When it starts, Projectinator asks npm whether a new version is out, and</Text>
+      <Text color={C.text}>refreshes a week-old OpenRouter model list. Nothing else is sent. Settings → Updates.</Text>
       <Box marginTop={1}><Text color={C.textMuted}>y yes · n no</Text></Box>
     </Panel>
   );
