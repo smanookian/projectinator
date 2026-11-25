@@ -62,6 +62,11 @@ describe("single-key shortcuts", () => {
       expect(lastFrame()).not.toContain("Appearance — theme");
       expect(lastFrame()).not.toContain("▾ Models & providers");
       expect(lastFrame()).toContain("What would you like to do?");
+      await k("q"); // asks first; Esc stays
+      expect(lastFrame()).toContain("Quit Projectinator?");
+      await k("\u001b");
+      expect(lastFrame()).not.toContain("Quit Projectinator?");
+      expect(lastFrame()).toContain("What would you like to do?");
     } finally {
       unmount();
       if (prevKey === undefined) delete process.env.OPENROUTER_API_KEY;

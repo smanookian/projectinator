@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.29.2 — 2026-11-25
+
+### Changed
+- **`q` asks before quitting**, like Musinator: "Quit Projectinator?" — `y` or Enter quits, `n` or
+  Esc stays. During a build it warns that quitting stops the build. Ctrl+C still quits at once.
+
 ## 0.29.1 — 2026-11-25
 
 ### Fixed

@@ -14,6 +14,7 @@ import { type BoardTask } from "./Kanban.js";
 import { TaskBoard, DETAILS_ROWS } from "./TaskBoard.js";
 import { ProjectBoard } from "./ProjectBoard.js";
 import { Help } from "./Help.js";
+import { Quit } from "./Quit.js";
 import { Find } from "./Find.js";
 import { ModelUpdates } from "./ModelUpdates.js";
 import { UpdateAsk, UpdateDialog, findRelease, type Release } from "./Update.js";
@@ -202,6 +203,7 @@ export default function App(): React.ReactElement {
     setNavProjects(listProjects()); // a page change is when the list can have moved
   }, [phase]);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [quitOpen, setQuitOpen] = useState(false);
   const [settingsStart, setSettingsStart] = useState<"menu" | "theme">("menu");
   const [boardTyping, setBoardTyping] = useState(false); // a board prompt owns the keyboard
   const [liveSel, setLiveSel] = useState<string | undefined>(undefined); // card picked on the live board
@@ -331,8 +333,15 @@ export default function App(): React.ReactElement {
   const jumps = !!NAV_PHASES[phase] && !typing;
   useInput((input, key) => {
     if (key.ctrl && input === "c") return exit();
+    // q asks first, as in Musinator: y / Enter quits, n / Esc stays.
+    if (quitOpen) {
+      if (input === "y" || input === "Y" || key.return) exit();
+      else if (input === "n" || key.escape) setQuitOpen(false);
+      return;
+    }
     if (helpOpen) {
-      if (key.escape || input === "?" || input === "q" || key.return) setHelpOpen(false);
+      if (key.escape || input === "?" || key.return) setHelpOpen(false);
+      else if (input === "q") { setHelpOpen(false); setQuitOpen(true); }
       return;
     }
     if (input === "?" && !typing && !isDialog) return setHelpOpen(true);
@@ -351,10 +360,10 @@ export default function App(): React.ReactElement {
     if (sidebarFocused) {
       // The sidebar owns ↑↓/Enter; Esc hands focus back to the page.
       if (key.escape) setSidebarFocus(false);
-      else if (input === "q") exit();
+      else if (input === "q") setQuitOpen(true);
       return;
     }
-    if (input === "q" && !typing) return exit();
+    if (input === "q" && !typing) return setQuitOpen(true);
     // Backspace is "back" too, like the other apps — except where it deletes typed text.
     if (key.escape || ((key.backspace || key.delete) && !typing)) {
       if (phase === "building" && steer) return setSteer(null);
@@ -2445,7 +2454,7 @@ export default function App(): React.ReactElement {
       ]}
       sidebar={showSidebar ? <Sidebar groups={navGroups} focused={sidebarFocused} onSelect={navigate} upgradable={upgrades.map((u) => u.from)} /> : undefined}
       sidebarFocused={sidebarFocused}
-      dialog={helpOpen ? <Help /> : isDialog ? renderScreen(phase, termRows - 6, dialogCols) : undefined}
+      dialog={quitOpen ? <Quit building={phase === "building"} /> : helpOpen ? <Help /> : isDialog ? renderScreen(phase, termRows - 6, dialogCols) : undefined}
     >
       {/* Beside the sidebar the page sits in a pane: 3 rows of border + title bar, and the
           sidebar, gaps, pane border and padding off the width. */}
