@@ -119,9 +119,12 @@ describe("doctor severity", () => {
       env: { ...process.env, ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", GEMINI_API_KEY: "", OPENROUTER_API_KEY: "", ...env },
     });
 
-  it("one key is enough: no warnings, exit 0", () => {
+  it("one key is enough: no key or provider warnings, exit 0", () => {
     const r = run({ OPENROUTER_API_KEY: "sk-test-doctor" });
-    expect(r.stdout).not.toMatch(/warning/);
+    // Headless Chromium is a property of the machine running the tests, not of the key setup:
+    // it warns on a host without `npx playwright install chromium`, so it's left out here.
+    const warnings = r.stdout.split("\n").filter((l) => /^\s*!/.test(l) && !l.includes("Headless Chromium"));
+    expect(warnings).toEqual([]);
     expect(r.stdout).toMatch(/Ready/);
     expect(r.status).toBe(0);
   });
