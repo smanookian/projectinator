@@ -17,7 +17,7 @@ model that's best — and cheapest — for that exact job (planning, design, cod
 watch it happen from a terminal cockpit: a live board, budget bar, and a standup.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/smanookian/projectinator/main/docs/cockpit.png" alt="Projectinator cockpit — the live Scrum board mid-build" width="860" />
+  <img src="https://raw.githubusercontent.com/smanookian/projectinator/main/docs/cockpit.svg" alt="Projectinator — a project's board with the selected card's details, the sidebar with your projects and team" width="860" />
 </p>
 
 Built on the [Pi](https://pi.dev) agent harness (Node/TypeScript). Bring your own API key.
@@ -85,12 +85,11 @@ npm start
 ## A quick tour
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/smanookian/projectinator/main/docs/tour.svg" alt="Projectinator — home, projects, a finished project, and the transcript viewer" width="780" />
+  <img src="https://raw.githubusercontent.com/smanookian/projectinator/main/docs/tour.svg" alt="Projectinator — home, a project's board, Settings as a dialog, and the key list" width="860" />
 </p>
 
-Four real screens, captured from the running app: the home menu, your projects with what each
-one cost, a finished build, and the transcript viewer — the run list beside what that role
-actually said.
+Four real screens, captured from the running app: home with the sidebar, a project's board with
+the selected card's details underneath, Settings floating over it, and `?` — every key in one place.
 
 ## What it does
 

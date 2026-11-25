@@ -1277,7 +1277,7 @@ export default function App(): React.ReactElement {
       <Box flexDirection="column">
         {showSidebar ? null : <Text bold color={C.text} wrap="truncate-end">{selected.idea}</Text>}
         <Box marginTop={showSidebar ? 0 : 1}><Standup tasks={tasks} spent={selected.totalCost} /></Box>
-        <Box marginTop={1}>
+        <Box marginTop={1} flexDirection="column">
           {/* Non-card rows: status bar 1, title 1, gap + standup 2, gap 1, board panes 3,
               details pane. */}
           <ProjectBoard
@@ -2289,7 +2289,7 @@ export default function App(): React.ReactElement {
             </Panel>
           </Box>
         ) : null}
-        <Box marginTop={1}>
+        <Box marginTop={1} flexDirection="column">
           {/* Reserve every row the screen actually spends, or the board asks for more cards
               than fit, the clipped frame squeezes them and two cards land on one line (a
               card's tail survived as "…pagerm"). Non-card rows: status bar 1, header 1 +
