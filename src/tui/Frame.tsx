@@ -98,7 +98,7 @@ export function StatusBar({
 }: {
   projectName?: string;
   phase?: string;
-  sidebar?: "focused" | "available";
+  sidebar?: "focused" | "available" | "hidden";
   notices?: string[];
 }): React.ReactElement {
   const cols = useTermCols();
@@ -110,7 +110,7 @@ export function StatusBar({
   // notices) cuts "? help · q quit" rather than the keys you need here.
   const keys = sidebar === "focused"
     ? "↑↓ move · Enter open · tab/Esc back · q quit"
-    : `${phase && PHASE_HINTS[phase] ? `${PHASE_HINTS[phase]} · ` : ""}${sidebar === "available" ? "tab sidebar · " : ""}? help · q quit`;
+    : `${phase && PHASE_HINTS[phase] ? `${PHASE_HINTS[phase]} · ` : ""}${sidebar === "available" ? "tab sidebar · " : sidebar === "hidden" ? "\\ sidebar · " : ""}? help · q quit`;
   return (
     <Box width={cols} backgroundColor={C.statusBar} paddingX={1} justifyContent="space-between" flexShrink={0}>
       <Box flexShrink={0}>
@@ -166,6 +166,7 @@ export function AppFrame({
   pageProject,
   sidebar,
   sidebarFocused,
+  sidebarHidden,
   dialog,
   notices,
 }: {
@@ -179,6 +180,8 @@ export function AppFrame({
   /** The nav pane; omitted on narrow terminals. */
   sidebar?: React.ReactNode;
   sidebarFocused?: boolean;
+  /** The terminal has room for the sidebar but you hid it (`\`). */
+  sidebarHidden?: boolean;
   /** When set, the page behind is inert and this floats on top. */
   dialog?: React.ReactNode;
   /** Short "something newer is out" lines for the status bar. */
@@ -217,7 +220,7 @@ export function AppFrame({
       <StatusBar
         projectName={projectName}
         phase={phase}
-        sidebar={!sidebar || dialog ? undefined : sidebarFocused ? "focused" : "available"}
+        sidebar={dialog ? undefined : sidebarHidden ? "hidden" : !sidebar ? undefined : sidebarFocused ? "focused" : "available"}
         notices={notices}
       />
       {dialog ? <Dialog>{dialog}</Dialog> : null}

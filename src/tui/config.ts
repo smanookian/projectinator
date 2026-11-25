@@ -45,6 +45,8 @@ export interface AppConfig {
   modelUpgrades?: Record<string, string>;
   /** Newer models you chose not to switch to (no notice for them again). */
   skippedModels?: string[];
+  /** The sidebar is hidden (`\` or Settings → Appearance). Default shown. */
+  sidebarHidden?: boolean;
 }
 
 /** Providers that authenticate with an API key. "local" is configured under Settings → Local models. */
@@ -118,6 +120,15 @@ export function getTheme(): ThemeId {
 export function setTheme(v: ThemeId): void {
   const cfg = loadConfig();
   cfg.theme = v;
+  saveConfig(cfg);
+}
+
+export function getSidebarHidden(): boolean {
+  return loadConfig().sidebarHidden === true;
+}
+export function setSidebarHidden(hidden: boolean): void {
+  const cfg = loadConfig();
+  cfg.sidebarHidden = hidden;
   saveConfig(cfg);
 }
 

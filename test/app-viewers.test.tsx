@@ -433,6 +433,13 @@ describe("sidebar (wide terminal)", () => {
       // The page sits right of the sidebar, so its `→` row follows the sidebar's text.
       expect(frame(), "focus returns to the page").toMatch(/│\s*→ Add to backlog/);
       expect(frame()).not.toMatch(/^[\s│]*→ /m); // and the sidebar shows no cursor
+      // \ hides the sidebar (the page takes the width, the status bar says how to get it back)
+      // and shows it again.
+      r.stdin.write("\\");
+      await until(() => !frame().includes("▾ Your team"), frame);
+      expect(frame()).toContain("\\ sidebar");
+      r.stdin.write("\\");
+      await until(() => frame().includes("▾ Your team"), frame);
       // Shortcuts work while the sidebar has focus, too.
       r.stdin.write("\t");
       await until(() => frame().includes("Enter open"), frame);

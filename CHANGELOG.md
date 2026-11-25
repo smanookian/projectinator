@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.29.5 — 2026-11-25
+
+### Added
+- **`\` hides and shows the sidebar**, and the choice is remembered. Hidden, the page takes the
+  full width and the status bar says `\ sidebar`. Also in Settings → Appearance → Sidebar.
+
 ## 0.29.4 — 2026-11-25
 
 ### Changed

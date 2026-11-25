@@ -10,7 +10,7 @@ import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
 import { estimateAccuracy } from "../estimate.js";
 import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
-import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getWebhookUrl, setWebhookUrl, getPreferredStack, setPreferredStack, getUpdateCheck, setUpdateCheck, ENV_VAR, type Prefs, type KeyedProvider } from "./config.js";
+import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getWebhookUrl, setWebhookUrl, getPreferredStack, setPreferredStack, getUpdateCheck, setUpdateCheck, getSidebarHidden, setSidebarHidden, ENV_VAR, type Prefs, type KeyedProvider } from "./config.js";
 import { validateKey } from "./validate.js";
 import { openRouterModels, refreshOpenRouterModels } from "../openrouter.js";
 import { getLocalModels, setLocalModels, probeLocalServer, DEFAULT_LOCAL_URL } from "../local-models.js";
@@ -105,6 +105,7 @@ export function Settings({
       { title: "Appearance", items: [
         { label: `Theme: ${activeTheme.label}`, value: "theme" },
         { label: `Icons: ${iconMode === "nerd" ? "Nerd Font" : "Default (no font)"}`, value: "icons" },
+        { label: `Sidebar: ${getSidebarHidden() ? "Hidden" : "Shown"} (\\ toggles it)`, value: "sidebar" },
       ] },
       { title: "Updates", items: [
         { label: `Check for updates once a day: ${getUpdateCheck().on ? "On" : "Off"}`, value: "updateCheck" },
@@ -154,6 +155,10 @@ export function Settings({
                 const next = !getPrefs().parallelCode;
                 setPrefs({ parallelCode: next });
                 setNotice(next ? "Parallel code tasks on: independent code tasks build at once, each in its own git worktree, merged back per task. A conflict costs one serial re-run." : "Parallel code tasks off: code tasks run one at a time.");
+              } else if (i.value === "sidebar") {
+                const hide = !getSidebarHidden();
+                setSidebarHidden(hide);
+                setNotice(hide ? "Sidebar hidden — \\ shows it again." : "Sidebar shown (on terminals 110 columns or wider).");
               } else if (i.value === "icons") {
                 const next = iconMode === "nerd" ? "ascii" : "nerd";
                 setIconModeCtx(next);

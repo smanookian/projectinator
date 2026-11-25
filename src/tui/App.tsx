@@ -35,7 +35,7 @@ import { StackPick } from "./StackPick.js";
 import { stackInstruction, profileFor, PROFILES, type StackChoice } from "../stack.js";
 import type { Epic, CouncilResult } from "../council.js";
 import { allTemplates, saveUserTemplate, deleteUserTemplate, exportTemplate, importTemplate, type Template } from "./templates.js";
-import { getPrefs, getDefaultMode, getNotify, getWebhookUrl, getPreferredStack, getUpdateCheck, setUpdateCheck, addModelUpgrade, skipModel, type WorkflowMode } from "./config.js";
+import { getPrefs, getDefaultMode, getNotify, getWebhookUrl, getPreferredStack, getUpdateCheck, setUpdateCheck, addModelUpgrade, skipModel, getSidebarHidden, setSidebarHidden as saveSidebarHidden, type WorkflowMode } from "./config.js";
 import { notifyBuildDone, postWebhook } from "./notify.js";
 import {
   availableProviders,
@@ -196,6 +196,7 @@ export default function App(): React.ReactElement {
   // The page under a dialog (the last non-dialog phase) and the sidebar's focus.
   const [page, setPage] = useState<Phase>("setup");
   const [sidebarFocus, setSidebarFocus] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(() => getSidebarHidden());
   const [navProjects, setNavProjects] = useState<ProjectInfo[]>(() => listProjects());
   useEffect(() => {
     if (DIALOG_PHASES[phase]) return;
@@ -234,7 +235,8 @@ export default function App(): React.ReactElement {
   useEffect(refreshUpgrades, [providers]);
   const isDialog = !!DIALOG_PHASES[phase];
   const pagePhase = isDialog ? page : phase;
-  const showSidebar = termCols >= SIDEBAR_MIN_COLS;
+  const sidebarFits = termCols >= SIDEBAR_MIN_COLS;
+  const showSidebar = sidebarFits && !sidebarHidden;
   const sidebarFocused = sidebarFocus && showSidebar && !!NAV_PHASES[phase];
 
   // Reload the projects list and re-point `selected` at the given dir (after a mutation).
@@ -346,6 +348,14 @@ export default function App(): React.ReactElement {
     }
     if (input === "?" && !typing && !isDialog) return setHelpOpen(true);
     if (key.tab && showSidebar && NAV_PHASES[phase] && !typing) return setSidebarFocus((f) => !f);
+    // \ shows / hides the sidebar (remembered), like an editor's side panel.
+    if (input === "\\" && sidebarFits && !typing && !isDialog) {
+      const hidden = !sidebarHidden;
+      saveSidebarHidden(hidden);
+      setSidebarHidden(hidden);
+      setSidebarFocus(false);
+      return;
+    }
     // Jumps work with the sidebar focused too; landing somewhere hands focus to the page.
     if (jumps) {
       const jump = (go: () => void) => { setSidebarFocus(false); go(); };
@@ -821,6 +831,7 @@ export default function App(): React.ReactElement {
             setProviders(next);
             setSettingsStart("menu");
             refreshUpgrades(); // a role may have been reassigned
+            setSidebarHidden(getSidebarHidden()); // Appearance → Sidebar
             // Back to the page you came from (from the first-run screen: on to Home).
             setPhase(!next.length ? "setup" : page === "setup" ? "home" : page);
           }}
@@ -2463,6 +2474,7 @@ export default function App(): React.ReactElement {
       ]}
       sidebar={showSidebar ? <Sidebar groups={navGroups} focused={sidebarFocused} onSelect={navigate} upgradable={upgrades.map((u) => u.from)} /> : undefined}
       sidebarFocused={sidebarFocused}
+      sidebarHidden={sidebarFits && sidebarHidden}
       dialog={quitOpen ? <Quit building={phase === "building"} /> : helpOpen ? <Help /> : isDialog ? renderScreen(phase, termRows - 6, dialogCols) : undefined}
     >
       {/* Beside the sidebar the page sits in a pane: 3 rows of border + title bar, and the

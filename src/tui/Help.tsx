@@ -11,6 +11,7 @@ export const KEY_GROUPS: { title: string; keys: { keys: string; label: string }[
   { title: "Everywhere", keys: [
     { keys: "?", label: "this help" },
     { keys: "tab", label: "sidebar ⇄ page" },
+    { keys: "\\", label: "hide / show the sidebar" },
     { keys: "Esc / Backspace", label: "back / close" },
     { keys: "q", label: "quit (asks first)" },
   ] },
