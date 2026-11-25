@@ -1,40 +1,51 @@
-// Theme foundation: the token store + live `C` proxy, and the two built-in palettes.
+// Theme system: the family palettes (shared with Musinator / Todonator / Calinator), the
+// contrast guarantee, match-omarchy parsing, and the live `C` proxy.
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
-import { resolveTheme, setActiveTheme, activeTheme, C, THEMES, DARK, LIGHT, buildUiTheme, type ThemeId } from "../src/tui/theme.js";
+import { BUILTIN, DEFAULT_ID, OMARCHY_ID, resolveTheme, setActiveTheme, activeTheme, C, contrastReport, loadOmarchyTheme } from "../src/tui/theme.js";
 
 describe("theme", () => {
-  it("has exactly two built-ins, dark by default", () => {
-    expect(Object.keys(THEMES).sort()).toEqual(["dark", "light"]);
-    expect(resolveTheme(undefined).id).toBe("dark");
-    expect(resolveTheme(null).id).toBe("dark");
+  it("defaults to catppuccin-mocha like the other apps; unknown ids fall back to it", () => {
+    expect(DEFAULT_ID).toBe("catppuccin-mocha");
+    expect(resolveTheme(undefined).id).toBe(DEFAULT_ID);
+    expect(resolveTheme("dark").id).toBe(DEFAULT_ID);
+    expect(resolveTheme("nord").id).toBe("nord");
   });
 
-  it("dark is today's palette; light inverts to light-terminal contrast", () => {
-    expect(DARK.text).toBe("white");
-    expect(LIGHT.text).not.toBe(DARK.text);
-    expect(LIGHT.accent).not.toBe(DARK.accent);
-    // status colors must also flip (ANSI names → explicit dark-on-light hexes)
-    expect(DARK.warn).toBe("yellow");
-    expect(LIGHT.warn).toMatch(/^#[0-9a-f]{6}$/i);
-    // light paints an opaque app background (a light theme can't sit on a transparent
-    // terminal bg); dark respects the terminal and stays transparent
-    expect(LIGHT.bg).toBeDefined();
-    expect(DARK.bg).toBeUndefined();
+  it("every built-in theme passes every contrast pair it draws", () => {
+    const failures = BUILTIN.flatMap((t) =>
+      contrastReport(t).filter(([, got, min]) => got < min).map(([pair, got, min]) => `${t.id} ${pair}: ${got.toFixed(2)} < ${min}`),
+    );
+    expect(failures).toEqual([]);
+  });
+
+  it("match-omarchy reads colors.toml, and falls back to alacritty.toml", () => {
+    const dir = mkdtempSync(join(tmpdir(), "omarchy-theme-"));
+    try {
+      writeFileSync(join(dir, "alacritty.toml"), `[colors.primary]\nbackground = "#101010"\nforeground = "#e0e0e0"\n[colors.normal]\nblue = "#7799ff"\nred = "#ff5555"\n`);
+      const fromAlacritty = loadOmarchyTheme(dir)!;
+      expect(fromAlacritty.id).toBe(OMARCHY_ID);
+      expect(fromAlacritty.bg).toBe("#101010");
+      expect(fromAlacritty.accent).toBe("#7799ff");
+
+      writeFileSync(join(dir, "colors.toml"), `mode = "dark"\naccent = "#FF8866" # orange\nbackground = "#111110"\nforeground = "#e8dec6"\nselection = "#3a2a1c"\n`);
+      const fromColors = loadOmarchyTheme(dir)!;
+      expect(fromColors.bg).toBe("#111110");
+      expect(fromColors.accent).toBe("#ff8866");
+      expect(contrastReport(fromColors).filter(([, got, min]) => got < min)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("C follows setActiveTheme live (the proxy reads the current palette)", () => {
-    setActiveTheme(DARK);
-    expect(C.accent).toBe(DARK.accent);
-    setActiveTheme(LIGHT);
-    expect(C.accent).toBe(LIGHT.accent);
-    expect(C.warn).toBe(LIGHT.warn);
-    setActiveTheme(DARK); // restore shared module state for other tests
-    expect(activeTheme().id).toBe("dark");
-  });
-
-  it("buildUiTheme is keyed by the active theme", () => {
-    const t = buildUiTheme(DARK);
-    expect(typeof t).toBe("object");
-    expect(buildUiTheme(LIGHT)).not.toBe(t);
+    const before = activeTheme();
+    setActiveTheme(resolveTheme("gruvbox-dark"));
+    expect(C.accent).toBe(resolveTheme("gruvbox-dark").accent);
+    setActiveTheme(resolveTheme("nord"));
+    expect(C.accent).toBe(resolveTheme("nord").accent);
+    setActiveTheme(before); // restore shared module state for other tests
   });
 });

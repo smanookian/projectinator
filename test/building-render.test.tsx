@@ -25,8 +25,8 @@ describe("building screen renders with a running task", () => {
   });
 
   it("compact Kanban with a running task does not crash", () => {
-    const { lastFrame } = render(<Kanban tasks={tasks} compact maxPerCol={4} />);
-    expect(lastFrame()).toContain("IN PROGRESS");
+    const { lastFrame } = render(<Kanban tasks={tasks} maxPerCol={4} />);
+    expect(lastFrame()).toContain("In progress · 1");
   });
 
   it("Standup with a running task renders chips", () => {

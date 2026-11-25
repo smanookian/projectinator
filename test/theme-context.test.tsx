@@ -1,6 +1,6 @@
-// Theme context wiring: ThemedApp primes the live palette from persisted config and its
-// set() flips the palette + persists. HOME is redirected before the imports because
-// theme-context reads config at module load.
+// Theme context wiring: ThemedApp primes the live palette from persisted config, preview
+// paints without persisting, and set() flips the palette + persists. HOME is redirected before
+// the imports because theme-context reads config at module load.
 
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,8 +13,8 @@ import React, { useEffect } from "react";
 import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { describe, it, expect, afterAll } from "vitest";
-import { ThemedApp, useThemeCtx } from "../src/tui/theme-context.js";
-import { activeTheme, C, DARK, LIGHT } from "../src/tui/theme.js";
+import { ThemedApp, useThemeCtx, type ThemeApi } from "../src/tui/theme-context.js";
+import { activeTheme, C, resolveTheme } from "../src/tui/theme.js";
 import { getTheme, setTheme } from "../src/tui/config.js";
 
 afterAll(() => {
@@ -22,28 +22,39 @@ afterAll(() => {
   rmSync(home, { recursive: true, force: true });
 });
 
+const g = globalThis as { __ctx?: ThemeApi };
+
 function Probe(): React.ReactElement {
   const ctx = useThemeCtx();
   useEffect(() => {
-    (globalThis as { __set?: (t: "dark" | "light") => void }).__set = ctx.setTheme;
+    g.__ctx = ctx;
   });
   return <Text>{ctx.id}</Text>;
 }
 
-describe("theme context", () => {
-  it("primes from persisted config; set() flips the live palette and persists", async () => {
-    setTheme("light");
-    const { lastFrame, unmount } = render(<ThemedApp><Probe /></ThemedApp>);
-    await new Promise((r) => setTimeout(r, 30));
-    expect(lastFrame()).toContain("light");
-    expect(activeTheme().id).toBe("light");
-    expect(C.accent).toBe(LIGHT.accent);
+const tick = () => new Promise((r) => setTimeout(r, 30));
 
-    (globalThis as { __set?: (t: "dark" | "light") => void }).__set!("dark");
-    await new Promise((r) => setTimeout(r, 30));
-    expect(activeTheme().id).toBe("dark");
-    expect(C.accent).toBe(DARK.accent);
-    expect(getTheme()).toBe("dark");
+describe("theme context", () => {
+  it("primes from persisted config; preview paints without saving; set() flips and persists", async () => {
+    setTheme("nord");
+    const { lastFrame, unmount } = render(<ThemedApp><Probe /></ThemedApp>);
+    await tick();
+    expect(lastFrame()).toContain("nord");
+    expect(activeTheme().id).toBe("nord");
+
+    g.__ctx!.previewTheme("dracula");
+    await tick();
+    expect(C.accent).toBe(resolveTheme("dracula").accent);
+    expect(getTheme()).toBe("nord");
+    g.__ctx!.previewTheme(null);
+    await tick();
+    expect(activeTheme().id).toBe("nord");
+
+    g.__ctx!.setTheme("gruvbox-dark");
+    await tick();
+    expect(activeTheme().id).toBe("gruvbox-dark");
+    expect(C.accent).toBe(resolveTheme("gruvbox-dark").accent);
+    expect(getTheme()).toBe("gruvbox-dark");
     unmount();
   }, 15_000);
 });

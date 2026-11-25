@@ -6,7 +6,7 @@ import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { Spinner } from "@inkjs/ui";
 import type { Capability, Difficulty, Task } from "../types.js";
-import { C, KeyHint, TextField as TextInput, useTermRows } from "./components.js";
+import { C, KeyHint, TextField as TextInput, useTermRows, useInputActive } from "./components.js";
 import { cleanDeps } from "./engine.js";
 import { estimateTokens } from "../estimate.js";
 import { groupByEpic } from "./Kanban.js";
@@ -111,7 +111,7 @@ export function BoardEditor({
     });
     setCursor(0);
   };
-
+  const isActive = useInputActive();
   useInput((input, key) => {
     if (editing || busy) return;
     if (key.upArrow) return setCursor((c) => Math.max(0, c - 1));
@@ -160,7 +160,7 @@ export function BoardEditor({
       setCursor((c) => Math.max(0, c - 1));
     } else if (key.return) finish();
     else if (key.escape) onCancel();
-  });
+  }, { isActive });
 
   // Each full card is ~3 rows (id line, title line, margin); 8 of them overflow a short
   // terminal and the clipped frame merges rows. Fall back to one line per card.
@@ -176,8 +176,8 @@ export function BoardEditor({
         const sel = selected?.id === c.id;
         return (
           <Box key={c.id} flexDirection="column" marginBottom={tight ? 0 : 1}>
-            <Box>
-              <Text color={C.accent}>{sel ? "› " : "  "}</Text>
+            <Box backgroundColor={sel ? C.selection : undefined}>
+              <Text color={C.marker}>{sel ? "→ " : "  "}</Text>
               <Text color={C.dim}>{c.id} </Text>
               {tight ? (
                 sel && editing && editField === "title" ? (
@@ -267,7 +267,7 @@ export function BoardEditor({
         );
       })}
       <Box marginTop={1}>
-        <KeyHint compact={tight} hints={[
+        <KeyHint hints={[
           { keys: "↑↓", label: "pick" },
           { keys: "1-9", label: "collapse" },
           { keys: "→/←", label: "col" },

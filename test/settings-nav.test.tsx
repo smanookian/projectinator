@@ -26,12 +26,12 @@ const ESC = "\u001b";
 
 function app() {
   let exited = false;
-  const r = render(<Settings onExit={() => { exited = true; }} />);
+  const r = render(<Settings onExit={() => { exited = true; }} onCheckUpdates={() => {}} onNewerModels={() => {}} />);
   const key = async (s: string) => { r.stdin.write(s); await new Promise((res) => setTimeout(res, 40)); };
   const frame = () => r.lastFrame() ?? "";
   /** Walk the grouped menu down to a label, then Enter. */
   const open = async (label: string) => {
-    for (let i = 0; i < 20 && !(frame().split("\n").find((l) => l.includes("❯")) ?? "").includes(label); i++) await key(DOWN);
+    for (let i = 0; i < 20 && !(frame().split("\n").find((l) => /^[\s│]*→ /.test(l)) ?? "").includes(label); i++) await key(DOWN);
     await key(ENTER);
   };
   return { ...r, key, frame, open, exited: () => exited };
@@ -50,10 +50,10 @@ describe("Settings sub-screen audit", () => {
       await a.key(""); // let the menu subscribe to input
       await a.open(label);
       const inside = a.frame();
-      expect(inside, `${label} did not open a screen`).not.toContain("MODELS & PROVIDERS");
+      expect(inside, `${label} did not open a screen`).not.toContain("▾ Models & providers");
       expect(inside.trim().length, `${label} rendered (almost) nothing`).toBeGreaterThan(40);
       await a.key(ESC);
-      expect(a.frame(), `Esc did not come back from ${label}`).toContain("MODELS & PROVIDERS");
+      expect(a.frame(), `Esc did not come back from ${label}`).toContain("▾ Models & providers");
       expect(a.exited(), `Esc escaped Settings entirely from ${label}`).toBe(false);
     } finally { a.unmount(); }
   }, 20_000);
@@ -68,7 +68,7 @@ describe("Settings navigation", () => {
       expect(a.frame()).toContain("Connect to"); // on the Local-models screen
       await a.key(ESC);
       expect(a.frame()).not.toContain("Connect to"); // back on the menu
-      expect(a.frame()).toContain("MODELS & PROVIDERS");
+      expect(a.frame()).toContain("▾ Models & providers");
       expect(a.exited()).toBe(false);
       await a.key(ESC);
       expect(a.exited()).toBe(true); // Esc on the menu leaves Settings
@@ -81,9 +81,9 @@ describe("Settings navigation", () => {
       await a.key("");
       await a.open("Local models");
       // the URL is display-only here, so Enter can't submit it — only the menu is live
-      for (let i = 0; i < 6 && !(a.frame().split("\n").find((l) => l.includes("❯")) ?? "").includes("Back"); i++) await a.key(DOWN);
+      for (let i = 0; i < 6 && !(a.frame().split("\n").find((l) => /^[\s│]*→ /.test(l)) ?? "").includes("Back"); i++) await a.key(DOWN);
       await a.key(ENTER);
-      expect(a.frame()).toContain("MODELS & PROVIDERS");
+      expect(a.frame()).toContain("▾ Models & providers");
       expect(a.frame()).not.toMatch(/asking the server/); // never started a probe
     } finally { a.unmount(); }
   }, 20_000);

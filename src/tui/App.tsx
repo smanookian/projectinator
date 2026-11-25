@@ -3,18 +3,27 @@
 
 import { join } from "node:path";
 import React, { useEffect, useState } from "react";
-import { Box, Text, useApp, useInput } from "ink";
+import { Box, Text, useApp, useInput, useStdout } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
 import InkSpinner from "ink-spinner"; // a Text-based spinner, safe as an inline glyph inside <Text>
 import type { Provider } from "../types.js";
 import type { OrchestratorEvent } from "../orchestrator.js";
-import { C, BudgetBar, Panel, Chip, Menu as SelectInput, GroupedMenu, useTermRows, useTermCols, TextField as TextInput, ROLE_META, type TaskView, type MenuGroup } from "./components.js";
+import { C, BudgetBar, Panel, Chip, SelRow, Menu as SelectInput, GroupedMenu, useTermRows, useTermCols, TextField as TextInput, ROLE_META, type TaskView, type MenuGroup, type MenuItem } from "./components.js";
 import { roleGlyph } from "./icons.js";
-import { Kanban, type BoardTask } from "./Kanban.js";
+import { type BoardTask } from "./Kanban.js";
+import { TaskBoard, DETAILS_ROWS } from "./TaskBoard.js";
+import { ProjectBoard } from "./ProjectBoard.js";
+import { Help } from "./Help.js";
+import { Find } from "./Find.js";
+import { ModelUpdates } from "./ModelUpdates.js";
+import { UpdateAsk, UpdateDialog, findRelease, type Release } from "./Update.js";
+import { currentVersion, isSkipped, requestRestart, takeDue } from "../update.js";
+import { warmPiCatalog } from "../pi-catalog.js";
+import type { ModelUpgrade } from "../model-updates.js";
 import { BoardEditor } from "./BoardEditor.js";
 import { Team, Standup, ListView } from "./panels.js";
-import { EditableBoard } from "./EditableBoard.js";
 import { AppFrame } from "./Frame.js";
+import { Sidebar, SIDEBAR_WIDTH, type NavGroup } from "./Sidebar.js";
 import { Settings } from "./Settings.js";
 import { BakeOff } from "./BakeOff.js";
 import { Intake, type Answer } from "./Intake.js";
@@ -24,7 +33,7 @@ import { StackPick } from "./StackPick.js";
 import { stackInstruction, profileFor, PROFILES, type StackChoice } from "../stack.js";
 import type { Epic, CouncilResult } from "../council.js";
 import { allTemplates, saveUserTemplate, deleteUserTemplate, exportTemplate, importTemplate, type Template } from "./templates.js";
-import { getPrefs, getDefaultMode, getNotify, getWebhookUrl, getPreferredStack, type WorkflowMode } from "./config.js";
+import { getPrefs, getDefaultMode, getNotify, getWebhookUrl, getPreferredStack, getUpdateCheck, setUpdateCheck, addModelUpgrade, skipModel, type WorkflowMode } from "./config.js";
 import { notifyBuildDone, postWebhook } from "./notify.js";
 import {
   availableProviders,
@@ -55,6 +64,8 @@ import {
   projectRetro,
   projectSprints,
   getRetroNarrative,
+  availableUpgrades,
+  projectRoot,
   generateRetroNarrative,
   breakdownEpic,
   planExtraTasks,
@@ -81,8 +92,33 @@ const verdictLabel = (v: Verdict, capability: Capability): "PASS" | "PASS*" | "F
   !v.passed ? "FAIL" : v.runtimeChecked || capability !== "test" ? "PASS" : "PASS*";
 
 type Phase =
-  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "editBoard" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "diff" | "transcripts" | "transcript" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions" | "importProject" | "publish"
+  | "setup" | "home" | "settings" | "projects" | "projectActions" | "addAsset" | "rename" | "confirmDelete" | "filterEpic" | "kanban" | "templates" | "exportMenu" | "deployMenu" | "deploying" | "preview" | "bakeoff" | "history" | "diff" | "transcripts" | "transcript" | "retro" | "burndown" | "saveTemplate" | "importTemplate" | "myTemplates" | "tplActions" | "importProject" | "publish" | "find" | "models" | "update" | "updateAsk"
   | "idea" | "change" | "stack" | "assessing" | "intake" | "planMode" | "council" | "approveEpics" | "planning" | "plan" | "board" | "building" | "done" | "error" | "setCap";
+
+/** Wizard steps, small prompts and Settings float as a dialog over the last page. */
+const DIALOG_PHASES: Partial<Record<Phase, true>> = {
+  settings: true, idea: true, change: true, stack: true, assessing: true, intake: true, planMode: true,
+  council: true, approveEpics: true, planning: true, plan: true, setCap: true, rename: true,
+  confirmDelete: true, addAsset: true, importProject: true, saveTemplate: true, importTemplate: true,
+  tplActions: true, exportMenu: true, deployMenu: true, deploying: true, filterEpic: true, publish: true, find: true,
+  models: true, update: true, updateAsk: true,
+};
+
+/** Pages the sidebar can take focus on and navigate away from — not mid-build, not while a
+ *  board editor or other text field owns the keyboard. */
+const NAV_PHASES: Partial<Record<Phase, true>> = {
+  setup: true, home: true, projects: true, projectActions: true, kanban: true, burndown: true, retro: true,
+  history: true, diff: true, transcripts: true, transcript: true, preview: true, templates: true, myTemplates: true,
+};
+
+/** Pages that belong to the open project — the main pane's title names it. */
+const PROJECT_PAGES: Partial<Record<Phase, true>> = {
+  projectActions: true, kanban: true, burndown: true, retro: true, history: true,
+  diff: true, transcripts: true, transcript: true, preview: true,
+};
+
+/** Below this width the sidebar would squeeze the page, so it hides and pages use the full width. */
+const SIDEBAR_MIN_COLS = 110;
 
 export default function App(): React.ReactElement {
   const { exit } = useApp();
@@ -155,6 +191,43 @@ export default function App(): React.ReactElement {
   const termRows = useTermRows();
   const termCols = useTermCols();
 
+  // The page under a dialog (the last non-dialog phase) and the sidebar's focus.
+  const [page, setPage] = useState<Phase>("setup");
+  const [sidebarFocus, setSidebarFocus] = useState(false);
+  const [navProjects, setNavProjects] = useState<ProjectInfo[]>(() => listProjects());
+  useEffect(() => {
+    if (DIALOG_PHASES[phase]) return;
+    setPage(phase);
+    setNavProjects(listProjects()); // a page change is when the list can have moved
+  }, [phase]);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [settingsStart, setSettingsStart] = useState<"menu" | "theme">("menu");
+  const [boardTyping, setBoardTyping] = useState(false); // a board prompt owns the keyboard
+  const [liveSel, setLiveSel] = useState<string | undefined>(undefined); // card picked on the live board
+
+  // ---- "something newer is out": the app itself (npm) and the models the team runs ----
+  const version = currentVersion(projectRoot());
+  const [release, setRelease] = useState<Release | null>(null);
+  const [upgrades, setUpgrades] = useState<ModelUpgrade[]>([]);
+  const refreshUpgrades = () => setUpgrades(availableUpgrades());
+  // Only in a real terminal: a test renderer (no TTY) never gets the question or the network.
+  const isTTY = !!useStdout().stdout?.isTTY;
+  useEffect(() => {
+    void warmPiCatalog().then(refreshUpgrades);
+    if (!isTTY) return;
+    const u = getUpdateCheck();
+    if (!u.asked) setPhase("updateAsk");
+    else if (u.on && takeDue()) {
+      void findRelease(version).then((rel) => { if (rel && !isSkipped(rel.version)) setRelease(rel); });
+    }
+  }, []);
+  // A key added or a provider preferred changes the team, so re-check its models.
+  useEffect(refreshUpgrades, [providers]);
+  const isDialog = !!DIALOG_PHASES[phase];
+  const pagePhase = isDialog ? page : phase;
+  const showSidebar = termCols >= SIDEBAR_MIN_COLS;
+  const sidebarFocused = sidebarFocus && showSidebar && !!NAV_PHASES[phase];
+
   // Reload the projects list and re-point `selected` at the given dir (after a mutation).
   const reselect = (dir: string | null) => {
     const list = listProjects();
@@ -220,7 +293,10 @@ export default function App(): React.ReactElement {
       case "transcript": setTranscript(null); return setPhase("transcripts");
       case "retro": return setPhase("projectActions");
       case "burndown": return setPhase("projectActions");
-      case "kanban": return setPhase("projectActions");
+      case "find": return setPhase(page);
+      case "models": return setPhase(page);
+      case "update": return setPhase(page);
+      case "updateAsk": return setPhase(page);
       case "preview": {
         if (preview && "server" in preview) void preview.server.close();
         setPreview(null);
@@ -242,17 +318,45 @@ export default function App(): React.ReactElement {
     phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "importProject" ||
     phase === "bakeoff" || phase === "intake" || phase === "setCap" || phase === "stack" ||
     phase === "saveTemplate" || phase === "importTemplate" || phase === "settings" ||
-    phase === "editBoard" || phase === "board" || (phase === "building" && steer !== null);
+    phase === "board" || phase === "find" || (phase === "kanban" && boardTyping) || (phase === "building" && steer !== null);
+  // Single-key jumps (N, /, P, H, t, S) work on pages — not mid-build, not in a dialog, not
+  // while a text field has the keyboard.
+  const jumps = !!NAV_PHASES[phase] && !typing;
   useInput((input, key) => {
     if (key.ctrl && input === "c") return exit();
+    if (helpOpen) {
+      if (key.escape || input === "?" || input === "q" || key.return) setHelpOpen(false);
+      return;
+    }
+    if (input === "?" && !typing && !isDialog) return setHelpOpen(true);
+    if (key.tab && showSidebar && NAV_PHASES[phase] && !typing) return setSidebarFocus((f) => !f);
+    // Jumps work with the sidebar focused too; landing somewhere hands focus to the page.
+    if (jumps) {
+      const jump = (go: () => void) => { setSidebarFocus(false); go(); };
+      if (input === "S" || input === "t") return jump(() => { setSettingsStart(input === "t" ? "theme" : "menu"); setPhase("settings"); });
+      if (input === "N") return jump(() => navigate("new"));
+      if (input === "/") return jump(() => setPhase("find"));
+      if (input === "P") return jump(() => navigate("open"));
+      if (input === "H") return jump(() => navigate("home"));
+      if (input === "U") return jump(() => setPhase("update"));
+      if (input === "M") return jump(() => setPhase("models"));
+    }
+    if (sidebarFocused) {
+      // The sidebar owns ↑↓/Enter; Esc hands focus back to the page.
+      if (key.escape) setSidebarFocus(false);
+      else if (input === "q") exit();
+      return;
+    }
     if (input === "q" && !typing) return exit();
-    if (key.escape) {
+    // Backspace is "back" too, like the other apps — except where it deletes typed text.
+    if (key.escape || ((key.backspace || key.delete) && !typing)) {
       if (phase === "building" && steer) return setSteer(null);
       goBack();
     }
-    if (phase === "burndown" && selected && (key.leftArrow || key.rightArrow)) {
+    if (phase === "burndown" && selected && (key.leftArrow || key.rightArrow || input === "h" || input === "l")) {
       const n = projectSprints(selected.dir)?.sprints.length ?? 0;
-      if (n > 1) setSprintIx((i) => Math.max(0, Math.min(n - 1, (i ?? n - 1) + (key.rightArrow ? 1 : -1))));
+      const dir = key.rightArrow || input === "l" ? 1 : -1;
+      if (n > 1) setSprintIx((i) => Math.max(0, Math.min(n - 1, (i ?? n - 1) + dir)));
       return;
     }
     // Steering keys while a build runs (not while a steering prompt or the gate has the keyboard).
@@ -279,7 +383,9 @@ export default function App(): React.ReactElement {
         return;
       }
       const page = Math.max(4, termRows - 18);
-      const step = key.upArrow ? -1 : key.downArrow ? 1 : key.pageUp ? -page : key.pageDown ? page : 0;
+      const up = key.upArrow || input === "k", down = key.downArrow || input === "j";
+      const pgUp = key.pageUp || (key.ctrl && input === "u"), pgDown = key.pageDown || (key.ctrl && input === "d");
+      const step = up ? -1 : down ? 1 : pgUp ? -page : pgDown ? page : 0;
       if (!step) return;
       const scroll = Math.max(0, pager.scroll + step);
       if (phase === "transcript") setTranscript({ ...transcript!, scroll });
@@ -454,10 +560,173 @@ export default function App(): React.ReactElement {
     };
   }, [phase, plan, idea]);
 
+  // Home menu actions — also reached from the sidebar's top group.
+  const homeAction = (i: MenuItem) => {
+    if (i.value === "new") {
+      resetBuildContext();
+      setScope("full");
+      setPhase("idea");
+    } else if (i.value === "templates") {
+      setPhase("templates");
+    } else if (i.value === "import") {
+      setAssetPath(""); setAssetMsg(null); setAssetKey((k) => k + 1);
+      setPhase("importProject");
+    } else if (i.value === "open") {
+      setProjects(listProjects());
+      setPhase("projects");
+    } else if (i.value === "bakeoff") {
+      setPhase("bakeoff");
+    } else if (i.value === "settings") {
+      setPhase("settings");
+    } else exit();
+  };
+
+  // Project actions — the project menu and the sidebar's project pages both land here.
+  const projectAction = (i: MenuItem) => {
+    if (!selected) return;
+    if (i.value !== "export") setFlash("");
+    if (i.value === "kanban") { setFlash(""); setPhase("kanban"); }
+    else if (i.value === "export") { setFlash(""); setPhase("exportMenu"); }
+    else if (i.value === "deploy") { setFlash(""); setPhase("deployMenu"); }
+    else if (i.value === "share") {
+      const r = shareBuild(selected.dir);
+      setFlash(r.ok ? `Archived → ${r.path}` : r.error);
+    }
+    else if (i.value === "publish") { setFlash(""); setPhase("publish"); }
+    else if (i.value === "gh-push") {
+      const r = publish(selected.dir, selected.idea, "private");
+      setFlash(r.ok ? `Pushed → ${r.url}` : r.error);
+    }
+    else if (i.value === "gh-pr") {
+      const r = openPullRequest(selected.dir, `Projectinator: ${selected.idea.slice(0, 60)}`, prBody(selected.state, selected.state.tasks.map((t) => t.id)));
+      setFlash(r.ok ? `Pull request → ${r.url}` : r.error);
+    }
+    else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
+    else if (i.value === "filter") setPhase("filterEpic");
+    else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
+    else if (i.value === "history") { setFlash(""); setPhase("history"); }
+    else if (i.value === "transcripts") { setFlash(""); setPhase("transcripts"); }
+    else if (i.value === "retro") { setFlash(""); setNarr({ loading: false, text: getRetroNarrative(selected.dir) ?? "", error: "" }); setPhase("retro"); }
+    else if (i.value === "burndown") { setFlash(""); setPhase("burndown"); }
+    else if (i.value === "scripts") {
+      setAllowInstallScripts(selected.dir, !selected.state.allowInstallScripts);
+      reselect(selected.dir);
+      setFlash(`Install scripts ${selected.state.allowInstallScripts ? "blocked" : "allowed"} for this project (npm ci ${selected.state.allowInstallScripts ? "--ignore-scripts" : "with scripts"}). Applies to the next build/test.`);
+    }
+    else if (i.value === "cap") { setCapReturn("projectActions"); setCapDraft(selected.state.budgetCapUSD != null ? String(selected.state.budgetCapUSD) : ""); setPhase("setCap"); }
+    else if (i.value === "saveTpl") { setFlash(""); setTplName(selected.idea.slice(0, 40)); setPhase("saveTemplate"); }
+    else if (i.value === "preview") {
+      const dir = selected.dir;
+      setPreview(null);
+      setPhase("preview");
+      startStaticServer(dir, { liveReload: true })
+        .then((server) => {
+          setPreview({ server });
+          const main = mainFileOf(dir).split("/").pop() || "index.html";
+          openInBrowser(`${server.url}/${main}`);
+        })
+        .catch((e) => setPreview({ error: e instanceof Error ? e.message : String(e) }));
+    }
+    else if (i.value === "back") setPhase("projects");
+    else if (i.value === "rename") {
+      setRenameDraft(selected.idea);
+      setPhase("rename");
+    } else if (i.value === "duplicate") {
+      const newDir = duplicateProject(selected.dir);
+      reselect(newDir);
+      setPhase("projectActions");
+    } else if (i.value === "delete") {
+      setPhase("confirmDelete");
+    } else if (i.value === "asset") {
+      setTargetWorkspace(selected.dir);
+      setAssetPath("");
+      setAssetMsg(null);
+      setAssetReturn("projectActions");
+      setPhase("addAsset");
+    } else if (i.value === "change") {
+      setTargetWorkspace(selected.dir);
+      setSeed(undefined);
+      setIdea("");
+      setScope("change");
+      setPhase("change");
+    } else if (i.value === "resume") {
+      const { registry, lock } = chooseRegistry(providers);
+      const done = completedIds(selected.state);
+      setPlan({
+        tasks: selected.state.tasks,
+        provider: lock ?? providers[0]!,
+        modelId: "",
+        estCost: estimateTasks(selected.state.tasks, registry).total,
+        registry,
+        lock,
+      });
+      setTasks(
+        selected.state.tasks.map((t) => ({
+          id: t.id, capability: t.capability, title: t.title,
+          status: done.has(t.id) ? "done" : "pending",
+        })),
+      );
+      setSpent(selected.state.totalCost);
+      setTargetWorkspace(selected.dir);
+      setSeed(selected.state.outcomes);
+      setIdea(selected.idea);
+      setPhase("building");
+    }
+  };
+
+  // Sidebar navigation: app pages reuse the home menu's actions, project pages the project
+  // menu's, so every route has one implementation.
+  const navigate = (value: string) => {
+    setSidebarFocus(false);
+    setFlash("");
+    if (phase === "preview" && preview && "server" in preview) void preview.server.close();
+    if (phase === "preview") setPreview(null);
+    if (!providers.length && value !== "settings") return setPhase("setup");
+    if (value.startsWith("project:")) {
+      const proj = navProjects.find((p) => p.dir === value.slice("project:".length)) ?? null;
+      setSelected(proj);
+      setProjectCap(proj?.state.budgetCapUSD ?? null);
+      setEpicFilter(null);
+      return setPhase("projectActions");
+    }
+    if (value === "page:overview") return setPhase("projectActions");
+    if (value.startsWith("page:")) return projectAction({ label: "", value: value.slice("page:".length) });
+    if (value === "home") return setPhase("home");
+    homeAction({ label: "", value });
+  };
+
+  const projectRows = Math.max(3, termRows - 31);
+  const navGroups: NavGroup[] = [
+    { title: "", items: [
+      { label: "Home", value: "home", current: pagePhase === "home" || pagePhase === "setup" },
+      { label: "New build", value: "new" },
+      { label: "Templates", value: "templates", current: pagePhase === "templates" || pagePhase === "myTemplates" },
+      { label: "Import a folder", value: "import" },
+      { label: "Bake-off", value: "bakeoff", current: pagePhase === "bakeoff" },
+      { label: "Settings", value: "settings", current: phase === "settings" },
+    ] },
+    { title: "Projects", items: [
+      ...navProjects.slice(0, projectRows).map((p) => ({
+        label: p.idea, value: `project:${p.dir}`, right: `$${p.totalCost.toFixed(2)}`, current: selected?.dir === p.dir,
+      })),
+      { label: "All projects", value: "open", right: String(navProjects.length), current: pagePhase === "projects" },
+    ] },
+    ...(selected ? [{ title: "This project", items: [
+      { label: "Overview", value: "page:overview", current: pagePhase === "projectActions" },
+      { label: "Board", value: "page:kanban", current: pagePhase === "kanban" },
+      { label: "Sprints", value: "page:burndown", current: pagePhase === "burndown" },
+      { label: "Retro", value: "page:retro", current: pagePhase === "retro" },
+      { label: "History", value: "page:history", current: pagePhase === "history" || pagePhase === "diff" },
+      { label: "Transcripts", value: "page:transcripts", current: pagePhase === "transcripts" || pagePhase === "transcript" },
+      { label: "Preview", value: "page:preview", current: pagePhase === "preview" },
+    ] }] : []),
+  ];
+
   // ================= screens =================
-  // Each phase renders its own content; AppFrame (below) wraps the result in the
-  // persistent frame (status bar pinned to the bottom on every screen).
-  const screen: React.ReactElement = (() => {
+  // Each phase renders its own content. AppFrame (below) places the page beside the sidebar,
+  // floats dialog phases over the last page, and pins the status bar. `termRows`/`termCols`
+  // are the space the screen gets, so a screen sizes itself the same in a dialog or a page.
+  const renderScreen = (phase: Phase, termRows: number, termCols: number): React.ReactElement => {
 
   if (phase === "setup") {
     const ready = providers.length > 0;
@@ -517,25 +786,7 @@ export default function App(): React.ReactElement {
         <Panel title="What would you like to do?">
           <SelectInput
             items={items}
-            onSelect={(i) => {
-              if (i.value === "new") {
-                resetBuildContext();
-                setScope("full");
-                setPhase("idea");
-              } else if (i.value === "templates") {
-                setPhase("templates");
-              } else if (i.value === "import") {
-                setAssetPath(""); setAssetMsg(null); setAssetKey((k) => k + 1);
-                setPhase("importProject");
-              } else if (i.value === "open") {
-                setProjects(projs);
-                setPhase("projects");
-              } else if (i.value === "bakeoff") {
-                setPhase("bakeoff");
-              } else if (i.value === "settings") {
-                setPhase("settings");
-              } else exit();
-            }}
+            onSelect={homeAction}
           />
         </Panel>
       </Box>
@@ -546,13 +797,74 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Settings
+          start={settingsStart}
+          onCheckUpdates={() => { setSettingsStart("menu"); setPhase("update"); }}
+          onNewerModels={() => { setSettingsStart("menu"); setPhase("models"); }}
           onExit={() => {
             const next = availableProviders();
             setProviders(next);
-            setPhase(next.length ? "home" : "setup");
+            setSettingsStart("menu");
+            refreshUpgrades(); // a role may have been reassigned
+            // Back to the page you came from (from the first-run screen: on to Home).
+            setPhase(!next.length ? "setup" : page === "setup" ? "home" : page);
           }}
         />
       </Box>
+    );
+  }
+
+  if (phase === "find") {
+    return (
+      <Find
+        projects={navProjects}
+        maxRows={termRows - 10}
+        onOpen={(dir) => navigate(`project:${dir}`)}
+      />
+    );
+  }
+
+  if (phase === "models") {
+    return (
+      <ModelUpdates
+        upgrades={upgrades}
+        onSwitch={(u) => {
+          addModelUpgrade(u.from, u.to.id);
+          setFlash(`${u.roles.join(", ")} now on ${modelLabel(u.to.id)}.`);
+          const rest = availableUpgrades();
+          setUpgrades(rest);
+          if (!rest.length) setPhase(page);
+        }}
+        onSkip={(u) => {
+          skipModel(u.to.id);
+          const rest = availableUpgrades();
+          setUpgrades(rest);
+          if (!rest.length) setPhase(page);
+        }}
+      />
+    );
+  }
+
+  if (phase === "update") {
+    return (
+      <UpdateDialog
+        current={version}
+        known={release}
+        onFound={setRelease}
+        onSkipped={() => { setRelease(null); setPhase(page); }}
+        onRestart={() => { requestRestart(); exit(); }}
+      />
+    );
+  }
+
+  if (phase === "updateAsk") {
+    return (
+      <UpdateAsk
+        onAnswer={(yes) => {
+          setUpdateCheck(yes);
+          setPhase(page);
+          if (yes && takeDue()) void findRelease(version).then((rel) => { if (rel) setRelease(rel); });
+        }}
+      />
     );
   }
 
@@ -669,7 +981,8 @@ export default function App(): React.ReactElement {
     return (
       <Box flexDirection="column">
         <Box>
-          <Box flexGrow={1} marginRight={2}><Text bold color={C.text} wrap="truncate-end">{selected.idea}</Text></Box>
+          {/* Beside the sidebar the pane's title bar already names the project. */}
+          <Box flexGrow={1} marginRight={2}>{showSidebar ? null : <Text bold color={C.text} wrap="truncate-end">{selected.idea}</Text>}</Box>
           <Text color={statusChip.dot}>● </Text><Text color={C.textMuted}>{statusChip.label}</Text>
         </Box>
         {flash ? <Box marginTop={1}><StatusMessage variant="success">{flash}</StatusMessage></Box> : null}
@@ -677,122 +990,14 @@ export default function App(): React.ReactElement {
         {/* The roster panel is ~10 rows. On a short terminal it pushed the total past the
             viewport, and the clipped frame made Yoga overlap rows — so it only renders when
             there is room for it AND a usable menu. */}
-        {termRows >= 32 ? <Box marginTop={1}><Team /></Box> : null}
+        {termRows >= 32 && !showSidebar ? <Box marginTop={1}><Team /></Box> : null}
         <Box marginTop={1}>
           <GroupedMenu
             groups={menuGroups}
-            maxRows={Math.max(6, termRows - (termRows >= 32 ? 21 : 11))}
-            onSelect={(i) => {
-              if (i.value !== "export") setFlash("");
-              if (i.value === "editBoard") setPhase("editBoard");
-              else if (i.value === "kanban") { setFlash(""); setPhase("kanban"); }
-              else if (i.value === "export") { setFlash(""); setPhase("exportMenu"); }
-              else if (i.value === "deploy") { setFlash(""); setPhase("deployMenu"); }
-              else if (i.value === "share") {
-                const r = shareBuild(selected.dir);
-                setFlash(r.ok ? `Archived → ${r.path}` : r.error);
-              }
-              else if (i.value === "publish") { setFlash(""); setPhase("publish"); }
-              else if (i.value === "gh-push") {
-                const r = publish(selected.dir, selected.idea, "private");
-                setFlash(r.ok ? `Pushed → ${r.url}` : r.error);
-              }
-              else if (i.value === "gh-pr") {
-                const r = openPullRequest(selected.dir, `Projectinator: ${selected.idea.slice(0, 60)}`, prBody(selected.state, selected.state.tasks.map((t) => t.id)));
-                setFlash(r.ok ? `Pull request → ${r.url}` : r.error);
-              }
-              else if (i.value === "view") setViewMode((v) => (v === "board" ? "list" : "board"));
-              else if (i.value === "filter") setPhase("filterEpic");
-              else if (i.value === "open") openInBrowser(mainFileOf(selected.dir));
-              else if (i.value === "history") { setFlash(""); setPhase("history"); }
-              else if (i.value === "transcripts") { setFlash(""); setPhase("transcripts"); }
-              else if (i.value === "retro") { setFlash(""); setNarr({ loading: false, text: getRetroNarrative(selected.dir) ?? "", error: "" }); setPhase("retro"); }
-              else if (i.value === "burndown") { setFlash(""); setPhase("burndown"); }
-              else if (i.value === "scripts") {
-                setAllowInstallScripts(selected.dir, !selected.state.allowInstallScripts);
-                reselect(selected.dir);
-                setFlash(`Install scripts ${selected.state.allowInstallScripts ? "blocked" : "allowed"} for this project (npm ci ${selected.state.allowInstallScripts ? "--ignore-scripts" : "with scripts"}). Applies to the next build/test.`);
-              }
-              else if (i.value === "cap") { setCapReturn("projectActions"); setCapDraft(selected.state.budgetCapUSD != null ? String(selected.state.budgetCapUSD) : ""); setPhase("setCap"); }
-              else if (i.value === "saveTpl") { setFlash(""); setTplName(selected.idea.slice(0, 40)); setPhase("saveTemplate"); }
-              else if (i.value === "preview") {
-                const dir = selected.dir;
-                setPreview(null);
-                setPhase("preview");
-                startStaticServer(dir, { liveReload: true })
-                  .then((server) => {
-                    setPreview({ server });
-                    const main = mainFileOf(dir).split("/").pop() || "index.html";
-                    openInBrowser(`${server.url}/${main}`);
-                  })
-                  .catch((e) => setPreview({ error: e instanceof Error ? e.message : String(e) }));
-              }
-              else if (i.value === "back") setPhase("projects");
-              else if (i.value === "rename") {
-                setRenameDraft(selected.idea);
-                setPhase("rename");
-              } else if (i.value === "duplicate") {
-                const newDir = duplicateProject(selected.dir);
-                reselect(newDir);
-                setPhase("projectActions");
-              } else if (i.value === "delete") {
-                setPhase("confirmDelete");
-              } else if (i.value === "asset") {
-                setTargetWorkspace(selected.dir);
-                setAssetPath("");
-                setAssetMsg(null);
-                setAssetReturn("projectActions");
-                setPhase("addAsset");
-              } else if (i.value === "change") {
-                setTargetWorkspace(selected.dir);
-                setSeed(undefined);
-                setIdea("");
-                setScope("change");
-                setPhase("change");
-              } else if (i.value === "resume") {
-                const { registry, lock } = chooseRegistry(providers);
-                const done = completedIds(selected.state);
-                setPlan({
-                  tasks: selected.state.tasks,
-                  provider: lock ?? providers[0]!,
-                  modelId: "",
-                  estCost: estimateTasks(selected.state.tasks, registry).total,
-                  registry,
-                  lock,
-                });
-                setTasks(
-                  selected.state.tasks.map((t) => ({
-                    id: t.id, capability: t.capability, title: t.title,
-                    status: done.has(t.id) ? "done" : "pending",
-                  })),
-                );
-                setSpent(selected.state.totalCost);
-                setTargetWorkspace(selected.dir);
-                setSeed(selected.state.outcomes);
-                setIdea(selected.idea);
-                setPhase("building");
-              }
-            }}
+            maxRows={Math.max(6, termRows - (termRows >= 32 && !showSidebar ? 21 : 11))}
+            onSelect={projectAction}
           />
         </Box>
-      </Box>
-    );
-  }
-
-  if (phase === "editBoard" && selected) {
-    const doneIds = completedIds(selected.state);
-    return (
-      <Box flexDirection="column">
-        <EditableBoard
-          tasks={selected.state.tasks}
-          doneIds={doneIds}
-          onSave={(t) => {
-            saveProjectTasks(selected.dir, t);
-            reselect(selected.dir);
-            setPhase("kanban"); // back to the board view
-          }}
-          onCancel={() => setPhase("kanban")}
-        />
       </Box>
     );
   }
@@ -985,9 +1190,9 @@ export default function App(): React.ReactElement {
           <Box flexDirection="column">
             <Text color={C.dim}>{"     planned  done  retries    cost   time"}</Text>
             {sprints.map((s, i) => (
-              <Text key={s.n} color={i === ix ? C.accent : C.text}>
-                {`${i === ix ? "❯" : " "} S${s.n}`.padEnd(6)}{String(s.planned).padStart(5)}{String(s.done).padStart(6)}{String(s.retries).padStart(9)}{money(s.cost).padStart(8)}   {dur(s.durationMs)}{s.status === "halted" ? "  halted" : ""}
-              </Text>
+              <SelRow key={s.n} sel={i === ix}>
+                {`S${s.n}`.padEnd(4)}{String(s.planned).padStart(5)}{String(s.done).padStart(6)}{String(s.retries).padStart(9)}{money(s.cost).padStart(8)}   {dur(s.durationMs)}{s.status === "halted" ? "  halted" : ""}
+              </SelRow>
             ))}
             <Text color={C.textMuted}>
               {summary.velocity !== undefined ? `Velocity: ${summary.velocity} tasks per sprint` : "Velocity: after the first sprint ends"}
@@ -1045,27 +1250,32 @@ export default function App(): React.ReactElement {
       title: t.title,
       epic: t.epic,
       dependsOn: t.dependsOn,
+      difficulty: t.difficulty,
       notes: t.notes,
       status: done.has(t.id) ? "done" : "pending",
       cost: costBy.get(t.id),
       assignee: modelBy.has(t.id) ? modelLabel(modelBy.get(t.id)!) : undefined,
     }));
+    const canBuild = selected.status === "halted" || selected.state.tasks.some((t) => !done.has(t.id));
     return (
       <Box flexDirection="column">
-        <Text bold color={C.text} wrap="truncate-end">{selected.idea}</Text>
-        <Box marginTop={1}><Standup tasks={tasks} spent={selected.totalCost} /></Box>
+        {showSidebar ? null : <Text bold color={C.text} wrap="truncate-end">{selected.idea}</Text>}
+        <Box marginTop={showSidebar ? 0 : 1}><Standup tasks={tasks} spent={selected.totalCost} /></Box>
         <Box marginTop={1}>
-          <Panel title="Board">
-            <Kanban tasks={tasks} compact maxPerCol={Math.max(4, termRows - 14)} />
-          </Panel>
-        </Box>
-        <Box marginTop={1}>
-          <SelectInput
-            items={[
-              { label: "Edit board (add · reorder · deps · rename)", value: "edit" },
-              { label: "Back", value: "back" },
-            ]}
-            onSelect={(i) => setPhase(i.value === "edit" ? "editBoard" : "projectActions")}
+          {/* Non-card rows: status bar 1, title 1, gap + standup 2, gap 1, board panes 3,
+              details pane. */}
+          <ProjectBoard
+            tasks={selected.state.tasks}
+            view={tasks}
+            doneIds={done}
+            maxPerCol={Math.max(3, termRows - 8 - DETAILS_ROWS)}
+            onChange={(next) => {
+              saveProjectTasks(selected.dir, next);
+              reselect(selected.dir);
+            }}
+            onBuild={canBuild ? () => projectAction({ label: "", value: "resume" }) : undefined}
+            onBack={() => { setBoardTyping(false); setPhase("projectActions"); }}
+            onTyping={setBoardTyping}
           />
         </Box>
       </Box>
@@ -1148,7 +1358,7 @@ export default function App(): React.ReactElement {
               <Box marginTop={1}><StatusMessage variant="error">{narr.error}</StatusMessage></Box>
             ) : narr.text ? (
               <Box marginTop={1}>
-                <Panel title="AI narrative">
+                <Panel title="AI narrative" focused={false}>
                   {narr.text.split("\n").map((line, i) => <Text key={i} wrap="wrap">{line}</Text>)}
                 </Panel>
               </Box>
@@ -1318,9 +1528,9 @@ export default function App(): React.ReactElement {
                   const ix = from + i;
                   const on = ix === transcript.ix;
                   return (
-                    <Text key={ix} color={on ? C.accent : C.textMuted} wrap="truncate-end">
-                      {on ? "❯ " : "  "}{r.taskId.padEnd(6)} {r.capability.padEnd(7)} ${r.cost.toFixed(2)}
-                    </Text>
+                    <SelRow key={ix} sel={on}>
+                      {r.taskId.padEnd(6)} {r.capability.padEnd(7)} ${r.cost.toFixed(2)}
+                    </SelRow>
                   );
                 })}
               </Box>
@@ -1834,7 +2044,7 @@ export default function App(): React.ReactElement {
         {/* Roster (~10 rows) and the alternate-roster table are the first things to go: the
             decision menu below must stay whole. Overflowing the clipped frame makes Yoga
             render rows on top of each other. */}
-        {termRows >= 32 ? <Box marginTop={1}><Team /></Box> : null}
+        {termRows >= 32 && !showSidebar ? <Box marginTop={1}><Team /></Box> : null}
         <Box marginTop={1} gap={1} flexWrap="wrap">
           <Chip label={`${plan.tasks.length} tasks`} dotColor={C.accent} />
           <Chip label={`est $${plan.estCost.toFixed(2)}`} dotColor={overCap ? C.bad : C.good} active={overCap} />
@@ -1969,6 +2179,7 @@ export default function App(): React.ReactElement {
         epic: meta?.epic,
         dependsOn: meta?.deps,
         notes: meta?.notes,
+        difficulty: meta?.difficulty,
         status: t.status,
         cost: t.cost,
         verdict: t.verdict,
@@ -1978,6 +2189,8 @@ export default function App(): React.ReactElement {
       };
     });
     const slow = board.filter((b) => b.stuck).length;
+    // The details pane needs ~8 rows: only on a tall terminal, and not while a prompt is open.
+    const showDetails = termRows >= 30 && !gate && !steer;
     return (
       <Box flexDirection="column">
         <Box>
@@ -2061,18 +2274,20 @@ export default function App(): React.ReactElement {
           </Box>
         ) : null}
         <Box marginTop={1}>
-          <Panel title="Board">
-            {/* Reserve every row the screen actually spends, or the board asks for more cards
-                than fit, the clipped frame squeezes them and two cards land on one line (a
-                card's tail survived as "…pagerm"). Non-card rows: frame chrome 5, header 1 +
-                gap 1, panel border/padding/title/column-header 8, gap + budget bar 2 = 17;
-                plus the standup chips and any open prompt. */}
-            <Kanban
-              tasks={board}
-              compact
-              maxPerCol={Math.max(1, termRows - 17 - (termRows >= 30 ? 4 : 0) - (gate || steer ? 9 : 0))}
-            />
-          </Panel>
+          {/* Reserve every row the screen actually spends, or the board asks for more cards
+              than fit, the clipped frame squeezes them and two cards land on one line (a
+              card's tail survived as "…pagerm"). Non-card rows: status bar 1, header 1 +
+              gap 1, board pane border + title bar 3, gap + budget bar 2 = 8; plus the
+              standup line and any open prompt. */}
+          <TaskBoard
+            tasks={board}
+            selectedId={liveSel}
+            onSelect={setLiveSel}
+            showDetails={showDetails}
+            hints="p pause · a add · r remove · x stop"
+            navDisabled={!!(gate || steer)}
+            maxPerCol={Math.max(1, termRows - 8 - (termRows >= 30 ? 2 : 0) - (gate || steer ? 9 : 0) - (showDetails ? DETAILS_ROWS : 0))}
+          />
         </Box>
         {termRows >= 30 ? (
           <Box marginTop={1}>
@@ -2120,8 +2335,8 @@ export default function App(): React.ReactElement {
           </Box>
         ) : null}
         <Box marginTop={1}>
-          <Panel title="Result">
-            <Box gap={1} flexWrap="wrap" marginBottom={1}>
+          <Panel title="Result" focused={false}>
+            <Box columnGap={3} flexWrap="wrap" marginBottom={1}>
               <Chip label={`$${spent.toFixed(2)} total`} dotColor={C.accent} />
               <Chip label={`${buildResult.files.length} file${buildResult.files.length === 1 ? "" : "s"}`} dotColor={C.good} />
             </Box>
@@ -2208,11 +2423,28 @@ export default function App(): React.ReactElement {
     </Box>
   );
 
-  })();
+  };
 
+  const dialogCols = Math.min(termCols - 6, 104) - 6; // dialog border + padding
   return (
-    <AppFrame projectName={selected?.idea} phase={phase}>
-      {screen}
+    <AppFrame
+      projectName={selected?.idea}
+      phase={phase}
+      pagePhase={pagePhase}
+      pageProject={PROJECT_PAGES[pagePhase] ? selected?.idea : undefined}
+      notices={[
+        ...(release ? [`v${release.version} available: U`] : []),
+        ...(upgrades.length === 1 ? [`${modelLabel(upgrades[0]!.to.id)} available: M`] : upgrades.length > 1 ? [`${upgrades.length} newer models: M`] : []),
+      ]}
+      sidebar={showSidebar ? <Sidebar groups={navGroups} focused={sidebarFocused} onSelect={navigate} upgradable={upgrades.map((u) => u.from)} /> : undefined}
+      sidebarFocused={sidebarFocused}
+      dialog={helpOpen ? <Help /> : isDialog ? renderScreen(phase, termRows - 6, dialogCols) : undefined}
+    >
+      {/* Beside the sidebar the page sits in a pane: 3 rows of border + title bar, and the
+          sidebar, gaps, pane border and padding off the width. */}
+      {showSidebar
+        ? renderScreen(pagePhase, termRows - 3, termCols - SIDEBAR_WIDTH - 7)
+        : renderScreen(pagePhase, termRows, termCols)}
     </AppFrame>
   );
 }

@@ -12,9 +12,8 @@
 
 import { createInterface } from "node:readline";
 import { spawnSync } from "node:child_process";
-import { accessSync, constants, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname, join, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { accessSync, constants, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { OrchestratorEvent } from "./orchestrator.js";
 import type { Provider } from "./types.js";
 import { MODELS, getModel } from "./models.js";
@@ -29,6 +28,8 @@ import { applyKeysToEnv, configPath, dataHome, getPrefs, getWebhookUrl, loadConf
 import { getLocalModels } from "./local-models.js";
 import { postWebhook } from "./tui/notify.js";
 import { stackInstruction, stackChoiceFor, type StackChoice, type StackProfileId } from "./stack.js";
+import { warmPiCatalog } from "./pi-catalog.js";
+import { currentVersion, detectInstall, isNewer, latestVersion, MANUAL, releaseNotes, semverGte } from "./update.js";
 import {
   availableProviders,
   effectiveRoster,
@@ -71,16 +72,6 @@ function num(v: string | true | undefined, fallback: number): number {
   if (v === undefined || v === true) return fallback;
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : fallback;
-}
-
-export function semverGte(a: string, b: string): boolean {
-  const pa = a.split(".").map(Number);
-  const pb = b.split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    if ((pa[i] ?? 0) > (pb[i] ?? 0)) return true;
-    if ((pa[i] ?? 0) < (pb[i] ?? 0)) return false;
-  }
-  return true;
 }
 
 // ---- doctor ----
@@ -168,28 +159,8 @@ function projects(): number {
 
 // ---- update ----
 
-/** How this copy was installed, which decides how it can be upgraded. */
-export type InstallKind = "npm-global" | "npm-local" | "clone" | "docker";
-
-export function installKind(modulePath: string, opts: { docker?: boolean; globalRoot?: string } = {}): InstallKind {
-  if (opts.docker) return "docker";
-  // `npm root -g` is the global node_modules; anything under it is the global install.
-  if (opts.globalRoot && modulePath.startsWith(opts.globalRoot + sep)) return "npm-global";
-  return modulePath.includes(`${sep}node_modules${sep}`) ? "npm-local" : "clone";
-}
-
-/** Latest published version, or null if npm can't be reached. */
-async function latestVersion(): Promise<string | null> {
-  try {
-    const res = await fetch("https://registry.npmjs.org/projectinator/latest", { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return null;
-    const body = (await res.json()) as { version?: string };
-    return typeof body.version === "string" ? body.version : null;
-  } catch { return null; }
-}
-
 async function update(argv: Argv): Promise<number> {
-  const current = JSON.parse(readFileSync(join(projectRoot(), "package.json"), "utf8")).version as string;
+  const current = currentVersion(projectRoot());
   const checkOnly = argv.flags.check === true;
 
   console.log(`\n  Installed: ${current}`);
@@ -197,21 +168,15 @@ async function update(argv: Argv): Promise<number> {
   if (!latest) { console.error("  Latest:    unknown — couldn't reach registry.npmjs.org\n"); return 1; }
   console.log(`  Latest:    ${latest}`);
 
-  if (semverGte(current, latest)) { console.log("\n  Already up to date.\n"); return 0; }
+  if (!isNewer(latest, current)) { console.log("\n  Already up to date.\n"); return 0; }
 
-  const kind = installKind(fileURLToPath(import.meta.url), {
-    docker: existsSync("/.dockerenv"),
-    globalRoot: spawnSync("npm", ["root", "-g"], { encoding: "utf8" }).stdout?.trim() || undefined,
-  });
+  const notes = await releaseNotes(latest);
+  if (notes.length) console.log(`\n${notes.map((l) => `  ${l}`).join("\n")}`);
 
   // Only a global install can safely replace itself; everything else needs its own workflow.
+  const kind = detectInstall();
   if (kind !== "npm-global") {
-    const how = {
-      clone: "you're running from a git clone — `git pull && npm install && npm run compile`",
-      "npm-local": "this is a project dependency — `npm install projectinator@latest` in that project",
-      docker: "you're in the Docker image — rebuild it to upgrade",
-    }[kind];
-    console.log(`\n  ${latest} is available, but ${how}.\n`);
+    console.log(`\n  ${latest} is available. ${MANUAL[kind].why} Run:\n    ${MANUAL[kind].cmd}\n`);
     return 0;
   }
 
@@ -393,6 +358,9 @@ Exit codes: 0 ok · 1 environment problem · 2 bad usage · 3 build halted`;
 
 export async function main(args: string[]): Promise<number> {
   applyKeysToEnv();
+  // Prices for models without a row in models.ts (and OpenRouter's built-in list) come from
+  // Pi's catalog, which loads asynchronously.
+  await warmPiCatalog();
   const argv = parseArgv(args);
   const cmd = argv.positional.shift();
   switch (cmd) {

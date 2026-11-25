@@ -12,10 +12,10 @@ const DOWN = "\u001b[B";
 const ENTER = "\r";
 
 function app() {
-  const r = render(<Settings onExit={() => {}} />);
+  const r = render(<Settings onExit={() => {}} onCheckUpdates={() => {}} onNewerModels={() => {}} />);
   const key = async (s: string) => { r.stdin.write(s); await new Promise((res) => setTimeout(res, 40)); };
   const frame = () => r.lastFrame() ?? "";
-  const focused = () => frame().split("\n").find((l) => l.includes("❯")) ?? "";
+  const focused = () => frame().split("\n").find((l) => /^[\s│]*→ /.test(l)) ?? "";
   return { key, frame, focused, cleanup: () => r.unmount() };
 }
 

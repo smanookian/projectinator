@@ -1,5 +1,5 @@
 // Model pricing table. Rates USD per 1,000,000 tokens — copied verbatim from Pi's
-// bundled catalog (pi-coding-agent 0.85.1, Sept 2026); test/executor.test.ts pins every
+// bundled catalog (pi-coding-agent 1.6.1, Nov 2026); test/executor.test.ts pins every
 // entry against it. Shape mirrors Pi's models.json `cost` block.
 //
 // DO NOT "correct" an entry against `projectinator scout`'s price drift. Pi's catalog is the
@@ -13,6 +13,7 @@
 import type { Model } from "./types.js";
 import { findOpenRouterModel } from "./openrouter.js";
 import { getLocalModels } from "./local-models.js";
+import { findPiModel } from "./pi-catalog.js";
 
 export const MODELS: Record<string, Model> = {
   // ---- OpenAI: GPT-5.6 family (prices cut Sept 2026; past 272k input costs 2x) ----
@@ -96,29 +97,29 @@ export const MODELS: Record<string, Model> = {
     id: "gemini-3.1-pro-preview",
     provider: "google",
     name: "Gemini 3.1 Pro",
-    contextWindow: 1_000_000,
+    contextWindow: 1_048_576,
     cost: {
       input: 2,
       output: 12,
       cacheRead: 0.2,
-      cacheWrite: 2.5,
+      cacheWrite: 0,
       // Google charges more past 200k input tokens.
-      tiers: [{ inputTokensAbove: 200_000, input: 4, output: 18, cacheRead: 0.4, cacheWrite: 5 }],
+      tiers: [{ inputTokensAbove: 200_000, input: 4, output: 18, cacheRead: 0.4, cacheWrite: 0 }],
     },
   },
   "gemini-3.8-flash": {
     id: "gemini-3.8-flash",
     provider: "google",
     name: "Gemini 3.8 Flash",
-    contextWindow: 1_000_000,
-    cost: { input: 0.75, output: 3.75, cacheRead: 0.075 },
+    contextWindow: 1_048_576,
+    cost: { input: 0.75, output: 3.75, cacheRead: 0.075, cacheWrite: 0 },
   },
   "gemini-3-flash-preview": {
     id: "gemini-3-flash-preview",
     provider: "google",
     name: "Gemini 3 Flash",
-    contextWindow: 1_000_000,
-    cost: { input: 0.5, output: 3, cacheRead: 0.05, cacheWrite: 0.625 },
+    contextWindow: 1_048_576,
+    cost: { input: 0.5, output: 3, cacheRead: 0.05, cacheWrite: 0 },
   },
 
   // ---- OpenRouter (one key → frontier models). ids are Pi's OpenRouter-catalog
@@ -156,8 +157,8 @@ export const MODELS: Record<string, Model> = {
     id: "google/gemini-3.8-flash",
     provider: "openrouter",
     name: "Gemini 3.8 Flash (OpenRouter)",
-    contextWindow: 1_000_000,
-    cost: { input: 0.75, output: 3.75, cacheRead: 0.075 },
+    contextWindow: 1_048_576,
+    cost: { input: 0.825, output: 4.125, cacheRead: 0.0825, cacheWrite: 0.041667 },
   },
   "openai/gpt-5.6-luna": {
     id: "openai/gpt-5.6-luna",
@@ -187,5 +188,8 @@ export function getModel(id: string): Model {
     if (or) return { ...or, provider: "openrouter" };
     return { id, provider: "openrouter", name: id, contextWindow: 200_000, cost: { input: 1, output: 3, cacheRead: 0.1, cacheWrite: 1.25 } };
   }
+  // A native model without a row here (e.g. a newer model the user switched to): Pi's catalog.
+  const pi = findPiModel(id);
+  if (pi) return pi;
   throw new Error(`Unknown model id: "${id}". Add it to src/models.ts, or configure it under Settings → Local models.`);
 }

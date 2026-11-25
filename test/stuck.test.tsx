@@ -48,7 +48,7 @@ describe("stuck rule", () => {
 describe("live board card", () => {
   it("shows the elapsed clock and a slow badge", () => {
     const { lastFrame } = render(
-      <Kanban compact maxPerCol={3} tasks={[
+      <Kanban maxPerCol={3} tasks={[
         { id: "C-1", capability: "code", title: "build", status: "running", elapsedSec: 83, stuck: true },
         { id: "C-2", capability: "code", title: "build", status: "running", elapsedSec: 5 },
       ]} />,

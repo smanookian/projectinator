@@ -74,7 +74,7 @@ async function walk(toPlan: boolean) {
   const { default: App } = await import("../src/tui/App.js");
   const r = render(<App />);
   const frame = () => r.lastFrame() ?? "";
-  const highlighted = () => frame().split("\n").find((l) => l.includes("❯")) ?? "";
+  const highlighted = () => frame().split("\n").find((l) => /^[\s│]*→ /.test(l)) ?? "";
   const pick = async (label: string) => {
     await until(() => highlighted() !== "", frame);
     for (let i = 0; i < 40 && !highlighted().includes(label); i++) {

@@ -32,6 +32,11 @@ npm install -g projectinator      # then just: projectinator
 
 `projectinator --help` / `--version` work without opening the app; `projectinator doctor` checks your setup.
 
+**Updates:** at the first start Projectinator asks whether it may check npm once a day. When a new
+version is out, press `U`: it shows what's new, installs it and restarts. Or run
+`projectinator update`. When a newer version of a model your team runs comes out (say Claude Opus
+5 → 5.5), the status bar says so; `M` switches the roles over.
+
 > **It's a CLI, not a library.** `npm install projectinator` (without `-g`) only drops it into a
 > project's `node_modules` — it won't create a runnable command. Use `npx projectinator` or
 > `npm install -g projectinator`. (If `-g` installs but the command isn't found, npm's global
@@ -139,7 +144,7 @@ every feature the idea asked for. Each opens by double-clicking `index.html`; no
 | 🔌 **MCP server** | `projectinator mcp` — other agents plan, build, watch and steer through six tools. |
 | ⚔️ **Bake-off** | One task across your whole roster (cross-provider + local). Code bake-offs are scored by the real Tester; ★ quality/$ frontier. |
 | 🔭 **Auto-scout** | `projectinator scout`: live price drift, new models from routed vendors, proposed registry diff — human applies. |
-| 🎨 **Themes & icons** | Dark/light themes + Nerd Font role icons (ASCII fallback), Settings → Appearance, full-width panels and a restrained amber accent. |
+| 🎨 **Themes & layout** | Same look as [Musinator](https://github.com/smanookian/musinator): a sidebar with your projects and pages (`tab` to focus it, on terminals ≥110 columns), bordered panes with title bars, `→` selection, floating dialogs for Settings and the new-build wizard, one status bar. 22 themes (Catppuccin, Tokyo Night, Rosé Pine, Gruvbox, Nord…) plus **Match Omarchy**, which follows your Omarchy theme live. Every theme passes a contrast check. Nerd Font role icons with an ASCII fallback. Settings → Appearance. |
 | 🏃 **Sprints** | Each run is a sprint: planned/done/retries/cost/time per sprint, velocity, per-sprint burndown. |
 | 🪜 **Escalation ladder** | Fix rounds (tier-bumped) → Designer re-spec → PM splits the task. Each rung once; caps apply. |
 | 🎛 **Steer mid-build** | `p` pause/resume · `a` add work (PM plans it into the backlog) · `r` remove an unstarted task · `x` stop after running tasks. |

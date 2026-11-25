@@ -5,16 +5,16 @@ import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { Spinner, StatusMessage } from "@inkjs/ui";
 import type { Capability, Provider, ReviewPolicy, Tier } from "../types.js";
-import { C, Panel, Menu as SelectInput, GroupedMenu, KeyHint, TextField as TextInput, Password, type MenuGroup } from "./components.js";
+import { C, Panel, Menu as SelectInput, GroupedMenu, KeyHint, TextField as TextInput, Password, useTermRows, type MenuGroup } from "./components.js";
 import { WebAccounts } from "./WebAccounts.js";
 import { connectedProviders } from "../web/session.js";
 import { estimateAccuracy } from "../estimate.js";
 import { availableProviders, effectiveRoster, allModels, setRoleModel, PROVIDER_LABEL } from "./engine.js";
-import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getWebhookUrl, setWebhookUrl, getPreferredStack, setPreferredStack, ENV_VAR, type Prefs, type KeyedProvider } from "./config.js";
+import { setKey, getPrefs, setPrefs, loadConfig, setPreferredProvider, getDefaultMode, setDefaultMode, getNotify, setNotify, getWebhookUrl, setWebhookUrl, getPreferredStack, setPreferredStack, getUpdateCheck, setUpdateCheck, ENV_VAR, type Prefs, type KeyedProvider } from "./config.js";
 import { validateKey } from "./validate.js";
 import { openRouterModels, refreshOpenRouterModels } from "../openrouter.js";
 import { getLocalModels, setLocalModels, probeLocalServer, DEFAULT_LOCAL_URL } from "../local-models.js";
-import { THEMES, resolveTheme, type Theme, type ThemeId } from "./theme.js";
+import { allThemes, OMARCHY_ID } from "./theme.js";
 import { useThemeCtx } from "./theme-context.js";
 
 type Sub = "menu" | "keys" | "keyEntry" | "models" | "modelPick" | "orBrowse" | "orPick" | "prefs" | "provider" | "workflow" | "weblogin" | "accuracy" | "stack" | "webhook" | "local" | "localPick" | "theme";
@@ -38,8 +38,21 @@ const REVIEW_NOTICE: Record<ReviewPolicy, string> = {
   off: "Reviews off. The Tester still runs the app and catches runtime errors.",
 };
 
-export function Settings({ onExit }: { onExit: () => void }): React.ReactElement {
-  const [sub, setSub] = useState<Sub>("menu");
+/** `start: "theme"` opens straight on the theme picker (the `t` key) and leaving it closes
+ *  Settings, instead of stepping back to the Settings menu. `onCheckUpdates` / `onNewerModels`
+ *  leave Settings for the update and newer-models dialogs. */
+export function Settings({
+  onExit,
+  onCheckUpdates,
+  onNewerModels,
+  start = "menu",
+}: {
+  onExit: () => void;
+  onCheckUpdates: () => void;
+  onNewerModels: () => void;
+  start?: "menu" | "theme";
+}): React.ReactElement {
+  const [sub, setSub] = useState<Sub>(start);
   const [keyProvider, setKeyProvider] = useState<KeyedProvider>("anthropic");
   const [keyDraft, setKeyDraft] = useState("");
   const [checking, setChecking] = useState(false);
@@ -53,8 +66,9 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
   const [localChosen, setLocalChosen] = useState<Set<string>>(() => new Set(getLocalModels()?.models ?? []));
   const [, force] = useState(0);
   const refresh = () => force((n) => n + 1);
-  const { id: themeId, theme: activeTheme, setTheme: setThemeCtx, iconMode, setIconMode: setIconModeCtx } = useThemeCtx();
+  const { id: themeId, theme: activeTheme, setTheme: setThemeCtx, previewTheme, iconMode, setIconMode: setIconModeCtx } = useThemeCtx();
   const [localEditing, setLocalEditing] = useState(false); // the Local-models URL field owns the keyboard
+  const termRows = useTermRows();
 
   // Esc backs out one level. App.tsx deliberately skips the settings phase in its own goBack
   // (so we don't double-fire), which means this is the ONLY Esc handler in here.
@@ -62,7 +76,8 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
     if (!key.escape) return;
     if (localEditing) return setLocalEditing(false);
     setNotice("");
-    if (sub === "menu") return onExit();
+    previewTheme(null);
+    if (sub === "menu" || sub === start) return onExit();
     setSub(SUB_PARENT[sub] ?? "menu");
   });
 
@@ -73,6 +88,7 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         { label: "API keys", value: "keys" },
         { label: "Preferred provider", value: "provider" },
         { label: "Model assignments", value: "models" },
+        { label: "Newer models", value: "newerModels" },
         { label: "Estimate accuracy", value: "accuracy" },
         { label: `Local models: ${getLocalModels() ? `${getLocalModels()!.models.length} configured` : "none"}`, value: "local" },
       ] },
@@ -90,6 +106,10 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
         { label: `Theme: ${activeTheme.label}`, value: "theme" },
         { label: `Icons: ${iconMode === "nerd" ? "Nerd Font" : "Default (no font)"}`, value: "icons" },
       ] },
+      { title: "Updates", items: [
+        { label: `Check for updates once a day: ${getUpdateCheck().on ? "On" : "Off"}`, value: "updateCheck" },
+        { label: "Check now", value: "checkNow" },
+      ] },
       // Web-login (browser automation / OAuth) is parked — vendors closed
       // third-party subscription auth in 2026. Hidden unless PROJECTINATOR_WEB=1.
       ...(process.env.PROJECTINATOR_WEB === "1"
@@ -106,6 +126,13 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
             onSelect={(i) => {
               setNotice("");
               if (i.value === "back") onExit();
+              else if (i.value === "checkNow") onCheckUpdates();
+              else if (i.value === "newerModels") onNewerModels();
+              else if (i.value === "updateCheck") {
+                const next = !getUpdateCheck().on;
+                setUpdateCheck(next);
+                setNotice(next ? "Projectinator checks npm for a new version once a day." : "No update checks. U or Check now still looks when you ask.");
+              }
               else if (i.value === "notify") {
                 const next = !getNotify();
                 setNotify(next);
@@ -603,23 +630,32 @@ export function Settings({ onExit }: { onExit: () => void }): React.ReactElement
 
   // ---------- appearance / theme ----------
   if (sub === "theme") {
+    const themes = allThemes();
+    const items = [
+      ...themes.map((t) => ({ label: `${t.label}${t.id === themeId ? "  ✓" : ""}`, value: t.id })),
+      { label: "Back", value: "back" },
+    ];
     return (
       <Box flexDirection="column">
         <Panel title="Appearance — theme">
-          <Text color={C.textMuted}>Color theme for the whole app. Dark is the default cockpit; light resolves against a light terminal.</Text>
+          <Text color={C.textMuted}>
+            Same themes as Musinator, Todonator and Calinator. Moving previews live; Enter keeps it.
+            {themes[0]?.id === OMARCHY_ID ? " Match Omarchy follows your Omarchy theme and repaints when you switch it." : ""}
+          </Text>
           <Box marginTop={1}>
-            <SelectInput
-              items={[
-                ...(Object.values(THEMES) as Theme[]).map((t) => ({ label: `${t.label}${t.id === themeId ? "  ✓" : ""}`, value: t.id })),
-                { label: "Back", value: "back" },
-              ]}
+            <GroupedMenu
+              groups={[{ title: "", items }]}
+              initial={Math.max(0, themes.findIndex((t) => t.id === themeId))}
+              maxRows={Math.max(6, termRows - 12)}
+              onMove={(i) => previewTheme(i.value === "back" ? null : i.value)}
               onSelect={(i) => {
-                if (i.value === "back") setSub("menu");
+                if (i.value === "back") previewTheme(null);
                 else {
-                  setThemeCtx(i.value as ThemeId);
-                  setNotice(`Theme: ${resolveTheme(i.value as ThemeId).label}.`);
-                  setSub("menu");
+                  setThemeCtx(i.value);
+                  setNotice(`Theme: ${themes.find((t) => t.id === i.value)?.label ?? i.value}.`);
                 }
+                if (start === "theme") onExit();
+                else setSub("menu");
               }}
             />
           </Box>

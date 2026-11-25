@@ -42,7 +42,7 @@ function mountApp() {
   process.env.OPENROUTER_API_KEY ||= "test";
   const { lastFrame, stdin, unmount } = render(<App />);
   const frame = () => lastFrame() ?? "";
-  const highlighted = () => frame().split("\n").find((l) => l.includes("❯")) ?? "";
+  const highlighted = () => frame().split("\n").find((l) => /^[\s│]*→ /.test(l)) ?? "";
   /** Move down until `label` is the highlighted row, press Enter, wait for the screen to change. */
   const pick = async (label: string) => {
     await until(() => highlighted() !== "", frame); // a menu is on screen (rows may scroll)
@@ -300,7 +300,7 @@ describe("sprints & burndown", () => {
       await app.pick("Sprints & burndown");
       const f = app.frame();
       expect(f).toMatch(/S1\s+3\s+2\s+0\s+\$0\.20\s+2m\s+halted/);
-      expect(f).toMatch(/❯ S2\s+1\s+1\s+0\s+\$0\.10\s+30s/);
+      expect(f).toMatch(/→ S2\s+1\s+1\s+0\s+\$0\.10\s+30s/);
       expect(f).toContain("Velocity: 1.5 tasks per sprint");
       expect(f).toContain("Burndown — sprint 2"); // latest by default
       expect(f).toContain("S2-C");
@@ -385,7 +385,9 @@ describe.skipIf(!hasGit)("project screen audit", () => {
         await app.pick(label);
         expect(app.frame().trim().length, `${label} rendered (almost) nothing`).toBeGreaterThan(40);
         app.stdin.write(ESC);
-        const back = await until(() => app.frame().includes("● complete"), app.frame, 1500);
+        // Dialogs float over the project page, so its header stays visible while one is open;
+        // "back" means the status bar names the project screen again.
+        const back = await until(() => app.frame().includes("● complete") && app.frame().includes("· Project ·"), app.frame, 1500);
         expect(back, `Esc did not come back from ${label}`).toBe(true);
       }
     } finally {
@@ -393,5 +395,54 @@ describe.skipIf(!hasGit)("project screen audit", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   }, 90_000);
+});
+
+describe("sidebar (wide terminal)", () => {
+  it("tab focuses the sidebar, the page ignores arrows meanwhile, and Enter opens a project", async () => {
+    const dir = fixtureDir("test-sidebar-fixture");
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "build-state.json"), JSON.stringify({
+      id: "test-sidebar-fixture", idea: "sidebar fixture", status: "complete", totalCost: 0.12, tasks: [], outcomes: [],
+    }));
+    const prevKey = process.env.OPENROUTER_API_KEY;
+    process.env.OPENROUTER_API_KEY ||= "test";
+    const r = render(<App />);
+    const frame = () => r.lastFrame() ?? "";
+    const so = r.stdout as unknown as { emit: (e: string) => void };
+    Object.defineProperty(so, "columns", { value: 140, configurable: true });
+    Object.defineProperty(so, "rows", { value: 40, configurable: true });
+    so.emit("resize");
+    const cursorRow = () => frame().split("\n").find((l) => /^[\s│]*→ /.test(l)) ?? "";
+    try {
+      await until(() => cursorRow().includes("Start a build"), frame);
+      r.stdin.write(ENTER);
+      await until(() => frame().includes("tab sidebar"), frame);
+      // Focus the sidebar: the page's menu loses its `→`, the sidebar gets one.
+      for (let i = 0; i < 10 && !frame().includes("Enter open"); i++) { r.stdin.write("\t"); await until(() => frame().includes("Enter open"), frame, 200); }
+      const pageRowsBefore = frame().split("\n").filter((l) => l.includes("Compare models")).join();
+      for (let i = 0; i < 40 && !cursorRow().includes("sidebar fixture"); i++) {
+        const before = cursorRow();
+        r.stdin.write(DOWN);
+        await until(() => cursorRow() !== before, frame, 150);
+      }
+      expect(cursorRow()).toContain("sidebar fixture");
+      expect(frame().split("\n").filter((l) => l.includes("Compare models")).join(), "page menu moved while the sidebar had focus").toBe(pageRowsBefore);
+      r.stdin.write(ENTER);
+      await until(() => frame().includes("sidebar fixture · Project"), frame);
+      // The page sits right of the sidebar, so its `→` row follows the sidebar's text.
+      expect(frame(), "focus returns to the page").toMatch(/│\s*→ Add to backlog/);
+      expect(frame()).not.toMatch(/^[\s│]*→ /m); // and the sidebar shows no cursor
+      // Shortcuts work while the sidebar has focus, too.
+      r.stdin.write("\t");
+      await until(() => frame().includes("Enter open"), frame);
+      r.stdin.write("S");
+      await until(() => frame().includes("▾ Models & providers"), frame);
+    } finally {
+      r.unmount();
+      if (prevKey === undefined) delete process.env.OPENROUTER_API_KEY;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 30_000);
 });
 

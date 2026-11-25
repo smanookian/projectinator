@@ -7,13 +7,15 @@ import { applyKeysToEnv } from "./tui/config.js";
 import { listProjects } from "./tui/engine.js";
 import { sessionCost } from "./session-cost.js";
 import { closeWebSessions } from "./web/session.js";
-import { warmBuiltinOpenRouterModels } from "./openrouter.js";
+import { warmPiCatalog } from "./pi-catalog.js";
+import { restartRequested } from "./update.js";
+import { spawnSync } from "node:child_process";
 
 // Load any keys saved via Settings into the environment so Pi picks them up.
 applyKeysToEnv();
-// Pi's catalog is async; fill the OpenRouter pricing memo in the background so the
-// sync cost estimator can price OpenRouter slugs by the time a plan is shown.
-void warmBuiltinOpenRouterModels();
+// Pi's catalog is async; fill the memo in the background so the sync cost estimator can price
+// OpenRouter slugs and newer native models, and the newer-model check can run.
+void warmPiCatalog();
 
 const AMBER = "\x1b[38;2;224;167;45m";
 const DIM = "\x1b[2m";
@@ -61,6 +63,12 @@ function goodbye(): void {
 app.waitUntilExit().then(async () => {
   await closeWebSessions(); // shut down any background web-session browsers
   restoreScreen(); // leave the alt buffer → back to the normal shell
+  if (restartRequested()) {
+    // `r` after an update: run the same command again — npm put the new version at the same
+    // path, so this starts it. Its exit code becomes ours.
+    const r = spawnSync(process.execPath, [...process.execArgv, ...process.argv.slice(1)], { stdio: "inherit" });
+    process.exit(r.status ?? 0);
+  }
   goodbye(); // send-off prints in the normal buffer, below your prompt history
   process.exit(0); // exit cleanly so nothing keeps the process (and Ctrl+C) alive
 });

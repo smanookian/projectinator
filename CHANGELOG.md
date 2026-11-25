@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.29.0 — 2026-11-25
+
+### Changed
+- **New look, shared with Musinator, Todonator and Calinator.** Panes have rounded borders
+  and a title bar (accent when focused). The selected row gets a `→` marker and a tint.
+  The top bar is gone: one status bar at the bottom shows app · project · screen · spend on
+  the left and the screen's keys on the right. The live board is now four column panes.
+  Key legends are plain `key label · key label` text instead of boxed keycaps.
+- **Themes:** the two amber themes are replaced by the family's 22 (same palettes and
+  contrast rules as Musinator) plus **Match Omarchy**, which reads your Omarchy theme and
+  repaints when you switch it. The picker previews while you move; Esc keeps your old theme.
+  The default is Catppuccin Mocha. If you had saved `dark` or `light`, you get the default.
+- **Sidebar** (terminals 110 columns or wider): Home, New build, Templates, Import, Bake-off and
+  Settings; your projects with their spend; the open project's pages (Overview, Board,
+  Sprints, Retro, History, Transcripts, Preview); and your team. `tab` moves focus to it,
+  ↑↓ and Enter open a page, `tab` or Esc go back. The page sits in a pane beside it.
+  Narrower terminals keep the full-width page.
+- **Floating dialogs:** Settings, the new-build wizard (idea → stack → questions → plan) and
+  small prompts (rename, delete, export, deploy, budget cap…) open as a dialog with a shadow
+  over the page you came from, instead of replacing the whole screen.
+- **The board is where you edit.** Pick a card with ←→↑↓ (or h l j k, g/G) and change it right
+  there: `e` title, `a` add, `d` delete (asks first), `n` note, `E` epic, `D` depends on,
+  `c`/`f` role/difficulty, `K`/`J` move it, `b` build the backlog. Changes save immediately.
+  The separate "Edit board" list screen is gone. Built tasks stay locked except epic and note.
+- **Task details pane** under the board: role, status (ready / blocked by… / running with its
+  clock), epic, dependencies, model, spend, verdict, note. Also on the live build board when the
+  terminal is 30+ rows tall. Cards show their test verdict.
+- **More keys, like the other apps:** `?` shows every key; from any page `N` new build, `/` find
+  a project, `P` all projects, `H` home, `t` themes, `S` settings; Backspace goes back; menus and
+  the sidebar take j/k, g/G, Home/End, PgUp/PgDn; transcripts and diffs scroll with j/k and
+  ctrl+u/ctrl+d; sprints switch with h/l.
+- **Updates, like Musinator.** At the first start Projectinator asks whether it may check npm once a
+  day. When a new version is out the status bar says `v… available: U`. `U` shows what's new (from
+  this changelog), Enter installs it (`npm install -g`), `r` restarts into it, `s` skips that
+  version. Installed some other way (git clone, npx, mise, a project dependency, Docker)? The
+  window shows the command to run instead. Settings → Updates turns the daily check on/off and has
+  Check now. `projectinator update` shows the notes too.
+- **Newer models.** When a newer version of a model your team runs is out (Claude Opus 5 → Opus 5.5,
+  GPT-5.6 Sol → GPT-6.2 Sol…), the status bar says so and the sidebar marks it `↑`. `M` lists them
+  with old and new prices: Enter moves every role on the old model to the new one, `s` skips it.
+  Picking a model by hand in Settings → Model assignments still wins.
+
+### Updated
+- **Pi 1.6.1** (was 0.85.1): its model catalog now has Claude Opus 5.5 / Sonnet 5.5 / Haiku 5.5,
+  GPT-6.x and Gemini 4. OpenRouter's Gemini 3.8 Flash repriced to $0.825/$4.125. typebox follows
+  Pi to 1.3.27. A model without a row in `models.ts` is now priced from Pi's catalog, so switching
+  to a newer model needs no code change.
+
 ## 0.28.0 — 2026-09-19
 
 ### Added

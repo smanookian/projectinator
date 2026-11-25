@@ -1,11 +1,12 @@
-// The Scrum board, as swimlanes. Rows = epics; columns = Backlog · Not Started ·
-// In Progress · Done. Used live (during a build) and as the default project view.
+// The Scrum board: four column panes — Backlog · Not started · In progress · Done — in the
+// family look (rounded border, title bar). Used live during a build and as the project board.
+// Presentational: selection and keys live in TaskBoard.tsx.
 
 import React from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
-import type { Capability } from "../types.js";
-import { C, ROLE_META } from "./components.js";
+import type { Capability, Difficulty } from "../types.js";
+import { C, useInputActive } from "./components.js";
 import { roleGlyph } from "./icons.js";
 
 export interface BoardTask {
@@ -14,35 +15,47 @@ export interface BoardTask {
   title: string;
   epic?: string;
   dependsOn?: string[];
+  difficulty?: Difficulty;
   status: "pending" | "running" | "done" | "failed" | "skipped";
   cost?: number;
   verdict?: "PASS" | "PASS*" | "FAIL";
   /** The teammate (model) working this task, when known. */
   assignee?: string;
-  /** Human annotation from the board editor. */
+  /** Human annotation from the board. */
   notes?: string;
   /** For running tasks: seconds since it started, and whether it's over its expected time. */
   elapsedSec?: number;
   stuck?: boolean;
 }
 
-type Col = "backlog" | "notStarted" | "inProgress" | "done";
+export type Col = "backlog" | "notStarted" | "inProgress" | "done";
 
-function columnOf(t: BoardTask, done: Set<string>): Col {
+export const COLUMNS: { key: Col; label: string }[] = [
+  { key: "backlog", label: "Backlog" },
+  { key: "notStarted", label: "Not started" },
+  { key: "inProgress", label: "In progress" },
+  { key: "done", label: "Done" },
+];
+
+export function columnOf(t: BoardTask, done: Set<string>): Col {
   if (t.status === "done" || t.status === "skipped") return "done";
   if (t.status === "running" || t.status === "failed") return "inProgress";
   const ready = (t.dependsOn ?? []).every((d) => done.has(d));
   return ready ? "notStarted" : "backlog";
 }
 
-/** Column constants read the theme at render time (C is a live proxy), not module load. */
-function cols(): { key: Col; label: string; color: string }[] {
-  return [
-    { key: "backlog", label: "BACKLOG", color: C.dim },
-    { key: "notStarted", label: "NOT STARTED", color: C.info },
-    { key: "inProgress", label: "IN PROGRESS", color: C.accent },
-    { key: "done", label: "DONE", color: C.good },
-  ];
+/** Tasks per column, in board order. */
+export function byColumn(tasks: BoardTask[]): Record<Col, BoardTask[]> {
+  const done = new Set(tasks.filter((t) => t.status === "done" || t.status === "skipped").map((t) => t.id));
+  const out: Record<Col, BoardTask[]> = { backlog: [], notStarted: [], inProgress: [], done: [] };
+  for (const t of tasks) out[columnOf(t, done)].push(t);
+  return out;
+}
+
+/** The top card of the leftmost non-empty column — where a fresh selection starts. */
+export function firstCard(tasks: BoardTask[]): string | undefined {
+  const cols = byColumn(tasks);
+  return COLUMNS.map((c) => cols[c.key][0]).find(Boolean)?.id;
 }
 
 /** Group tasks by epic, preserving first-seen order. */
@@ -60,109 +73,78 @@ export function groupByEpic<T extends { epic?: string }>(tasks: T[]): { epic: st
   return order.map((epic) => ({ epic, tasks: map.get(epic)! }));
 }
 
-function Card({ t }: { t: BoardTask }): React.ReactElement {
-  const running = t.status === "running";
-  const failed = t.status === "failed";
-  return (
-    <Box flexDirection="column" marginBottom={1}>
-      <Box>
-        {running ? <Text color={C.info}><Spinner type="dots" /> </Text> : failed ? <Text color={C.bad}>✗ </Text> : null}
-        <Text color={C.text}>{roleGlyph(t.capability)} </Text>
-        <Text color={C.dim}>{t.id} </Text>
-        <Text color={C.accent}>{t.capability}</Text>
-        {t.verdict ? <Text color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}> {t.verdict}</Text> : null}
-        {t.cost ? <Text color={C.dim}> ${t.cost.toFixed(2)}</Text> : null}
-      </Box>
-      <Text color={failed ? C.bad : C.text} wrap="truncate-end">{t.title}</Text>
-      {t.assignee ? <Text color={C.dim}>{t.assignee}</Text> : null}
-      {t.notes ? <Text color={C.dim} wrap="truncate-end">✎ {t.notes}</Text> : null}
-    </Box>
-  );
-}
-
 /** mm:ss for a running card. */
-function clock(sec: number): string {
+export function clock(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-/** One-line card for the compact (live-build) board. */
-function MiniCard({ t }: { t: BoardTask }): React.ReactElement {
+/** One-line card. A flex row, so only the title shrinks and truncates; the glyph, id, clock
+ *  and cost keep their width. With `marker`, a 2-column `→` slot leads the row. */
+function MiniCard({ t, sel, active, marker }: { t: BoardTask; sel: boolean; active: boolean; marker: boolean }): React.ReactElement {
   const running = t.status === "running";
+  const on = sel && active;
   return (
-    <Text wrap="truncate-end">
-      {running ? <Text color={C.info}><Spinner type="dots" /> </Text> : t.status === "failed" ? <Text color={C.bad}>✗ </Text> : <Text color={C.text}>{roleGlyph(t.capability)} </Text>}
-      <Text color={C.dim}>{t.id} </Text>
-      <Text color={running ? C.info : C.text} wrap="truncate-end">{t.title}</Text>
-      {running && t.elapsedSec !== undefined ? <Text color={t.stuck ? C.warn : C.dim}> {clock(t.elapsedSec)}{t.stuck ? " slow" : ""}</Text> : null}
-      {t.cost ? <Text color={C.dim}> ${t.cost.toFixed(2)}</Text> : null}
-    </Text>
+    <Box flexShrink={0} backgroundColor={on ? C.selection : sel ? C.titleBar : undefined}>
+      {marker ? <Box flexShrink={0} width={2}><Text color={C.marker}>{on ? "→" : " "}</Text></Box> : null}
+      <Box flexShrink={0} marginRight={1}>
+        {running ? <Text color={C.info}><Spinner type="dots" /></Text> : t.status === "failed" ? <Text color={C.bad}>✗</Text> : <Text color={C.text}>{roleGlyph(t.capability)}</Text>}
+      </Box>
+      <Box flexShrink={0} marginRight={1}><Text color={C.dim}>{t.id}</Text></Box>
+      <Box flexShrink={1} flexGrow={1}>
+        <Text color={running ? C.info : on ? C.selectionFg : C.text} bold={on} wrap="truncate-end">{t.title}</Text>
+      </Box>
+      {running && t.elapsedSec !== undefined ? <Box flexShrink={0} marginLeft={1}><Text color={t.stuck ? C.warn : C.dim}>{clock(t.elapsedSec)}{t.stuck ? " slow" : ""}</Text></Box> : null}
+      {t.verdict ? <Box flexShrink={0} marginLeft={1}><Text color={t.verdict === "FAIL" ? C.bad : t.verdict === "PASS*" ? C.warn : C.good}>{t.verdict}</Text></Box> : null}
+      {t.cost ? <Box flexShrink={0} marginLeft={1}><Text color={C.dim}>${t.cost.toFixed(2)}</Text></Box> : null}
+    </Box>
   );
 }
 
-/** Compact 4-column board (no epic swimlanes, one-line cards, per-column cap) —
- *  for the live build screen where height must fit the viewport. */
-export function Kanban({ tasks, compact, maxPerCol }: { tasks: BoardTask[]; compact?: boolean; maxPerCol?: number }): React.ReactElement {
-  const done = new Set(tasks.filter((t) => t.status === "done" || t.status === "skipped").map((t) => t.id));
-  const counts: Record<Col, number> = { backlog: 0, notStarted: 0, inProgress: 0, done: 0 };
-  for (const t of tasks) counts[columnOf(t, done)]++;
-
-  if (compact) {
-    const byCol: Record<Col, BoardTask[]> = { backlog: [], notStarted: [], inProgress: [], done: [] };
-    for (const t of tasks) byCol[columnOf(t, done)].push(t);
-    const cap = Math.max(2, maxPerCol ?? 6);
-    return (
-      <Box flexDirection="column">
-        <Box>
-          {cols().map((col) => (
-            <Box key={col.key} flexBasis="25%" flexGrow={1} marginRight={1}>
-              <Text color={col.color} bold>{col.label} <Text color={C.dim}>{counts[col.key]}</Text></Text>
-            </Box>
-          ))}
-        </Box>
-        <Box marginTop={1}>
-          {cols().map((col) => {
-            const list = byCol[col.key];
-            return (
-              <Box key={col.key} flexDirection="column" flexBasis="25%" flexGrow={1} marginRight={1}>
-                {list.length === 0 ? <Text color={C.dim}>·</Text> : null}
-                {list.slice(0, cap).map((t) => <MiniCard key={t.id} t={t} />)}
-                {list.length > cap ? <Text color={C.dim}>+{list.length - cap} more</Text> : null}
-              </Box>
-            );
-          })}
-        </Box>
-      </Box>
-    );
-  }
-
-  const lanes = groupByEpic(tasks);
-
+/** The 4-column board: one-line cards, at most `maxPerCol` per column. Without a selection
+ *  the In progress pane is the live one and carries the accent; with `selectedId` the focused
+ *  column does, the selected card gets the `→` and tint, and a long column scrolls to keep it
+ *  in view. Chrome: 3 rows (border 2 + title bar 1) on top of the cards. */
+export function Kanban({
+  tasks,
+  maxPerCol,
+  selectedId,
+}: {
+  tasks: BoardTask[];
+  maxPerCol?: number;
+  /** The selected card, when the board is interactive. */
+  selectedId?: string;
+}): React.ReactElement {
+  const active = useInputActive();
+  const cols = byColumn(tasks);
+  const cap = Math.max(2, maxPerCol ?? 6);
+  const interactive = selectedId !== undefined;
+  const focusCol = interactive ? COLUMNS.find((c) => cols[c.key].some((t) => t.id === selectedId))?.key : "inProgress";
   return (
-    <Box flexDirection="column">
-      {/* column headers */}
-      <Box>
-        <Box width={12} />
-        {cols().map((col) => (
-          <Box key={col.key} flexBasis="25%" flexGrow={1} marginRight={1}>
-            <Text color={col.color} bold>{col.label} <Text color={C.dim}>{counts[col.key]}</Text></Text>
-          </Box>
-        ))}
-      </Box>
-      {lanes.map((lane) => {
-        const byCol: Record<Col, BoardTask[]> = { backlog: [], notStarted: [], inProgress: [], done: [] };
-        for (const t of lane.tasks) byCol[columnOf(t, done)].push(t);
+    <Box>
+      {COLUMNS.map((col, i) => {
+        const list = cols[col.key];
+        const lit = col.key === focusCol && (active || !interactive);
+        const selIx = list.findIndex((t) => t.id === selectedId);
+        // Scroll so the selected card stays visible; each clipped end costs one row.
+        const start = selIx >= cap ? selIx - cap + 2 : 0;
+        const room = start > 0 ? cap - 1 : cap;
+        const shown = list.slice(start, start + room);
+        const below = list.length - start - shown.length;
         return (
-          <Box key={lane.epic} flexDirection="column" marginTop={1}>
-            <Text color={C.accent}>▊ {lane.epic}</Text>
-            <Box>
-              <Box width={12} />
-              {cols().map((col) => (
-                <Box key={col.key} flexDirection="column" flexBasis="25%" flexGrow={1} marginRight={1}>
-                  {byCol[col.key].length === 0 ? <Text color={C.dim}>·</Text> : byCol[col.key].map((t) => <Card key={t.id} t={t} />)}
-                </Box>
-              ))}
+          // flexBasis 0: columns split the width evenly instead of growing to fit long titles
+          // (which pushed the Done pane past the right edge beside the sidebar).
+          <Box key={col.key} flexDirection="column" flexBasis={0} flexGrow={1} marginLeft={i ? 1 : 0} overflow="hidden"
+            borderStyle="round" borderColor={lit ? C.borderActive : C.border}>
+            <Box backgroundColor={lit ? C.accent : C.titleBar} paddingX={1}>
+              <Text bold color={lit ? C.onAccent : C.text} wrap="truncate-end">{`${col.label} · ${list.length}`}</Text>
+            </Box>
+            <Box flexDirection="column" paddingX={interactive ? 0 : 1} paddingRight={1}>
+              {list.length === 0 ? <Text color={C.dim}>{interactive ? "  ·" : "·"}</Text> : null}
+              {start > 0 ? <Text color={C.dim}>{`  ↑ ${start} more`}</Text> : null}
+              {shown.map((t) => <MiniCard key={t.id} t={t} sel={t.id === selectedId} active={active} marker={interactive} />)}
+              {below > 0 ? <Text color={C.dim}>{`${interactive ? "  " : ""}+${below} more`}</Text> : null}
             </Box>
           </Box>
         );

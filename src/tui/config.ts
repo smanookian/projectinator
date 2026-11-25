@@ -6,7 +6,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFile
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { BuildMode, Provider, ReviewPolicy } from "../types.js";
-import type { ThemeId } from "./theme.js";
+import { DEFAULT_ID, type ThemeId } from "./theme.js";
 
 export type WorkflowMode = "auto" | "approval";
 
@@ -33,10 +33,18 @@ export interface AppConfig {
   notify?: boolean;
   /** Default target stack for new web builds; "ask" prompts each time. */
   preferredStack?: "ask" | "vanilla" | "react" | "ai";
-  /** Color theme (Settings → Appearance). Default dark. */
+  /** Color theme (Settings → Appearance). Default catppuccin-mocha. */
   theme?: ThemeId;
   /** Role icon style: Nerd Font glyphs or portable ASCII. Default nerd. */
   icons?: "nerd" | "ascii";
+  /** Check npm once a day for a new Projectinator (asked at the first start). */
+  updateCheck?: boolean;
+  /** The first-start question about update checks has been answered. */
+  updateAsked?: boolean;
+  /** Newer models you switched to: old id → new id, applied to every role that used the old one. */
+  modelUpgrades?: Record<string, string>;
+  /** Newer models you chose not to switch to (no notice for them again). */
+  skippedModels?: string[];
 }
 
 /** Providers that authenticate with an API key. "local" is configured under Settings → Local models. */
@@ -105,7 +113,7 @@ export function setWebhookUrl(url: string): void {
 }
 
 export function getTheme(): ThemeId {
-  return loadConfig().theme ?? "dark";
+  return loadConfig().theme ?? DEFAULT_ID;
 }
 export function setTheme(v: ThemeId): void {
   const cfg = loadConfig();
@@ -119,6 +127,43 @@ export function getIconMode(): "nerd" | "ascii" {
 export function setIconMode(v: "nerd" | "ascii"): void {
   const cfg = loadConfig();
   cfg.icons = v;
+  saveConfig(cfg);
+}
+
+export function getUpdateCheck(): { asked: boolean; on: boolean } {
+  const cfg = loadConfig();
+  return { asked: cfg.updateAsked === true, on: cfg.updateCheck === true };
+}
+export function setUpdateCheck(on: boolean): void {
+  const cfg = loadConfig();
+  cfg.updateAsked = true;
+  cfg.updateCheck = on;
+  saveConfig(cfg);
+}
+
+export function getModelUpgrades(): Record<string, string> {
+  return loadConfig().modelUpgrades ?? {};
+}
+/** Switch every role on `from` to `to`. */
+export function addModelUpgrade(from: string, to: string): void {
+  const cfg = loadConfig();
+  cfg.modelUpgrades = { ...cfg.modelUpgrades, [from]: to };
+  saveConfig(cfg);
+}
+/** Undo a switch (a model picked by hand in Settings is meant literally). */
+export function removeModelUpgrade(from: string): void {
+  const cfg = loadConfig();
+  if (!cfg.modelUpgrades?.[from]) return;
+  const { [from]: _gone, ...rest } = cfg.modelUpgrades;
+  cfg.modelUpgrades = rest;
+  saveConfig(cfg);
+}
+export function getSkippedModels(): string[] {
+  return loadConfig().skippedModels ?? [];
+}
+export function skipModel(id: string): void {
+  const cfg = loadConfig();
+  cfg.skippedModels = [...new Set([...(cfg.skippedModels ?? []), id])];
   saveConfig(cfg);
 }
 

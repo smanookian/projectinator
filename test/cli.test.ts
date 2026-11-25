@@ -4,7 +4,8 @@
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { installKind, parseArgv, semverGte } from "../src/cli.js";
+import { parseArgv } from "../src/cli.js";
+import { installKind, isNewer, notesFor, semverGte } from "../src/update.js";
 import { sep } from "node:path";
 
 describe("parseArgv", () => {
@@ -43,6 +44,26 @@ describe("installKind", () => {
   });
   it("Docker wins over any path shape", () => {
     expect(installKind([g, "projectinator", "dist", "cli.js"].join(sep), { docker: true, globalRoot: g })).toBe("docker");
+  });
+  it("npx and mise installs are told their own command, not npm-local's", () => {
+    expect(installKind(["", "home", "me", ".npm", "_npx", "ab12", "node_modules", "projectinator", "dist", "cli.js"].join(sep), { globalRoot: g })).toBe("npx");
+    expect(installKind(["", "home", "me", ".local", "share", "mise", "installs", "npm-projectinator", "0.28.0", "lib", "node_modules", "projectinator", "dist", "cli.js"].join(sep), { globalRoot: g })).toBe("mise");
+  });
+});
+
+describe("update offers", () => {
+  it("only a newer stable version", () => {
+    expect(isNewer("0.29.0", "0.28.0")).toBe(true);
+    expect(isNewer("0.28.10", "0.28.9")).toBe(true);
+    expect(isNewer("0.28.0", "0.28.0")).toBe(false);
+    expect(isNewer("0.27.5", "0.28.0")).toBe(false);
+    expect(isNewer("0.29.0-beta.1", "0.28.0")).toBe(false);
+    expect(isNewer("garbage", "0.28.0")).toBe(false);
+  });
+  it("reads one version's notes from the CHANGELOG as plain lines", () => {
+    const log = "# Changelog\n\n## 0.29.0 — 2026-12-01\n\n### Added\n- **Board** edits in `place`.\n\n\n- Second.\n\n## 0.28.0\n- old\n";
+    expect(notesFor(log, "0.29.0")).toEqual(["Added", "• Board edits in place.", "", "• Second."]);
+    expect(notesFor(log, "0.30.0")).toEqual([]);
   });
 });
 

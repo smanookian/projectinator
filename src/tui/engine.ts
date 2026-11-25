@@ -10,8 +10,11 @@ import type { Bug, Capability, Provider, RegistryEntry, Task, TaskLimits, TaskOu
 import { DEFAULT_POLICY, route } from "../router.js";
 import { REGISTRY } from "../registry.js";
 import { MODELS } from "../models.js";
+import { findPiModel, piCatalog } from "../pi-catalog.js";
+import { findUpgrades, upgraded, type ModelUpgrade } from "../model-updates.js";
+import { openRouterModels } from "../openrouter.js";
 import { loadRegistry, saveOverrides, OVERRIDES_FILENAME } from "../registry-store.js";
-import { dataHome, getPrefs, loadConfig } from "./config.js";
+import { dataHome, getModelUpgrades, getPrefs, getSkippedModels, loadConfig, removeModelUpgrade } from "./config.js";
 export { dataHome } from "./config.js";
 import { getLocalModels } from "../local-models.js";
 import { lockRegistryToProvider, makePiExecutor } from "../roles.js";
@@ -69,13 +72,22 @@ function lockedRegistry(provider: Provider): RegistryEntry[] {
   });
 }
 
+/** Every pick moved onto the newer models you switched to (`modelUpgrades` in config). Applied
+ *  last, so it covers the seed roster, Settings overrides and a provider lock alike. */
+function withUpgrades(registry: RegistryEntry[]): RegistryEntry[] {
+  const ups = getModelUpgrades();
+  if (!Object.keys(ups).length) return registry;
+  const pick = (p: RegistryEntry["byBackend"]["api"]) => ({ ...p, model: upgraded(p.model, ups) });
+  return registry.map((e) => ({ ...e, byBackend: { web: pick(e.byBackend.web), api: pick(e.byBackend.api) } }));
+}
+
 /** Preferred provider wins (if it has a key); else one provider locks; else best-of-breed. */
 export function chooseRegistry(providers: Provider[]): { registry: RegistryEntry[]; lock?: Provider } {
   const seed = loadRegistry(overridesPath(), REGISTRY);
   const pref = loadConfig().preferredProvider;
-  if (pref && providers.includes(pref)) return { registry: lockedRegistry(pref), lock: pref };
-  if (providers.length === 1) return { registry: lockedRegistry(providers[0]!), lock: providers[0] };
-  return { registry: seed };
+  if (pref && providers.includes(pref)) return { registry: withUpgrades(lockedRegistry(pref)), lock: pref };
+  if (providers.length === 1) return { registry: withUpgrades(lockedRegistry(providers[0]!)), lock: providers[0] };
+  return { registry: withUpgrades(seed) };
 }
 
 /** Bake-off candidates for a capability: the roster's fast/mid/high picks across every
@@ -162,7 +174,7 @@ export interface RoleAssignment {
 }
 
 export function roleAssignments(): RoleAssignment[] {
-  const reg = loadRegistry(overridesPath(), REGISTRY);
+  const reg = withUpgrades(loadRegistry(overridesPath(), REGISTRY));
   return ROLE_TIERS.map((rt) => {
     const e = reg.find((x) => x.capability === rt.capability && x.tier === rt.tier);
     return { ...rt, provider: e?.byBackend.api.provider, model: e?.byBackend.api.model };
@@ -178,15 +190,30 @@ export function effectiveRoster(): RoleAssignment[] {
   });
 }
 
+/** Newer versions of the models the team runs (Pi's catalog for native providers; for
+ *  OpenRouter the live catalog when it was fetched), minus the ones you skipped. */
+export function availableUpgrades(): ModelUpgrade[] {
+  const catalog = [
+    ...(["anthropic", "openai", "google"] as const).flatMap((p) => piCatalog(p)),
+    ...openRouterModels().map((m) => ({ ...m, provider: "openrouter" as const })),
+  ];
+  return findUpgrades(effectiveRoster(), catalog, getSkippedModels());
+}
+
 export function allModels(): { id: string; provider: Provider; name: string }[] {
   const cloud = Object.values(MODELS).map((m) => ({ id: m.id, provider: m.provider, name: m.name }));
   const local = (getLocalModels()?.models ?? []).map((id) => ({ id, provider: "local" as const, name: `${id} (local, $0)` }));
   return [...cloud, ...local];
 }
 
-/** Friendly model name for display (e.g. "claude-opus-4-8" -> "Claude Opus 4.8"). */
+/** Friendly model name for display (e.g. "claude-opus-4-8" -> "Claude Opus 4.8"). Models without
+ *  a row in models.ts take Pi's name ("Anthropic: Claude Opus 5.5" → "Claude Opus 5.5 (OpenRouter)"). */
 export function modelLabel(id: string): string {
-  return MODELS[id]?.name ?? (getLocalModels()?.models.includes(id) ? `${id} (local)` : id);
+  if (MODELS[id]) return MODELS[id].name;
+  if (getLocalModels()?.models.includes(id)) return `${id} (local)`;
+  const pi = findPiModel(id);
+  if (!pi) return id;
+  return pi.provider === "openrouter" ? `${pi.name.replace(/^[^:]+:\s*/, "")} (OpenRouter)` : pi.name;
 }
 
 /** Reassign a role's model across ALL tiers of that capability (so the role uses one
@@ -194,6 +221,7 @@ export function modelLabel(id: string): string {
 export function setRoleModel(capability: Capability, _tier: Tier, modelId: string): void {
   const m = MODELS[modelId];
   if (!m) return;
+  removeModelUpgrade(modelId);
   const reg: RegistryEntry[] = loadRegistry(overridesPath(), REGISTRY).map((e) => ({
     ...e,
     byBackend: { web: { ...e.byBackend.web }, api: { ...e.byBackend.api } },

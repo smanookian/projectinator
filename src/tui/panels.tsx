@@ -12,7 +12,7 @@ import { effectiveRoster, modelLabel } from "./engine.js";
 export function Team(): React.ReactElement {
   const rows = effectiveRoster();
   return (
-    <Panel title="Your team">
+    <Panel title="Your team" focused={false}>
       {rows.map((r) => (
         <Box key={r.capability}>
           <Text color={C.text}>{roleGlyph(r.capability)} </Text>
@@ -39,7 +39,7 @@ export function Standup({ tasks, spent }: { tasks: BoardTask[]; spent?: number }
   const cost = spent ?? tasks.reduce((a, t) => a + (t.cost ?? 0), 0);
 
   return (
-    <Box gap={1} flexWrap="wrap">
+    <Box columnGap={3} flexWrap="wrap">
       <Chip label={`${done} done`} dotColor={C.good} />
       {running > 0 ? <Chip label={`${running} running`} dotColor={C.info} /> : null}
       <Chip label={`${ready} ready`} dotColor={C.info} />
@@ -68,7 +68,7 @@ export function ListView({ tasks }: { tasks: BoardTask[] }): React.ReactElement 
     <Box flexDirection="column">
       {lanes.map((lane) => (
         <Box key={lane.epic} flexDirection="column" marginBottom={1}>
-          <Text color={C.accent}>▊ {lane.epic}</Text>
+          <Text color={C.text} bold>▾ {lane.epic}</Text>
           {lane.tasks.map((t) => {
             const s = statusMark(t.status);
             return (

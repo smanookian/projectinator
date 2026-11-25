@@ -17,7 +17,7 @@ process.env.OPENROUTER_API_KEY ||= "test";
 
 const r = render(<App />);
 const frame = () => r.lastFrame() ?? "";
-const cursor = () => frame().split("\n").find((l) => l.includes("❯")) ?? "";
+const cursor = () => frame().split("\n").find((l) => /^[\s│]*→ /.test(l)) ?? "";
 const frames: { caption: string; text: string }[] = [];
 const grab = (caption: string) => frames.push({ caption, text: frame() });
 

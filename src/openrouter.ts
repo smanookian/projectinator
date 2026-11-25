@@ -6,7 +6,7 @@
 //  - openRouterModels() / findOpenRouterModel(): SYNC reads (disk cache, else Pi's
 //    built-in list) so cost estimation (getModel) can price any picked model.
 
-import { piRuntime } from "./executor.js";
+import { piCatalog } from "./pi-catalog.js";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { dataHome } from "./tui/config.js";
@@ -20,34 +20,14 @@ export type ORModel = Omit<Model, "provider"> & {
 
 const cachePath = () => join(dataHome(), "openrouter-models.json");
 
-let builtinMemo: ORModel[] | null = null;
 let diskMemo: ORModel[] | null | undefined; // undefined = not read yet, null = no cache
 
-/** Pi's built-in OpenRouter catalog — offline, names + pricing. Sync read of the memo;
- *  call warmBuiltinOpenRouterModels() once at startup to fill it (Pi's runtime is async). */
+/** Pi's built-in OpenRouter catalog — offline, names + pricing, sorted by name. Empty until
+ *  warmPiCatalog() (pi-catalog.ts) has run once at startup. */
 export function builtinOpenRouterModels(): ORModel[] {
-  return builtinMemo ?? [];
-}
-
-/** Load Pi's built-in OpenRouter list into the memo. Safe to call repeatedly. */
-export async function warmBuiltinOpenRouterModels(): Promise<ORModel[]> {
-  if (builtinMemo) return builtinMemo;
-  try {
-    const runtime = await piRuntime();
-    builtinMemo = runtime
-      .getModels("openrouter")
-      .filter((m) => !!m.cost)
-      .map((m) => ({
-        id: m.id,
-        name: m.name ?? m.id,
-        contextWindow: m.contextWindow ?? 200_000,
-        cost: m.cost,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  } catch {
-    builtinMemo = [];
-  }
-  return builtinMemo;
+  return piCatalog("openrouter")
+    .map(({ provider: _p, ...m }) => m)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function readDiskCache(): ORModel[] | null {

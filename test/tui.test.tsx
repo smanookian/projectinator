@@ -10,7 +10,7 @@ import { Kanban, type BoardTask } from "../src/tui/Kanban.js";
 import { BoardEditor } from "../src/tui/BoardEditor.js";
 import { Team, Standup, ListView } from "../src/tui/panels.js";
 import { roleGlyph } from "../src/tui/icons.js";
-import { EditableBoard } from "../src/tui/EditableBoard.js";
+import { ProjectBoard } from "../src/tui/ProjectBoard.js";
 import { validateKey } from "../src/tui/validate.js";
 import { TEMPLATES } from "../src/tui/templates.js";
 import { exportProject } from "../src/tui/engine.js";
@@ -31,10 +31,41 @@ describe("TUI renders", () => {
   it("shows the wordmark on the setup screen", () => {
     const { lastFrame, unmount } = render(<App />);
     const frame = lastFrame() ?? "";
-    expect(frame).toContain("PROJECTINATOR");
+    expect(frame).toContain("Projectinator");
     // Either ready (has a key) or the no-key guidance — both are valid first frames.
     expect(/Ready|No API key/.test(frame)).toBe(true);
     unmount();
+  });
+});
+
+describe("single-key shortcuts", () => {
+  it("? opens the key help, / finds a project, t opens themes — and Esc returns to the page", async () => {
+    const prevKey = process.env.OPENROUTER_API_KEY;
+    process.env.OPENROUTER_API_KEY ||= "test";
+    const { lastFrame, stdin, unmount } = render(<App />);
+    const k = async (s: string) => { stdin.write(s); await new Promise((r) => setTimeout(r, 60)); };
+    try {
+      await k("");
+      await k("\r"); // "Start a build" → Home
+      expect(lastFrame()).toContain("What would you like to do?");
+      await k("?");
+      expect(lastFrame()).toContain("▾ Board");
+      await k("\u001b");
+      expect(lastFrame()).not.toContain("▾ Board");
+      await k("/");
+      expect(lastFrame()).toContain("Find a project");
+      await k("\u001b");
+      expect(lastFrame()).not.toContain("Find a project");
+      await k("t");
+      expect(lastFrame()).toContain("Appearance — theme");
+      await k("\u001b"); // straight back to Home, not to the Settings menu
+      expect(lastFrame()).not.toContain("Appearance — theme");
+      expect(lastFrame()).not.toContain("▾ Models & providers");
+      expect(lastFrame()).toContain("What would you like to do?");
+    } finally {
+      unmount();
+      if (prevKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    }
   });
 });
 
@@ -126,7 +157,7 @@ describe("project helpers", () => {
 
 describe("settings + scope", () => {
   it("Settings menu renders its options", () => {
-    const { lastFrame, unmount } = render(<Settings onExit={() => {}} />);
+    const { lastFrame, unmount } = render(<Settings onExit={() => {}} onCheckUpdates={() => {}} onNewerModels={() => {}} />);
     const frame = lastFrame() ?? "";
     expect(frame).toContain("Settings");
     expect(frame).toContain("API keys");
@@ -157,10 +188,10 @@ describe("Kanban board", () => {
   it("renders four columns with correct counts", () => {
     const { lastFrame, unmount } = render(<Kanban tasks={board} />);
     const frame = lastFrame() ?? "";
-    expect(frame).toContain("BACKLOG");
-    expect(frame).toContain("NOT STARTED");
-    expect(frame).toContain("IN PROGRESS");
-    expect(frame).toContain("DONE");
+    expect(frame).toContain("Backlog");
+    expect(frame).toContain("Not started");
+    expect(frame).toContain("In progress");
+    expect(frame).toContain("Done");
     // a done task, a running task, a ready task and a blocked task all appear
     expect(frame).toContain("design it");
     expect(frame).toContain("build it");
@@ -226,50 +257,74 @@ describe("validateKey", () => {
   });
 });
 
-describe("EditableBoard", () => {
-  const tasks: Task[] = [
+describe("ProjectBoard (edit on the board)", () => {
+  const initial: Task[] = [
     { id: "T-1", title: "done work", capability: "design", difficulty: "low", epic: "Hero", dependsOn: [], estTokens: { input: 1, output: 1 } },
     { id: "T-2", title: "todo work", capability: "code", difficulty: "low", epic: "Hero", dependsOn: [], estTokens: { input: 1, output: 1 } },
   ];
-  it("renders tasks grouped by epic and marks done ones", () => {
-    const { lastFrame, unmount } = render(<EditableBoard tasks={tasks} doneIds={new Set(["T-1"])} onSave={() => {}} onCancel={() => {}} />);
+  const doneIds = new Set(["T-1"]);
+  /** Holds the task list like the app does (every change saves and re-renders). */
+  function mount() {
+    const saved: { tasks: Task[] } = { tasks: initial };
+    function Harness(): React.ReactElement {
+      const [tasks, setTasks] = React.useState(initial);
+      const view: BoardTask[] = tasks.map((t) => ({ ...t, status: doneIds.has(t.id) ? "done" : "pending" }));
+      return <ProjectBoard tasks={tasks} view={view} doneIds={doneIds} maxPerCol={5}
+        onChange={(t) => { saved.tasks = t; setTasks(t); }} onBack={() => {}} onTyping={() => {}} />;
+    }
+    const r = render(<Harness />);
+    const k = async (s: string) => { r.stdin.write(s); await new Promise((res) => setTimeout(res, 30)); };
+    return { ...r, k, saved };
+  }
+
+  it("shows the board with the selected card's details underneath", async () => {
+    const { lastFrame, k, unmount } = mount();
+    await k("");
     const f = lastFrame() ?? "";
-    expect(f).toContain("Edit board");
+    expect(f).toContain("Done · 1");
+    expect(f).toContain("Not started · 1");
+    expect(f).toContain("T-2 · todo work"); // first card in board order is selected
     expect(f).toContain("Hero");
-    expect(f).toContain("done work");
-    expect(f).toContain("✓");
     unmount();
   });
-  it("enter saves the task list", async () => {
-    let saved: Task[] | null = null;
-    const { stdin, unmount } = render(<EditableBoard tasks={tasks} doneIds={new Set()} onSave={(t) => { saved = t; }} onCancel={() => {}} />);
-    stdin.write("\r");
-    await new Promise((r) => setTimeout(r, 20));
-    expect(saved).not.toBeNull();
-    expect(saved!.map((t) => t.id)).toEqual(["T-1", "T-2"]);
-    unmount();
-  });
-  it("blocks deleting a built (done) task", async () => {
-    let saved: Task[] | null = null;
-    const { lastFrame, stdin, unmount } = render(<EditableBoard tasks={tasks} doneIds={new Set(["T-1"])} onSave={(t) => { saved = t; }} onCancel={() => {}} />);
-    stdin.write("d"); // cursor on T-1 (done) -> should warn, not delete
-    await new Promise((r) => setTimeout(r, 20));
+
+  it("locks a built task: delete is refused, the task stays", async () => {
+    const { lastFrame, k, saved, unmount } = mount();
+    await k("l"); // → Done column (T-1, built)
+    expect(lastFrame() ?? "").toContain("T-1 · done work");
+    await k("d");
     expect(lastFrame() ?? "").toMatch(/already built/i);
-    stdin.write("\r");
-    await new Promise((r) => setTimeout(r, 20));
-    expect(saved!.map((t) => t.id)).toContain("T-1");
+    expect(saved.tasks.map((t) => t.id)).toEqual(["T-1", "T-2"]);
     unmount();
   });
-  it("n annotates a task — even a built one — and the note survives save", async () => {
-    let saved: Task[] | null = null;
-    const { lastFrame, stdin, unmount } = render(<EditableBoard tasks={tasks} doneIds={new Set(["T-1"])} onSave={(t) => { saved = t; }} onCancel={() => {}} />);
-    const k = (s: string) => { stdin.write(s); return new Promise((r) => setTimeout(r, 20)); };
-    await k("n"); // cursor on T-1 (done): notes are allowed
+
+  it("n annotates even a built task and saves it at once", async () => {
+    const { lastFrame, k, saved, unmount } = mount();
+    await k("l");
+    await k("n");
     await k("ship by friday");
     await k("\r");
+    expect(saved.tasks.find((t) => t.id === "T-1")?.notes).toBe("ship by friday");
     expect(lastFrame() ?? "").toContain("✎ ship by friday");
+    unmount();
+  });
+
+  it("edits a title in place, adds a task, and deletes only after y", async () => {
+    const { k, saved, unmount } = mount();
+    await k("e");
+    await k(" now");
     await k("\r");
-    expect(saved!.find((t) => t.id === "T-1")?.notes).toBe("ship by friday");
+    expect(saved.tasks.find((t) => t.id === "T-2")?.title).toBe("todo work now");
+    await k("a");
+    await k("write docs");
+    await k("\r");
+    expect(saved.tasks.map((t) => t.title)).toContain("write docs");
+    await k("d");
+    await k("n"); // anything but y keeps it
+    expect(saved.tasks.map((t) => t.title)).toContain("write docs");
+    await k("d");
+    await k("y");
+    expect(saved.tasks.map((t) => t.title)).not.toContain("write docs");
     unmount();
   });
 });

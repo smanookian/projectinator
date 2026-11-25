@@ -75,7 +75,8 @@ The brief the planner sees is composed **purely** from state:
 | `deploy.ts` | Cloudflare/Vercel/Netlify via their CLI; staging dir |
 | `templates.ts` | built-in + user templates; save/export/import |
 | `config.ts` | `~/.projectinator/config.json` (0600), prefs getters/setters |
-| `Kanban/BoardEditor/EditableBoard/panels/theme/theme-context/icons/notify/validate` | board, editing, standup, dark/light themes + live `C` proxy, role icons, notifications |
+| `Kanban/TaskBoard/ProjectBoard/BoardEditor/panels/Sidebar/Help/Find/theme/theme-context/icons/notify/validate` | column panes; selectable board + details pane (live build); in-place board editing (project); plan board; standup; sidebar nav; `?` key list; `/` project search; family themes (Musinator palettes + contrast fixes, match-omarchy with a live file watch) + live `C` proxy; role icons; notifications |
+| `Frame.tsx` | AppFrame: sidebar + main pane (≥110 cols), floating dialog for `DIALOG_PHASES`, status bar. `InputActive` context makes the page behind a dialog (or behind a focused sidebar) inert; `Framed` makes panels inside a dialog/pane borderless |
 
 ## Running & developing
 
@@ -98,11 +99,12 @@ npm run typecheck         # tsc --noEmit — run this after every change
 
 ### Gotchas (hard-won)
 
-- **typebox pinned to Pi's bundled version** (`1.3.7` for pi-coding-agent 0.85.1) or `TSchema` types diverge.
+- **typebox pinned to Pi's bundled version** (`1.3.27` for pi-coding-agent 1.6.1) or `TSchema` types diverge.
 - **Model ids + prices must match Pi's catalog exactly** — `test/executor.test.ts` resolves every
   `models.ts` entry through `ModelRuntime` and pins input/output rates. Upgrading Pi = rerun it,
   then copy any repriced rows. Pi's catalog lives at
-  `node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/models.generated.js`.
+  `node_modules/@earendil-works/pi-ai/dist/models.generated.js`. Models not in `models.ts` are
+  priced from that catalog at runtime (`warmPiCatalog`), so a newer model works without a row.
 - Sessions are created with `modelRuntime: await piRuntime()` (`executor.ts`); Pi ≥ 0.85 removed
   `AuthStorage`/`ModelRegistry` from the SDK. The runtime is built per call so a key saved in
   Settings applies to the next session.

@@ -1,10 +1,10 @@
-// The persistent app frame: content on top, a status bar pinned to the bottom
-// of the viewport on every screen — so the chrome stops jumping between phases.
-// (Phase 1 of the TUI redesign; header still lives inside each screen.)
+// The persistent app frame, in the same look family as Musinator / Todonator / Calinator:
+// screen content on top, one filled status bar pinned to the bottom of the viewport on every
+// screen — app state on the left, the current screen's keys on the right.
 
 import React from "react";
 import { Box, Text } from "ink";
-import { C, useTermRows, useTermCols } from "./components.js";
+import { C, useTermRows, useTermCols, InputActive, Framed } from "./components.js";
 import { sessionCost } from "../session-cost.js";
 import { getPrefs } from "./config.js";
 
@@ -17,13 +17,18 @@ function truncate(s: string, n: number): string {
 // screen-specific key set (the board editors) keep their own legend as well.
 const NAV = "↑↓ pick · Enter confirm · Esc back";
 const TYPING = "Enter confirm · Esc back";
-const PAGER = "↑↓ / PgUp PgDn scroll · Esc back";
+const PAGER = "↑↓ j k / PgUp PgDn scroll · Esc back";
 
 const PHASE_HINTS: Record<string, string> = {
   setup: NAV, home: NAV, projects: NAV, projectActions: NAV, settings: NAV,
   templates: NAV, myTemplates: NAV, tplActions: NAV, importTemplate: TYPING,
   exportMenu: NAV, deployMenu: NAV, filterEpic: NAV, confirmDelete: NAV, publish: NAV,
-  planMode: NAV, approveEpics: NAV, plan: NAV, kanban: NAV, stack: NAV, bakeoff: NAV,
+  planMode: NAV, approveEpics: NAV, plan: NAV, stack: NAV, bakeoff: NAV,
+  kanban: "←→↑↓ pick a card · e edit · a add · d delete · Esc back",
+  find: "type to search · ↑↓ pick · Enter open · Esc close",
+  models: "↑↓ pick · Enter switch · s skip · Esc later",
+  update: "Enter install · s skip · r restart · Esc later",
+  updateAsk: "y yes · n no",
   retro: NAV, history: NAV, transcripts: NAV, done: NAV, error: NAV, preview: NAV,
   burndown: "←/→ sprint · Esc back",
   idea: TYPING, change: TYPING, rename: TYPING, addAsset: TYPING, setCap: TYPING,
@@ -31,8 +36,7 @@ const PHASE_HINTS: Record<string, string> = {
   transcript: `${PAGER} · ←/→ next run · 1-9 open a screenshot`,
   diff: PAGER,
   board: "↑↓ pick · Enter build · Esc back · legend below",
-  editBoard: "↑↓ pick · Enter save · Esc back · legend below",
-  building: "p pause · a add a task · r remove · x stop",
+  building: "p pause · a add · r remove · x stop · ←→↑↓ pick a card",
 };
 
 /** A short, human label for the current phase — shown faintly in the status bar. */
@@ -62,7 +66,10 @@ const PHASE_LABEL: Record<string, string> = {
   planning: "Planning",
   plan: "Plan",
   board: "Plan board",
-  editBoard: "Edit board",
+  find: "Find",
+  models: "Newer models",
+  update: "Update",
+  updateAsk: "Updates",
   kanban: "Board",
   building: "Building",
   done: "Done",
@@ -79,95 +86,141 @@ const PHASE_LABEL: Record<string, string> = {
   publish: "Publish",
 };
 
-/** Slim top bar (OpenCode-style header): brand ▌ + project · phase on the left,
- *  a faint tagline on the right, with a subtle rule underneath. Full width. */
-export function TopBar({
+/** Bottom status bar: app · project · screen and the session cost on the left, then any notices
+ *  in the accent ("v0.29.0 available: U"), the current screen's keys on the right. One filled
+ *  row, full width. `sidebar` switches the keys to the sidebar's while it has focus, or adds the
+ *  `tab` hint when it can take focus. */
+export function StatusBar({
   projectName,
   phase,
+  sidebar,
+  notices = [],
 }: {
   projectName?: string;
   phase?: string;
+  sidebar?: "focused" | "available";
+  notices?: string[];
 }): React.ReactElement {
-  const cols = useTermCols();
-  const label = phase ? PHASE_LABEL[phase] ?? phase : undefined;
-  return (
-    <Box
-      width={cols}
-      borderStyle="single"
-      borderColor={C.borderSubtle}
-      borderBottom
-      borderTop={false}
-      borderLeft={false}
-      borderRight={false}
-      paddingX={1}
-      justifyContent="space-between"
-    >
-      <Box>
-        <Text color={C.accent} bold>▌ PROJECTINATOR</Text>
-        {projectName ? <Text color={C.textMuted}>{`   ${truncate(projectName, Math.max(12, Math.floor(cols * 0.4)))}`}</Text> : null}
-        {label ? <Text color={C.textSubtle}>{`   ·  ${label}`}</Text> : null}
-      </Box>
-      <Box><Text color={C.textSubtle}>your AI build team</Text></Box>
-    </Box>
-  );
-}
-
-/** Bottom status bar: the current screen's keys on the left, session cost + budget cap on
- *  the right, with a subtle rule on top. Full width. */
-export function StatusBar({ phase }: { phase?: string }): React.ReactElement {
   const cols = useTermCols();
   const spent = sessionCost();
   const cap = getPrefs().budgetCapUSD;
   const overHalf = spent >= cap / 2;
+  const label = phase ? PHASE_LABEL[phase] ?? phase : undefined;
+  // The screen's own keys come first and the generic ones last, so a narrow bar (or one with
+  // notices) cuts "? help · q quit" rather than the keys you need here.
+  const keys = sidebar === "focused"
+    ? "↑↓ move · Enter open · tab/Esc back · q quit"
+    : `${phase && PHASE_HINTS[phase] ? `${PHASE_HINTS[phase]} · ` : ""}${sidebar === "available" ? "tab sidebar · " : ""}? help · q quit`;
   return (
-    <Box
-      width={cols}
-      borderStyle="single"
-      borderColor={C.borderSubtle}
-      borderTop
-      borderBottom={false}
-      borderLeft={false}
-      borderRight={false}
-      paddingX={1}
-      justifyContent="space-between"
-    >
-      <Box flexShrink={1}>
-        <Text color={C.textSubtle} wrap="truncate-end">
-          {`${phase && PHASE_HINTS[phase] ? `${PHASE_HINTS[phase]} · ` : ""}q quit`}
-        </Text>
+    <Box width={cols} backgroundColor={C.statusBar} paddingX={1} justifyContent="space-between" flexShrink={0}>
+      <Box flexShrink={0}>
+        <Text color={C.accent}>● </Text>
+        <Text color={C.text} bold>Projectinator</Text>
+        {projectName ? <Text color={C.text}>{` · ${truncate(projectName, Math.max(12, Math.floor(cols * 0.25)))}`}</Text> : null}
+        {label ? <Text color={C.textMuted}>{` · ${label}`}</Text> : null}
+        <Text color={C.textMuted}> · </Text>
+        <Text color={overHalf ? C.warn : C.text}>{`$${spent.toFixed(2)}`}</Text>
+        <Text color={C.textMuted}>{` of $${cap}`}</Text>
       </Box>
-      <Box>
-        <Text color={C.textSubtle}>session </Text>
-        <Text color={overHalf ? C.warn : C.accent} bold>{`$${spent.toFixed(2)}`}</Text>
-        <Text color={C.textSubtle}>{`  ·  cap $${cap}`}</Text>
+      {notices.length ? (
+        <Box flexShrink={0} marginLeft={2}>
+          <Text color={C.accent} bold>{notices.join(" · ")}</Text>
+        </Box>
+      ) : null}
+      <Box flexShrink={1} marginLeft={2}>
+        <Text color={C.textMuted} wrap="truncate-end">{keys}</Text>
       </Box>
     </Box>
   );
 }
 
-/** Wraps every screen in the persistent frame: slim top bar, the screen content
- *  (padded, growing to fill the viewport), and the status bar pinned at the
- *  bottom edge. Replaces the old per-screen boxed Header. */
+/** A floating dialog over everything, like Musinator's Settings: accent rounded border on the
+ *  dialog fill, a soft drop shadow one row down and two columns right, centred on the screen. */
+function Dialog({ children }: { children: React.ReactNode }): React.ReactElement {
+  const rows = useTermRows();
+  const cols = useTermCols();
+  const width = Math.min(cols - 6, 104);
+  return (
+    <Box position="absolute" top={1} left={Math.max(0, Math.floor((cols - width - 2) / 2))} flexDirection="column">
+      <Box>
+        <Box width={width} maxHeight={rows - 4} flexDirection="column" overflow="hidden"
+          borderStyle="round" borderColor={C.accent} backgroundColor={C.dialogBg} paddingX={2} paddingY={1}>
+          <Framed.Provider value={true}>{children}</Framed.Provider>
+        </Box>
+        <Box width={2} marginTop={1} backgroundColor={C.shadow} />
+      </Box>
+      <Box marginLeft={2} width={width} height={1} backgroundColor={C.shadow} />
+    </Box>
+  );
+}
+
+/** Wraps every screen in the persistent frame: the status bar pinned at the bottom edge, and —
+ *  for wizard steps and Settings — a floating dialog over everything. On wide terminals the
+ *  sidebar sits on the left and the page lives in a main pane beside it (title bar = the
+ *  page; accent while the page owns the keyboard); narrow terminals get the bare page. */
 export function AppFrame({
   children,
   projectName,
   phase,
+  pagePhase,
+  pageProject,
+  sidebar,
+  sidebarFocused,
+  dialog,
+  notices,
 }: {
   children: React.ReactNode;
   projectName?: string;
   phase?: string;
+  /** The phase drawn as the page (differs from `phase` while a dialog is open). */
+  pagePhase?: string;
+  /** The project the page belongs to, for the main pane's title. */
+  pageProject?: string;
+  /** The nav pane; omitted on narrow terminals. */
+  sidebar?: React.ReactNode;
+  sidebarFocused?: boolean;
+  /** When set, the page behind is inert and this floats on top. */
+  dialog?: React.ReactNode;
+  /** Short "something newer is out" lines for the status bar. */
+  notices?: string[];
 }): React.ReactElement {
   const rows = useTermRows();
+  const pageActive = !dialog && !sidebarFocused;
+  const label = pagePhase ? PHASE_LABEL[pagePhase] ?? pagePhase : "";
+  const page = (
+    <InputActive.Provider value={pageActive}>
+      <Box flexDirection="column" flexShrink={0}>{children}</Box>
+    </InputActive.Provider>
+  );
   return (
     // Fixed height + overflow hidden so overly-tall content clips at the bottom
-    // instead of pushing the frame past the viewport (which would scroll the top
-    // bar off and unpin the status bar).
+    // instead of pushing the frame past the viewport (which would unpin the status bar).
     <Box flexDirection="column" height={rows} overflow="hidden" backgroundColor={C.bg}>
-      <TopBar projectName={projectName} phase={phase} />
-      <Box flexGrow={1} flexDirection="column" paddingX={1} paddingTop={1} overflow="hidden">
-        <Box flexDirection="column" flexShrink={0}>{children}</Box>
-      </Box>
-      <StatusBar phase={phase} />
+      {sidebar ? (
+        <Box flexGrow={1} overflow="hidden" paddingX={1} columnGap={1}>
+          {sidebar}
+          <Box flexGrow={1} flexShrink={1} flexDirection="column" overflow="hidden"
+            borderStyle="round" borderColor={pageActive ? C.borderActive : C.border}>
+            <Box backgroundColor={pageActive ? C.accent : C.titleBar} paddingX={1} flexShrink={0}>
+              <Text bold color={pageActive ? C.onAccent : C.text} wrap="truncate-end">
+                {pageProject ? `${pageProject} · ${label}` : label}
+              </Text>
+            </Box>
+            <Box flexGrow={1} flexDirection="column" paddingX={1} overflow="hidden">
+              <Framed.Provider value={true}>{page}</Framed.Provider>
+            </Box>
+          </Box>
+        </Box>
+      ) : (
+        <Box flexGrow={1} flexDirection="column" paddingX={1} overflow="hidden">{page}</Box>
+      )}
+      <StatusBar
+        projectName={projectName}
+        phase={phase}
+        sidebar={!sidebar || dialog ? undefined : sidebarFocused ? "focused" : "available"}
+        notices={notices}
+      />
+      {dialog ? <Dialog>{dialog}</Dialog> : null}
     </Box>
   );
 }
