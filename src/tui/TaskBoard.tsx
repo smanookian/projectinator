@@ -1,13 +1,13 @@
 // The interactive board: the four column panes with a selected card, and the task details
 // pane under them (as in Todonator's kanban). ←→/h l move between columns, ↑↓/j k within one,
-// g/G jump to the top/bottom. Used live during a build (read-only) and as the project board,
-// where ProjectBoard.tsx adds the edit keys and puts its prompts in the details pane.
+// g/G jump to the top/bottom. Used live during a build (read-only), and as the project and plan
+// boards, where EditBoard.tsx adds the edit keys and puts its prompts in the details pane.
 
 import React, { useEffect } from "react";
 import { Box, Text, useInput } from "ink";
 import { C, ROLE_META, useInputActive } from "./components.js";
 import { roleGlyph } from "./icons.js";
-import { Kanban, COLUMNS, byColumn, clock, firstCard, type BoardTask } from "./Kanban.js";
+import { Kanban, COLUMNS, byColumn, clock, firstCard, type BoardTask, type Col } from "./Kanban.js";
 
 /** Rows the details pane takes (border 2 + title bar 1 + 4 field rows + 1 prompt row). */
 export const DETAILS_ROWS = 8;
@@ -56,7 +56,9 @@ export function TaskDetails({
   );
   const t = task;
   const deps = t?.dependsOn ?? [];
-  const status = !t ? "" : t.status === "running"
+  const status = !t ? "" : t.column === "backlog" ? "in the backlog (> moves it to Ready)"
+    : t.column === "notStarted" ? "ready to build"
+    : t.status === "running"
     ? `running${t.elapsedSec !== undefined ? ` ${clock(t.elapsedSec)}` : ""}${t.stuck ? " · slow" : ""}`
     : t.status === "done" ? "done" : t.status === "failed" ? "failed" : t.status === "skipped" ? "skipped"
     : deps.every((d) => doneIds.has(d)) ? "ready" : `blocked by ${deps.filter((d) => !doneIds.has(d)).join(", ")}`;
@@ -101,6 +103,7 @@ export function TaskBoard({
   hints,
   prompt,
   navDisabled,
+  labels,
 }: {
   tasks: BoardTask[];
   selectedId: string | undefined;
@@ -110,6 +113,7 @@ export function TaskBoard({
   hints?: string;
   prompt?: React.ReactNode;
   navDisabled?: boolean;
+  labels?: Partial<Record<Col, string>>;
 }): React.ReactElement {
   const active = useInputActive();
   const current = tasks.find((t) => t.id === selectedId);
@@ -129,7 +133,7 @@ export function TaskBoard({
     // flexGrow + default shrink: callers place this in a row Box, where a fixed-size child
     // would take its content width (long titles) and run past the pane.
     <Box flexDirection="column" flexGrow={1}>
-      <Kanban tasks={tasks} maxPerCol={maxPerCol} selectedId={current?.id ?? ""} />
+      <Kanban tasks={tasks} maxPerCol={maxPerCol} selectedId={current?.id ?? ""} labels={labels} />
       {showDetails ? <TaskDetails task={current} doneIds={doneIds} hints={hints} prompt={prompt} /> : null}
     </Box>
   );

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.29.4 — 2026-11-25
+
+### Changed
+- **The plan board uses the same board as a project.** Before a build, the PM's tasks are cards in
+  column panes with the details pane underneath, edited with the same keys (`e` `a` `d` `n` `E` `D`
+  `c` `f` `K`/`J`). Cards start in Backlog; `>` moves one to Ready, `<` back, `A`/`Z` move them all;
+  Enter or `b` builds what's in Ready; `B` asks the PM to break the card's epic down. The old
+  epic swimlanes and their `1-9` collapse keys are gone, and so are `[`/`]` (now `K`/`J`) and
+  `g` for epic (now `E`).
+- The `?` key list balances its two columns by height and has a "Plan board" group.
+
 ## 0.29.3 — 2026-11-25
 
 ### Fixed

@@ -12,7 +12,7 @@ import { C, BudgetBar, Panel, Chip, SelRow, Menu as SelectInput, GroupedMenu, us
 import { roleGlyph } from "./icons.js";
 import { type BoardTask } from "./Kanban.js";
 import { TaskBoard, DETAILS_ROWS } from "./TaskBoard.js";
-import { ProjectBoard } from "./ProjectBoard.js";
+import { EditBoard } from "./EditBoard.js";
 import { Help } from "./Help.js";
 import { Quit } from "./Quit.js";
 import { Find } from "./Find.js";
@@ -22,7 +22,7 @@ import { currentVersion, isSkipped, requestRestart, takeDue } from "../update.js
 import { warmPiCatalog } from "../pi-catalog.js";
 import { openRouterCacheAge, refreshOpenRouterModels } from "../openrouter.js";
 import type { ModelUpgrade } from "../model-updates.js";
-import { BoardEditor } from "./BoardEditor.js";
+import { PlanBoard } from "./PlanBoard.js";
 import { Team, Standup, ListView } from "./panels.js";
 import { AppFrame } from "./Frame.js";
 import { Sidebar, SIDEBAR_WIDTH, type NavGroup } from "./Sidebar.js";
@@ -327,7 +327,7 @@ export default function App(): React.ReactElement {
     phase === "idea" || phase === "change" || phase === "addAsset" || phase === "rename" || phase === "importProject" ||
     phase === "bakeoff" || phase === "intake" || phase === "setCap" || phase === "stack" ||
     phase === "saveTemplate" || phase === "importTemplate" || phase === "settings" ||
-    phase === "board" || phase === "find" || (phase === "kanban" && boardTyping) || (phase === "building" && steer !== null);
+    phase === "find" || ((phase === "kanban" || phase === "board") && boardTyping) || (phase === "building" && steer !== null);
   // Single-key jumps (N, /, P, H, t, S) work on pages — not mid-build, not in a dialog, not
   // while a text field has the keyboard.
   const jumps = !!NAV_PHASES[phase] && !typing;
@@ -1280,7 +1280,7 @@ export default function App(): React.ReactElement {
         <Box marginTop={1} flexDirection="column">
           {/* Non-card rows: status bar 1, title 1, gap + standup 2, gap 1, board panes 3,
               details pane. */}
-          <ProjectBoard
+          <EditBoard
             tasks={selected.state.tasks}
             view={tasks}
             doneIds={done}
@@ -1289,7 +1289,13 @@ export default function App(): React.ReactElement {
               saveProjectTasks(selected.dir, next);
               reselect(selected.dir);
             }}
-            onBuild={canBuild ? () => projectAction({ label: "", value: "resume" }) : undefined}
+            footer="n note · E epic · D depends · c role · f difficulty · K/J move · b build · ? all keys"
+            onKey={(input) => {
+              if (input !== "b") return false;
+              if (!canBuild) return "Everything on this board is built. Add a task with a.";
+              projectAction({ label: "", value: "resume" });
+              return true;
+            }}
             onBack={() => { setBoardTyping(false); setPhase("projectActions"); }}
             onTyping={setBoardTyping}
           />
@@ -2169,12 +2175,15 @@ export default function App(): React.ReactElement {
       setPhase(mode === "approval" ? "building" : "plan");
     };
     return (
-      <Box flexDirection="column">
-        <BoardEditor
+      <Box flexDirection="column" flexGrow={1}>
+        {/* Non-card rows: status bar 1, header 1 + gap 1, board panes 3, details pane. */}
+        <PlanBoard
           tasks={plan.tasks}
-          onDone={commit}
-          onCancel={() => setPhase("plan")}
+          maxPerCol={Math.max(3, termRows - 6 - DETAILS_ROWS)}
+          onDone={(t) => { setBoardTyping(false); commit(t); }}
+          onCancel={() => { setBoardTyping(false); setPhase("plan"); }}
           onBreakdown={(epic, current) => breakdownEpic(epic, current, providers, targetWorkspace)}
+          onTyping={setBoardTyping}
         />
       </Box>
     );

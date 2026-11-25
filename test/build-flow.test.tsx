@@ -182,27 +182,25 @@ describe("build flow screens", () => {
   }, 30_000);
 });
 
-describe("board editor on a short terminal", () => {
-  it("renders its columns, cards and legend without merging rows", async () => {
+describe("plan board on a short terminal", () => {
+  it("renders its column panes, every card and the details pane without merging rows", async () => {
     planState.tasks = BIG;
     try {
       const app = await toPlanScreen();
       try {
         await app.pick("Plan the sprint on the board");
-        await until(() => app.frame().includes("BACKLOG"), app.frame);
+        await until(() => app.frame().includes("Backlog ·"), app.frame);
         const f = app.frame();
-        // column headers, an epic lane and card titles must all arrive intact
-        expect(f).toContain("BACKLOG");
-        expect(f).toContain("READY");
-        expect(f, "epic lane header garbled").toMatch(/[▾▸] 1/);
-        // Columns sit side by side, so a title is never at end of line — but it must be
-        // followed by whitespace. When rows merged, "Contact form" rendered as "Contact formw",
-        // which a plain toContain() happily accepts.
+        expect(f).toContain(`Backlog · ${BIG.length}`);
+        expect(f).toContain("Ready · 0");
+        // Every card is on the board (titles may truncate with "…" in a narrow column, but a
+        // title or id must never run into other text — that's what merged rows looked like).
         for (const t of BIG) {
-          expect(f, `card title garbled (text ran into it): ${t.title}`).toMatch(new RegExp(`${t.title}(?!\\S)`));
+          expect(f, `card missing: ${t.id}`).toMatch(new RegExp(`${t.id}(?!\\S)`));
+          if (f.includes(t.title)) expect(f, `card title garbled: ${t.title}`).toMatch(new RegExp(`${t.title}(?!\\S)`));
         }
-        // the legend is a wrapping row of bordered keycaps; it must not eat the board
-        expect(f, "the legend is garbled — rows overlapped").toContain("collapse");
+        // the details pane (selected card + its keys) shares the screen intact
+        expect(f, "the details pane is garbled — rows overlapped").toContain("e edit · a add · d delete");
         expect(f.split("\n").length, "frame grew past the viewport").toBeLessThanOrEqual(24);
       } finally { app.unmount(); }
     } finally { planState.tasks = TASKS; }

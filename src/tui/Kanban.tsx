@@ -26,6 +26,8 @@ export interface BoardTask {
   /** For running tasks: seconds since it started, and whether it's over its expected time. */
   elapsedSec?: number;
   stuck?: boolean;
+  /** Put the card in this column regardless of status (the plan board's Backlog / Ready). */
+  column?: Col;
 }
 
 export type Col = "backlog" | "notStarted" | "inProgress" | "done";
@@ -38,6 +40,7 @@ export const COLUMNS: { key: Col; label: string }[] = [
 ];
 
 export function columnOf(t: BoardTask, done: Set<string>): Col {
+  if (t.column) return t.column;
   if (t.status === "done" || t.status === "skipped") return "done";
   if (t.status === "running" || t.status === "failed") return "inProgress";
   const ready = (t.dependsOn ?? []).every((d) => done.has(d));
@@ -110,11 +113,14 @@ export function Kanban({
   tasks,
   maxPerCol,
   selectedId,
+  labels,
 }: {
   tasks: BoardTask[];
   maxPerCol?: number;
   /** The selected card, when the board is interactive. */
   selectedId?: string;
+  /** Column names other than the defaults (the plan board calls Not started "Ready"). */
+  labels?: Partial<Record<Col, string>>;
 }): React.ReactElement {
   const active = useInputActive();
   const cols = byColumn(tasks);
@@ -138,7 +144,7 @@ export function Kanban({
           <Box key={col.key} flexDirection="column" flexBasis={0} flexGrow={1} marginLeft={i ? 1 : 0} overflow="hidden"
             borderStyle="round" borderColor={lit ? C.borderActive : C.border}>
             <Box backgroundColor={lit ? C.accent : C.titleBar} paddingX={1}>
-              <Text bold color={lit ? C.onAccent : C.text} wrap="truncate-end">{`${col.label} · ${list.length}`}</Text>
+              <Text bold color={lit ? C.onAccent : C.text} wrap="truncate-end">{`${labels?.[col.key] ?? col.label} · ${list.length}`}</Text>
             </Box>
             <Box flexDirection="column" paddingX={interactive ? 0 : 1} paddingRight={1}>
               {list.length === 0 ? <Text color={C.dim}>{interactive ? "  ·" : "·"}</Text> : null}

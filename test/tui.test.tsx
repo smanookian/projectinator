@@ -7,10 +7,10 @@ import App from "../src/tui/App.js";
 import { availableProviders, slugify, estimateTasks, cleanDeps, projectFiles, mainFileOf, listProjects, roleAssignments, allModels, addAsset, deleteProject } from "../src/tui/engine.js";
 import { Settings } from "../src/tui/Settings.js";
 import { Kanban, type BoardTask } from "../src/tui/Kanban.js";
-import { BoardEditor } from "../src/tui/BoardEditor.js";
+import { PlanBoard } from "../src/tui/PlanBoard.js";
 import { Team, Standup, ListView } from "../src/tui/panels.js";
 import { roleGlyph } from "../src/tui/icons.js";
-import { ProjectBoard } from "../src/tui/ProjectBoard.js";
+import { EditBoard } from "../src/tui/EditBoard.js";
 import { validateKey } from "../src/tui/validate.js";
 import { TEMPLATES } from "../src/tui/templates.js";
 import { exportProject } from "../src/tui/engine.js";
@@ -49,9 +49,9 @@ describe("single-key shortcuts", () => {
       await k("\r"); // "Start a build" → Home
       expect(lastFrame()).toContain("What would you like to do?");
       await k("?");
-      expect(lastFrame()).toContain("▾ Board");
+      expect(lastFrame()).toContain("▾ Everywhere");
       await k("\u001b");
-      expect(lastFrame()).not.toContain("▾ Board");
+      expect(lastFrame()).not.toContain("▾ Everywhere");
       await k("/");
       expect(lastFrame()).toContain("Find a project");
       await k("\u001b");
@@ -262,7 +262,7 @@ describe("validateKey", () => {
   });
 });
 
-describe("ProjectBoard (edit on the board)", () => {
+describe("EditBoard (edit on the project board)", () => {
   const initial: Task[] = [
     { id: "T-1", title: "done work", capability: "design", difficulty: "low", epic: "Hero", dependsOn: [], estTokens: { input: 1, output: 1 } },
     { id: "T-2", title: "todo work", capability: "code", difficulty: "low", epic: "Hero", dependsOn: [], estTokens: { input: 1, output: 1 } },
@@ -274,7 +274,7 @@ describe("ProjectBoard (edit on the board)", () => {
     function Harness(): React.ReactElement {
       const [tasks, setTasks] = React.useState(initial);
       const view: BoardTask[] = tasks.map((t) => ({ ...t, status: doneIds.has(t.id) ? "done" : "pending" }));
-      return <ProjectBoard tasks={tasks} view={view} doneIds={doneIds} maxPerCol={5}
+      return <EditBoard tasks={tasks} view={view} doneIds={doneIds} maxPerCol={5} footer="keys"
         onChange={(t) => { saved.tasks = t; setTasks(t); }} onBack={() => {}} onTyping={() => {}} />;
     }
     const r = render(<Harness />);
@@ -365,87 +365,63 @@ describe("PM panels", () => {
   });
 });
 
-describe("BoardEditor (interactive)", () => {
+describe("PlanBoard (the plan before a build)", () => {
   const tasks: Task[] = [
     { id: "T-1", title: "plan it", capability: "plan", difficulty: "low", dependsOn: [], estTokens: { input: 1, output: 1 } },
     { id: "T-2", title: "code it", capability: "code", difficulty: "low", dependsOn: ["T-1"], estTokens: { input: 1, output: 1 } },
   ];
-  it("D sets a task's dependencies from typed ids", async () => {
-    let out: Task[] | null = null;
-    const { stdin, unmount } = render(<BoardEditor tasks={tasks} onDone={(t) => { out = t; }} onCancel={() => {}} onBreakdown={async () => []} />);
-    const k = (s: string) => { stdin.write(s); return new Promise((r) => setTimeout(r, 20)); };
-    await k("D"); // deps edit for T-1 (cursor at 0)
-    await k("T-2");
-    await k("\r");
-    await k("A"); // all ready
-    await k("\r"); // build
-    const t1 = out!.find((t) => t.id === "T-1")!;
-    expect(t1.dependsOn).toContain("T-2");
+  function mount(onDone: (t: Task[]) => void = () => {}) {
+    const r = render(<PlanBoard tasks={tasks} maxPerCol={5} onDone={onDone} onCancel={() => {}} onBreakdown={async () => []} onTyping={() => {}} />);
+    const k = async (s: string) => { r.stdin.write(s); await new Promise((res) => setTimeout(res, 30)); };
+    return { ...r, k };
+  }
+  it("starts with every card in the Backlog (Scrum-first), on the shared board", async () => {
+    const { lastFrame, k, unmount } = mount();
+    await k("");
+    const f = lastFrame() ?? "";
+    expect(f).toContain("2 in backlog, 0 ready to build");
+    expect(f).toContain("Backlog · 2");
+    expect(f).toContain("Ready · 0");
+    expect(f).toContain("T-1 · plan it"); // the details pane
     unmount();
   });
-  it("] reorders a card within its column", async () => {
-    let out: Task[] | null = null;
-    const { stdin, unmount } = render(<BoardEditor tasks={tasks} onDone={(t) => { out = t; }} onCancel={() => {}} onBreakdown={async () => []} />);
-    const k = (s: string) => { stdin.write(s); return new Promise((r) => setTimeout(r, 20)); };
-    await k("A"); // all -> ready (so both in same column)
-    await k("]"); // move T-1 down past T-2
-    await k("\r"); // build
-    expect(out!.map((t) => t.id)).toEqual(["T-2", "T-1"]);
+  it("> moves the card to Ready and < parks it again", async () => {
+    const { lastFrame, k, unmount } = mount();
+    await k(">");
+    expect(lastFrame()).toContain("1 in backlog, 1 ready to build");
+    expect(lastFrame()).toContain("ready to build"); // its status in the details pane
+    await k("<");
+    expect(lastFrame()).toContain("2 in backlog, 0 ready to build");
     unmount();
   });
-  it("starts with all tasks in the Backlog (Scrum-first)", () => {
-    const { lastFrame, unmount } = render(<BoardEditor tasks={tasks} onDone={() => {}} onCancel={() => {}} />);
-    const frame = lastFrame() ?? "";
-    expect(frame).toContain("2 in backlog, 0 ready to build");
-    expect(frame).toContain("all"); // KeyHint keycap legend: the "A → pull all into Ready" hint
-    unmount();
-  });
-  it("A pulls the whole backlog into Ready", async () => {
-    const { lastFrame, stdin, unmount } = render(<BoardEditor tasks={tasks} onDone={() => {}} onCancel={() => {}} />);
-    stdin.write("A");
-    await new Promise((r) => setTimeout(r, 30));
-    expect(lastFrame() ?? "").toContain("0 in backlog, 2 ready to build");
-    unmount();
-  });
-  it("enter with nothing in Ready warns instead of building", async () => {
+  it("Enter with nothing in Ready warns instead of building", async () => {
     let called = false;
-    const { lastFrame, stdin, unmount } = render(<BoardEditor tasks={tasks} onDone={() => { called = true; }} onCancel={() => {}} />);
-    stdin.write("\r");
-    await new Promise((r) => setTimeout(r, 20));
+    const { lastFrame, k, unmount } = mount(() => { called = true; });
+    await k("\r");
     expect(called).toBe(false);
     expect(lastFrame() ?? "").toMatch(/Nothing in Ready/i);
     unmount();
   });
-  it("A then enter builds the whole backlog", async () => {
+  it("D sets dependencies; the Enter that submits it doesn't build; A then Enter builds all", async () => {
     let out: Task[] | null = null;
-    const { stdin, unmount } = render(<BoardEditor tasks={tasks} onDone={(t) => { out = t; }} onCancel={() => {}} />);
-    stdin.write("A");
-    await new Promise((r) => setTimeout(r, 20));
-    stdin.write("\r");
-    await new Promise((r) => setTimeout(r, 20));
-    expect(out).not.toBeNull();
+    const { k, unmount } = mount((t) => { out = t; });
+    await k("A"); // everything ready — so a stray Enter would build
+    await k("D"); // T-1's dependencies
+    await k("T-2");
+    await k("\r");
+    expect(out, "submitting the prompt built the board").toBeNull();
+    await k("\r"); // now build
     expect(out!.map((t) => t.id).sort()).toEqual(["T-1", "T-2"]);
+    expect(out!.find((t) => t.id === "T-1")!.dependsOn).toContain("T-2");
     unmount();
   });
-  it("1-9 collapse/expand an epic: others stay, count shows, toggle back", async () => {
-    const multi: Task[] = [
-      { id: "T-1", title: "alpha one", capability: "code", difficulty: "low", dependsOn: [], epic: "Core", estTokens: { input: 1, output: 1 } },
-      { id: "T-2", title: "alpha two", capability: "code", difficulty: "low", dependsOn: [], epic: "Core", estTokens: { input: 1, output: 1 } },
-      { id: "T-3", title: "beta one", capability: "test", difficulty: "low", dependsOn: [], epic: "Polish", estTokens: { input: 1, output: 1 } },
-    ];
-    const { lastFrame, stdin, unmount } = render(<BoardEditor tasks={multi} onDone={() => {}} onCancel={() => {}} />);
-    await new Promise((r) => setTimeout(r, 30));
-    expect(lastFrame()).toContain("alpha one");
-    stdin.write("1"); // collapse "Core"
-    await new Promise((r) => setTimeout(r, 30));
-    const f = lastFrame() ?? "";
-    expect(f).not.toContain("alpha one");
-    expect(f).not.toContain("alpha two");
-    expect(f).toContain("beta one"); // other epic untouched
-    expect(f).toContain("2 tasks"); // collapsed count
-    stdin.write("1"); // expand again
-    await new Promise((r) => setTimeout(r, 30));
-    expect(lastFrame()).toContain("alpha one");
+  it("J moves a card down within its column", async () => {
+    let out: Task[] | null = null;
+    const { k, unmount } = mount((t) => { out = t; });
+    await k("A");
+    await k("J"); // T-1 below T-2
+    await k("\r");
+    expect(out!.map((t) => t.id)).toEqual(["T-2", "T-1"]);
     unmount();
   });
 });

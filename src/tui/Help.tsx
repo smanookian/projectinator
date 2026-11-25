@@ -4,7 +4,8 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { C, Panel } from "./components.js";
-import { BOARD_KEYS } from "./ProjectBoard.js";
+import { BOARD_KEYS } from "./EditBoard.js";
+import { PLAN_KEYS } from "./PlanBoard.js";
 
 export const KEY_GROUPS: { title: string; keys: { keys: string; label: string }[] }[] = [
   { title: "Everywhere", keys: [
@@ -29,7 +30,8 @@ export const KEY_GROUPS: { title: string; keys: { keys: string; label: string }[
     { keys: "PgUp PgDn", label: "page" },
     { keys: "Enter", label: "open" },
   ] },
-  { title: "Board", keys: BOARD_KEYS },
+  { title: "Board", keys: [...BOARD_KEYS, { keys: "b", label: "build the backlog (project board)" }] },
+  { title: "Plan board (before a build)", keys: PLAN_KEYS },
   { title: "While building", keys: [
     { keys: "←→ ↑↓ / h l j k", label: "pick a card (details below the board)" },
     { keys: "p", label: "pause / resume" },
@@ -46,8 +48,11 @@ export const KEY_GROUPS: { title: string; keys: { keys: string; label: string }[
 ];
 
 export function Help(): React.ReactElement {
-  // Two columns of groups keep it on one screen.
-  const half = Math.ceil(KEY_GROUPS.length / 2);
+  // Two columns of groups, split where the rows (heading + keys + gap) are closest to even.
+  const rows = KEY_GROUPS.map((g) => g.keys.length + 2);
+  const total = rows.reduce((a, b) => a + b, 0);
+  let half = 0;
+  for (let acc = 0; half < KEY_GROUPS.length && acc + rows[half]! / 2 < total / 2; half++) acc += rows[half]!;
   const column = (groups: typeof KEY_GROUPS) => (
     <Box flexDirection="column" flexBasis="50%" flexGrow={1}>
       {groups.map((g) => (

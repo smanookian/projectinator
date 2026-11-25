@@ -35,7 +35,7 @@ const PHASE_HINTS: Record<string, string> = {
   importProject: TYPING, saveTemplate: TYPING, intake: TYPING,
   transcript: `${PAGER} · ←/→ next run · 1-9 open a screenshot`,
   diff: PAGER,
-  board: "↑↓ pick · Enter build · Esc back · legend below",
+  board: "←→↑↓ pick · > Ready · < Backlog · Enter build · e edit · Esc back",
   building: "p pause · a add · r remove · x stop · ←→↑↓ pick a card",
 };
 

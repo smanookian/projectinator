@@ -1,13 +1,15 @@
-// A saved project's board, edited in place: pick a card on the board and change it right there
-// — the prompt opens in the details pane. Every change saves at once (`onChange`). Built (done)
-// tasks are locked except their epic and note; everything else is fair game.
+// A board you edit in place: pick a card and change it right there — the prompt opens in the
+// details pane, and every change goes out through `onChange` at once. Used for a saved
+// project's board (changes save to disk) and for the plan board before a build (changes stay in
+// the plan until you build). Built (done) tasks are locked except their epic and note.
+// Mode keys (build, move to Ready, break down an epic…) come in through `onKey`.
 
-import React, { useState } from "react";
-import { Box, Text, useInput } from "ink";
+import React, { useRef, useState } from "react";
+import { Box, Text, useInput, type Key } from "ink";
 import type { Capability, Difficulty, Task } from "../types.js";
 import { C, TextField, useInputActive } from "./components.js";
 import { TaskBoard } from "./TaskBoard.js";
-import { byColumn, columnOf, firstCard, type BoardTask } from "./Kanban.js";
+import { byColumn, columnOf, firstCard, type BoardTask, type Col } from "./Kanban.js";
 import { estimateTokens } from "../estimate.js";
 
 const CAPS: Capability[] = ["plan", "design", "code", "review", "test", "ops"];
@@ -27,7 +29,7 @@ const LABEL: Record<Prompt["kind"], string> = {
   delete: "",
 };
 
-/** The keys this board answers, for the help screen and the details pane. */
+/** The edit keys every board answers, for the help screen. */
 export const BOARD_KEYS: { keys: string; label: string }[] = [
   { keys: "←→ ↑↓ / h l j k", label: "move between cards" },
   { keys: "g / G", label: "top / bottom of column" },
@@ -39,35 +41,46 @@ export const BOARD_KEYS: { keys: string; label: string }[] = [
   { keys: "D", label: "depends on" },
   { keys: "c / f", label: "next role / next difficulty" },
   { keys: "K / J", label: "move the card up / down" },
-  { keys: "b", label: "build the backlog" },
 ];
 
-export function ProjectBoard({
+export function EditBoard({
   tasks,
   view,
-  doneIds,
+  doneIds = new Set(),
   maxPerCol,
+  labels,
+  footer,
+  notice,
   onChange,
-  onBuild,
+  onKey,
   onBack,
   onTyping,
 }: {
   tasks: Task[];
-  /** The same tasks as board cards (status, spend, model). */
+  /** The same tasks as board cards (status, column, spend, model). */
   view: BoardTask[];
-  doneIds: Set<string>;
+  /** Built tasks: locked except epic and note. */
+  doneIds?: Set<string>;
   maxPerCol: number;
+  labels?: Partial<Record<Col, string>>;
+  /** The quiet key line in the details pane when no prompt or message is showing. */
+  footer: string;
+  /** A status from the mode (e.g. "Breaking down…"), shown instead of the footer. */
+  notice?: React.ReactNode;
   onChange: (tasks: Task[]) => void;
-  /** Build what's not done yet; absent when nothing is left to build. */
-  onBuild?: () => void;
+  /** Mode keys, tried before the edit keys: true = handled, a string = handled + show it. */
+  onKey?: (input: string, key: Key, selected: Task | undefined) => boolean | string | void;
   onBack: () => void;
-  /** True while a text field has the keyboard (so the app's single-key shortcuts stay off). */
+  /** True while a prompt owns the keyboard (so the app's single-key shortcuts stay off). */
   onTyping: (typing: boolean) => void;
 }): React.ReactElement {
   const active = useInputActive();
   const [selectedId, setSelectedId] = useState<string | undefined>(() => firstCard(view));
   const [prompt, setPromptState] = useState<Prompt | null>(null);
   const [message, setMessage] = useState("");
+  // The Enter that submits a prompt also reaches this board's handler in the same keypress;
+  // without this it would run a mode key (the plan board builds on Enter).
+  const justSubmitted = useRef(false);
   const setPrompt = (p: Prompt | null) => {
     setPromptState(p);
     onTyping(p !== null); // a prompt (even the delete y/n) owns the keyboard
@@ -89,7 +102,8 @@ export function ProjectBoard({
   const reorder = (dir: -1 | 1) => {
     if (!selected) return;
     const done = new Set(view.filter((t) => t.status === "done" || t.status === "skipped").map((t) => t.id));
-    const me = view.find((t) => t.id === selected.id)!;
+    const me = view.find((t) => t.id === selected.id);
+    if (!me) return;
     const col = byColumn(view)[columnOf(me, done)];
     const neighbour = col[col.findIndex((t) => t.id === selected.id) + dir];
     if (!neighbour) return;
@@ -101,6 +115,8 @@ export function ProjectBoard({
   };
 
   const submit = (p: Prompt & { draft: string }) => {
+    justSubmitted.current = true;
+    queueMicrotask(() => { justSubmitted.current = false; });
     const text = p.draft.trim();
     if (p.kind === "add") {
       if (text) {
@@ -137,14 +153,13 @@ export function ProjectBoard({
       if (key.escape) setPrompt(null);
       return; // the text field has the keyboard
     }
+    if (justSubmitted.current) return;
     if (key.escape || key.backspace || key.delete) return onBack();
     setMessage("");
+    const handled = onKey?.(input, key, selected);
+    if (typeof handled === "string") return setMessage(handled);
+    if (handled) return;
     if (input === "a") return setPrompt({ kind: "add", draft: "" });
-    if (input === "b") {
-      if (onBuild) onBuild();
-      else setMessage("Everything on this board is built. Add a task with a.");
-      return;
-    }
     if (!selected) return;
     if (input === "K") return reorder(-1);
     if (input === "J") return reorder(1);
@@ -178,8 +193,10 @@ export function ProjectBoard({
     </Box>
   ) : message ? (
     <Text color={C.warn} wrap="truncate-end">{message}</Text>
+  ) : notice ? (
+    notice
   ) : (
-    <Text color={C.textMuted} wrap="truncate-end">n note · E epic · D depends · c role · f difficulty · K/J move · b build · ? all keys</Text>
+    <Text color={C.textMuted} wrap="truncate-end">{footer}</Text>
   );
 
   return (
@@ -188,6 +205,7 @@ export function ProjectBoard({
       selectedId={selectedId}
       onSelect={setSelectedId}
       maxPerCol={maxPerCol}
+      labels={labels}
       hints="e edit · a add · d delete"
       prompt={line}
       navDisabled={prompt !== null}
