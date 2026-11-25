@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.29.3 — 2026-11-25
+
+### Fixed
+- With the sidebar open, the board's Done column and the details pane no longer run past the
+  right edge of the page (project board and live build board).
+
+### Docs
+- New README screenshots, generated from the running app in its real colours
+  (`scripts/capture-tour.tsx` → `docs/cockpit.svg`, `docs/tour.svg`).
+
 ## 0.29.2 — 2026-11-25
 
 ### Changed
